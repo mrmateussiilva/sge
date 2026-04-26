@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Redirecionando...</title>
+</head>
+
+<body>
+  <script>
+    const path = window.location.pathname;
+    const basePath = path.endsWith("/") ? path : path.substring(0, path.lastIndexOf("/") + 1);
+    const destination = path.endsWith("/login")
+      ? `${basePath}login.html`
+      : `${basePath}index.html`;
+
+    window.location.replace(destination + window.location.hash);
+  </script>
+</body>
+
+</html>

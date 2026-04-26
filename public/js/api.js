@@ -1,5 +1,5 @@
 const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const API_BASE_URL = isLocal ? "http://127.0.0.1:8000" : "/api";
+const API_BASE_URL = window.SGE_CONFIG?.API_BASE_URL || (isLocal ? "http://127.0.0.1:8000/api" : "/api");
 
 async function request(path, options = {}) {
   const token = window.obterToken ? obterToken() : null;
@@ -17,7 +17,7 @@ async function request(path, options = {}) {
     if (window.logout) {
       logout(false);
     }
-    window.location.replace("/login");
+    window.location.replace(getLoginUrl());
     throw new Error("Sessão expirada. Faça login novamente.");
   }
 

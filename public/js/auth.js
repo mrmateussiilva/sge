@@ -1,8 +1,25 @@
 /* js/auth.js */
 const isLocalAuth = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const AUTH_API_BASE_URL = isLocalAuth ? "http://127.0.0.1:8000/api" : "/api";
+const AUTH_API_BASE_URL = window.SGE_CONFIG?.API_BASE_URL || (isLocalAuth ? "http://127.0.0.1:8000/api" : "/api");
 const TOKEN_STORAGE_KEY = "sge_access_token";
 const USER_STORAGE_KEY = "sge_usuario";
+
+function getAppBasePath() {
+  const pathname = window.location.pathname;
+  if (pathname.endsWith("/")) {
+    return pathname;
+  }
+
+  return pathname.substring(0, pathname.lastIndexOf("/") + 1);
+}
+
+function getLoginUrl() {
+  return `${getAppBasePath()}login.html`;
+}
+
+function getHomeUrl() {
+  return getAppBasePath();
+}
 
 function liberarRenderAuth() {
   document.documentElement.classList.remove("auth-pending");
@@ -37,7 +54,7 @@ function logout(redirecionar = true) {
   localStorage.removeItem(USER_STORAGE_KEY);
 
   if (redirecionar) {
-    window.location.replace("/login");
+    window.location.replace(getLoginUrl());
   }
 }
 
@@ -60,7 +77,7 @@ async function login(email, senha) {
 
 function protegerPagina() {
   if (!obterToken()) {
-    window.location.replace("/login");
+    window.location.replace(getLoginUrl());
     return false;
   }
 
@@ -78,5 +95,5 @@ function redirecionarSeAutenticado() {
     liberarRenderAuth();
     return;
   }
-  window.location.replace("/");
+  window.location.replace(getHomeUrl());
 }
