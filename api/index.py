@@ -71,7 +71,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Sistema de Estoque", 
     version="0.1.0",
-    root_path="/api" if os.getenv("VERCEL") else "",
     lifespan=lifespan
 )
 
@@ -83,11 +82,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(produtos.router)
-app.include_router(movimentacoes.router)
-app.include_router(dashboard.router)
-app.include_router(importacao_xml.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(produtos.router, prefix="/api")
+app.include_router(movimentacoes.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(importacao_xml.router, prefix="/api")
 
 @app.get("/api")
 def root():
