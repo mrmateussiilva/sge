@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SGE | Movimentacoes</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <div class="brand">SGE</div>
+          <div class="brand-subtitle">Sistema de Estoque</div>
+        </div>
+        <nav class="nav flex-column gap-2 mt-4">
+          <a class="nav-link" href="index.html">Dashboard</a>
+          <a class="nav-link" href="produtos.html">Produtos</a>
+          <a class="nav-link active" href="movimentacoes.html">Movimentacoes</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Movimentacoes</h1>
+            <p class="page-subtitle">Registre entradas, saidas e ajustes do estoque.</p>
+          </div>
+        </div>
+
+        <section class="row g-4">
+          <div class="col-12 col-xl-4">
+            <div class="card shadow-soft h-100">
+              <div class="card-body">
+                <h3 class="section-title mb-3">Nova movimentacao</h3>
+                <form id="movimentacaoForm" class="row g-3">
+                  <div class="col-12">
+                    <label for="produto_id" class="form-label">Produto</label>
+                    <select class="form-select" id="produto_id" required>
+                      <option value="">Selecione um produto</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="tipo" class="form-label">Tipo</label>
+                    <select class="form-select" id="tipo" required>
+                      <option value="entrada">Entrada</option>
+                      <option value="saida">Saida</option>
+                      <option value="ajuste">Ajuste</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="quantidade" class="form-label">Quantidade</label>
+                    <input type="number" min="0" class="form-control" id="quantidade" required />
+                  </div>
+                  <div class="col-12">
+                    <label for="motivo" class="form-label">Motivo</label>
+                    <input type="text" class="form-control" id="motivo" placeholder="Compra, venda, inventario..." />
+                  </div>
+                  <div class="col-12">
+                    <div id="movimentacaoErro" class="alert alert-danger d-none mb-0" role="alert"></div>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">Salvar movimentacao</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-8">
+            <div class="card shadow-soft">
+              <div class="card-body">
+                <h3 class="section-title mb-3">Historico</h3>
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Produto</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Motivo</th>
+                        <th>Data</th>
+                      </tr>
+                    </thead>
+                    <tbody id="movimentacoesTabela">
+                      <tr>
+                        <td colspan="5" class="text-center text-secondary py-4">Carregando movimentacoes...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+      const produtoSelect = document.getElementById("produto_id");
+      const movimentacaoForm = document.getElementById("movimentacaoForm");
+      const movimentacaoErro = document.getElementById("movimentacaoErro");
+      const movimentacoesTabela = document.getElementById("movimentacoesTabela");
+
+      function formatarData(valor) {
+        return new Date(valor).toLocaleString("pt-BR");
+      }
+
+      function badgeTipo(tipo) {
+        const classes = {
+          entrada: "bg-success-subtle text-success",
+          saida: "bg-danger-subtle text-danger",
+          ajuste: "bg-primary-subtle text-primary",
+        };
+
+        return `<span class="badge rounded-pill ${classes[tipo] || "bg-secondary-subtle text-secondary"}">${tipo}</span>`;
+      }
+
+      async function carregarProdutosSelect() {
+        const produtos = await api.getProdutos();
+        produtoSelect.innerHTML =
+          '<option value="">Selecione um produto</option>' +
+          produtos
+            .map((produto) => `<option value="${produto.id}">${produto.nome} (${produto.sku})</option>`)
+            .join("");
+      }
+
+      async function carregarMovimentacoes() {
+        try {
+          const movimentacoes = await api.getMovimentacoes();
+
+          if (!movimentacoes.length) {
+            movimentacoesTabela.innerHTML =
+              '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhuma movimentacao encontrada.</td></tr>';
+            return;
+          }
+
+          movimentacoesTabela.innerHTML = movimentacoes
+            .map(
+              (movimentacao) => `
+                <tr>
+                  <td>${movimentacao.produto.nome}</td>
+                  <td>${badgeTipo(movimentacao.tipo)}</td>
+                  <td>${movimentacao.quantidade}</td>
+                  <td>${movimentacao.motivo || "-"}</td>
+                  <td>${formatarData(movimentacao.created_at)}</td>
+                </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          movimentacoesTabela.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${error.message}</td></tr>`;
+        }
+      }
+
+      movimentacaoForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        movimentacaoErro.classList.add("d-none");
+
+        const payload = {
+          produto_id: Number(produtoSelect.value),
+          tipo: document.getElementById("tipo").value,
+          quantidade: Number(document.getElementById("quantidade").value),
+          motivo: document.getElementById("motivo").value.trim() || null,
+        };
+
+        try {
+          await api.createMovimentacao(payload);
+          movimentacaoForm.reset();
+          await carregarProdutosSelect();
+          await carregarMovimentacoes();
+        } catch (error) {
+          movimentacaoErro.textContent = error.message;
+          movimentacaoErro.classList.remove("d-none");
+        }
+      });
+
+      async function inicializarPagina() {
+        try {
+          await carregarProdutosSelect();
+          await carregarMovimentacoes();
+        } catch (error) {
+          movimentacaoErro.textContent = error.message;
+          movimentacaoErro.classList.remove("d-none");
+        }
+      }
+
+      inicializarPagina();
+    </script>
+  </body>
+</html>

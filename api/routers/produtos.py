@@ -1,0 +1,64 @@
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.orm import Session
+
+import crud
+import schemas
+from database import get_db
+
+
+router = APIRouter(prefix="/produtos", tags=["produtos"])
+
+
+@router.get("", response_model=list[schemas.ProdutoResponse])
+def listar_produtos(db: Session = Depends(get_db)) -> list[schemas.ProdutoResponse]:
+    return crud.get_produtos(db)
+
+
+@router.post("", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
+def criar_produto(
+    produto_in: schemas.ProdutoCreate,
+    db: Session = Depends(get_db),
+) -> schemas.ProdutoResponse:
+    if crud.get_produto_by_sku(db, produto_in.sku):
+        raise HTTPException(status_code=400, detail="SKU ja cadastrado.")
+
+    return crud.create_produto(db, produto_in)
+
+
+@router.get("/{produto_id}", response_model=schemas.ProdutoResponse)
+def buscar_produto(
+    produto_id: int,
+    db: Session = Depends(get_db),
+) -> schemas.ProdutoResponse:
+    produto = crud.get_produto(db, produto_id)
+    if produto is None:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado.")
+
+    return produto
+
+
+@router.put("/{produto_id}", response_model=schemas.ProdutoResponse)
+def atualizar_produto(
+    produto_id: int,
+    produto_in: schemas.ProdutoUpdate,
+    db: Session = Depends(get_db),
+) -> schemas.ProdutoResponse:
+    produto = crud.get_produto(db, produto_id)
+    if produto is None:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado.")
+
+    produto_com_sku = crud.get_produto_by_sku(db, produto_in.sku)
+    if produto_com_sku and produto_com_sku.id != produto_id:
+        raise HTTPException(status_code=400, detail="SKU ja cadastrado.")
+
+    return crud.update_produto(db, produto, produto_in)
+
+
+@router.delete("/{produto_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remover_produto(produto_id: int, db: Session = Depends(get_db)) -> Response:
+    produto = crud.get_produto(db, produto_id)
+    if produto is None:
+        raise HTTPException(status_code=404, detail="Produto nao encontrado.")
+
+    crud.delete_produto(db, produto)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
