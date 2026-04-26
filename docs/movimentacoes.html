@@ -8,189 +8,154 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div>
-          <div class="brand">SGE</div>
-          <div class="brand-subtitle">Sistema de Estoque</div>
+    <div class="app-layout">
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <aside class="sidebar" id="appSidebar">
+        <div class="sidebar-header">
+          <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Alternar menu">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <a class="brand-block" href="index.html">
+            <span class="brand-icon"><i class="bi bi-box-seam"></i></span>
+            <span class="brand-copy">
+              <span class="brand-title">SGE</span>
+              <span class="brand-subtitle">Estoque interno</span>
+            </span>
+          </a>
         </div>
-        <nav class="nav flex-column gap-2 mt-4">
-          <a class="nav-link" href="index.html">Dashboard</a>
-          <a class="nav-link" href="produtos.html">Produtos</a>
-          <a class="nav-link active" href="movimentacoes.html">Movimentacoes</a>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item" href="index.html" title="Dashboard">
+            <i class="bi bi-grid-1x2-fill"></i>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a class="nav-item" href="produtos.html" title="Produtos">
+            <i class="bi bi-box2"></i>
+            <span class="nav-label">Produtos</span>
+          </a>
+          <a class="nav-item active" href="movimentacoes.html" title="Movimentacoes">
+            <i class="bi bi-arrow-left-right"></i>
+            <span class="nav-label">Movimentacoes</span>
+          </a>
         </nav>
       </aside>
 
-      <main class="content">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">Movimentacoes</h1>
-            <p class="page-subtitle">Registre entradas, saidas e ajustes do estoque.</p>
+      <main class="main-content">
+        <header class="topbar">
+          <div class="topbar-title">
+            <h1>Movimentacoes</h1>
+            <p>Registre entradas, saidas e ajustes com historico recente ao lado.</p>
           </div>
-        </div>
-
-        <section class="row g-4">
-          <div class="col-12 col-xl-4">
-            <div class="card shadow-soft h-100">
-              <div class="card-body">
-                <h3 class="section-title mb-3">Nova movimentacao</h3>
-                <form id="movimentacaoForm" class="row g-3">
-                  <div class="col-12">
-                    <label for="produto_id" class="form-label">Produto</label>
-                    <select class="form-select" id="produto_id" required>
-                      <option value="">Selecione um produto</option>
-                    </select>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="tipo" class="form-label">Tipo</label>
-                    <select class="form-select" id="tipo" required>
-                      <option value="entrada">Entrada</option>
-                      <option value="saida">Saida</option>
-                      <option value="ajuste">Ajuste</option>
-                    </select>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="quantidade" class="form-label">Quantidade</label>
-                    <input type="number" min="0" class="form-control" id="quantidade" required />
-                  </div>
-                  <div class="col-12">
-                    <label for="motivo" class="form-label">Motivo</label>
-                    <input type="text" class="form-control" id="motivo" placeholder="Compra, venda, inventario..." />
-                  </div>
-                  <div class="col-12">
-                    <div id="movimentacaoErro" class="alert alert-danger d-none mb-0" role="alert"></div>
-                  </div>
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-primary w-100">Salvar movimentacao</button>
-                  </div>
-                </form>
-              </div>
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <span class="user-chip-icon"><i class="bi bi-person-circle"></i></span>
+              <span>Operador</span>
             </div>
           </div>
+        </header>
 
-          <div class="col-12 col-xl-8">
-            <div class="card shadow-soft">
-              <div class="card-body">
-                <h3 class="section-title mb-3">Historico</h3>
-                <div class="table-responsive">
-                  <table class="table align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th>Produto</th>
-                        <th>Tipo</th>
-                        <th>Quantidade</th>
-                        <th>Motivo</th>
-                        <th>Data</th>
-                      </tr>
-                    </thead>
-                    <tbody id="movimentacoesTabela">
-                      <tr>
-                        <td colspan="5" class="text-center text-secondary py-4">Carregando movimentacoes...</td>
-                      </tr>
-                    </tbody>
-                  </table>
+        <section class="content-grid">
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Nova movimentacao</h2>
+                <p class="panel-subtitle">Lancamento rapido para o time operacional.</p>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <form id="movimentacaoForm" class="row g-3">
+                <div class="col-12">
+                  <label for="produto_id" class="form-label">Produto</label>
+                  <select class="form-select form-select-sm" id="produto_id" required>
+                    <option value="">Selecione um produto</option>
+                  </select>
                 </div>
+
+                <div class="col-12">
+                  <label class="form-label d-block mb-2">Tipo</label>
+                  <div class="segmented-control" id="tipoSegmentado">
+                    <button type="button" class="segment-button active" data-tipo="entrada">Entrada</button>
+                    <button type="button" class="segment-button" data-tipo="saida">Saida</button>
+                    <button type="button" class="segment-button" data-tipo="ajuste">Ajuste</button>
+                  </div>
+                  <input type="hidden" id="tipo" value="entrada" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="quantidade" class="form-label">Quantidade</label>
+                  <input type="number" min="0" class="form-control form-control-sm" id="quantidade" required />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="motivo" class="form-label">Motivo</label>
+                  <input type="text" class="form-control form-control-sm" id="motivo" placeholder="Compra, venda, ajuste..." />
+                </div>
+
+                <div class="col-12">
+                  <div id="movimentacaoErro" class="alert alert-danger py-2 px-3 d-none mb-0" role="alert"></div>
+                </div>
+
+                <div class="col-12 d-flex justify-content-end">
+                  <button type="submit" class="btn btn-primary btn-sm px-3">
+                    <i class="bi bi-check2 me-1"></i>
+                    Salvar movimentacao
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Historico recente</h2>
+                <p class="panel-subtitle">Ultimas entradas, saidas e ajustes registrados.</p>
               </div>
             </div>
-          </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-app align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Tipo</th>
+                    <th>Qtd.</th>
+                    <th>Motivo</th>
+                    <th>Data</th>
+                  </tr>
+                </thead>
+                <tbody id="movimentacoesTabela">
+                  <tr>
+                    <td colspan="5">
+                      <div class="empty-state empty-state-inline">
+                        <div class="empty-state-icon"><i class="bi bi-hourglass-split"></i></div>
+                        <div>
+                          <div class="empty-state-title">Carregando historico</div>
+                          <div class="empty-state-text">Buscando as movimentacoes cadastradas.</div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </section>
       </main>
     </div>
 
     <script src="js/api.js"></script>
-    <script>
-      const produtoSelect = document.getElementById("produto_id");
-      const movimentacaoForm = document.getElementById("movimentacaoForm");
-      const movimentacaoErro = document.getElementById("movimentacaoErro");
-      const movimentacoesTabela = document.getElementById("movimentacoesTabela");
-
-      function formatarData(valor) {
-        return new Date(valor).toLocaleString("pt-BR");
-      }
-
-      function badgeTipo(tipo) {
-        const classes = {
-          entrada: "bg-success-subtle text-success",
-          saida: "bg-danger-subtle text-danger",
-          ajuste: "bg-primary-subtle text-primary",
-        };
-
-        return `<span class="badge rounded-pill ${classes[tipo] || "bg-secondary-subtle text-secondary"}">${tipo}</span>`;
-      }
-
-      async function carregarProdutosSelect() {
-        const produtos = await api.getProdutos();
-        produtoSelect.innerHTML =
-          '<option value="">Selecione um produto</option>' +
-          produtos
-            .map((produto) => `<option value="${produto.id}">${produto.nome} (${produto.sku})</option>`)
-            .join("");
-      }
-
-      async function carregarMovimentacoes() {
-        try {
-          const movimentacoes = await api.getMovimentacoes();
-
-          if (!movimentacoes.length) {
-            movimentacoesTabela.innerHTML =
-              '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhuma movimentacao encontrada.</td></tr>';
-            return;
-          }
-
-          movimentacoesTabela.innerHTML = movimentacoes
-            .map(
-              (movimentacao) => `
-                <tr>
-                  <td>${movimentacao.produto.nome}</td>
-                  <td>${badgeTipo(movimentacao.tipo)}</td>
-                  <td>${movimentacao.quantidade}</td>
-                  <td>${movimentacao.motivo || "-"}</td>
-                  <td>${formatarData(movimentacao.created_at)}</td>
-                </tr>
-              `,
-            )
-            .join("");
-        } catch (error) {
-          movimentacoesTabela.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${error.message}</td></tr>`;
-        }
-      }
-
-      movimentacaoForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        movimentacaoErro.classList.add("d-none");
-
-        const payload = {
-          produto_id: Number(produtoSelect.value),
-          tipo: document.getElementById("tipo").value,
-          quantidade: Number(document.getElementById("quantidade").value),
-          motivo: document.getElementById("motivo").value.trim() || null,
-        };
-
-        try {
-          await api.createMovimentacao(payload);
-          movimentacaoForm.reset();
-          await carregarProdutosSelect();
-          await carregarMovimentacoes();
-        } catch (error) {
-          movimentacaoErro.textContent = error.message;
-          movimentacaoErro.classList.remove("d-none");
-        }
-      });
-
-      async function inicializarPagina() {
-        try {
-          await carregarProdutosSelect();
-          await carregarMovimentacoes();
-        } catch (error) {
-          movimentacaoErro.textContent = error.message;
-          movimentacaoErro.classList.remove("d-none");
-        }
-      }
-
-      inicializarPagina();
-    </script>
+    <script src="js/layout.js"></script>
+    <script src="js/movimentacoes.js"></script>
   </body>
 </html>

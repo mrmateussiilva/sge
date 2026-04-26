@@ -33,10 +33,18 @@ const api = {
   getProdutos() {
     return request("/produtos");
   },
+  getProduto(id) {
+    return request(`/produtos/${id}`);
+  },
   createProduto(payload) {
     return request("/produtos", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  deleteProduto(id) {
+    return request(`/produtos/${id}`, {
+      method: "DELETE",
     });
   },
   getMovimentacoes() {

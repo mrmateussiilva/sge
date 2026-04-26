@@ -15,176 +15,163 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand-panel">
-          <div class="brand-mark">
-            <i class="bi bi-box-seam"></i>
-          </div>
-          <div>
-            <div class="brand">SGE</div>
-            <div class="brand-subtitle">Sistema de Gestao de Estoque</div>
-          </div>
+    <div class="app-layout">
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <aside class="sidebar" id="appSidebar">
+        <div class="sidebar-header">
+          <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Alternar menu">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <a class="brand-block" href="index.html">
+            <span class="brand-icon"><i class="bi bi-box-seam"></i></span>
+            <span class="brand-copy">
+              <span class="brand-title">SGE</span>
+              <span class="brand-subtitle">Estoque interno</span>
+            </span>
+          </a>
         </div>
 
-        <div class="sidebar-section-label">Menu</div>
-        <nav class="nav flex-column sidebar-nav">
-          <a class="nav-link active" href="index.html">
+        <nav class="sidebar-nav">
+          <a class="nav-item active" href="index.html" title="Dashboard">
             <i class="bi bi-grid-1x2-fill"></i>
-            <span>Dashboard</span>
+            <span class="nav-label">Dashboard</span>
           </a>
-          <a class="nav-link" href="produtos.html">
+          <a class="nav-item" href="produtos.html" title="Produtos">
             <i class="bi bi-box2"></i>
-            <span>Produtos</span>
+            <span class="nav-label">Produtos</span>
           </a>
-          <a class="nav-link" href="movimentacoes.html">
+          <a class="nav-item" href="movimentacoes.html" title="Movimentacoes">
             <i class="bi bi-arrow-left-right"></i>
-            <span>Movimentacoes</span>
+            <span class="nav-label">Movimentacoes</span>
           </a>
         </nav>
-
-        <div class="sidebar-footer">
-          <div class="sidebar-footer-title">Resumo rapido</div>
-          <p class="sidebar-footer-text mb-0">
-            Acompanhe os itens criticos e as ultimas movimentacoes do estoque.
-          </p>
-        </div>
       </aside>
 
-      <main class="content">
+      <main class="main-content">
         <header class="topbar">
-          <div>
-            <div class="eyebrow">Painel operacional</div>
-            <h1 class="page-title">Dashboard</h1>
-            <p class="page-subtitle">Visao consolidada do estoque, alertas e atividades recentes.</p>
+          <div class="topbar-title">
+            <h1>Dashboard</h1>
+            <p>Resumo operacional do estoque e dos movimentos recentes.</p>
           </div>
-          <a class="btn btn-primary px-4" href="produtos.html">
-            <i class="bi bi-plus-lg me-2"></i>
-            Novo produto
-          </a>
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <span class="user-chip-icon"><i class="bi bi-person-circle"></i></span>
+              <span>Operador</span>
+            </div>
+            <a class="btn btn-primary btn-sm px-3" href="produtos.html">
+              <i class="bi bi-plus-lg me-1"></i>
+              Novo produto
+            </a>
+          </div>
         </header>
 
-        <section class="row g-4 mb-4">
-          <div class="col-12 col-md-6 col-xxl-3">
-            <article class="metric-card h-100">
-              <div class="metric-icon icon-blue">
-                <i class="bi bi-boxes"></i>
-              </div>
-              <div class="metric-content">
-                <span class="metric-label">Total de produtos</span>
-                <h2 class="metric-value" id="totalProdutos">0</h2>
-                <p class="metric-helper">Itens cadastrados e disponiveis para movimentacao.</p>
-              </div>
-            </article>
-          </div>
-          <div class="col-12 col-md-6 col-xxl-3">
-            <article class="metric-card h-100">
-              <div class="metric-icon icon-amber">
-                <i class="bi bi-exclamation-triangle"></i>
-              </div>
-              <div class="metric-content">
-                <span class="metric-label">Estoque baixo</span>
-                <h2 class="metric-value" id="estoqueBaixo">0</h2>
-                <p class="metric-helper">Produtos no limite minimo ou abaixo dele.</p>
-              </div>
-            </article>
-          </div>
-          <div class="col-12 col-md-6 col-xxl-3">
-            <article class="metric-card h-100">
-              <div class="metric-icon icon-slate">
-                <i class="bi bi-slash-circle"></i>
-              </div>
-              <div class="metric-content">
-                <span class="metric-label">Estoque zerado</span>
-                <h2 class="metric-value" id="estoqueZerado">0</h2>
-                <p class="metric-helper">Itens que exigem reposicao imediata.</p>
-              </div>
-            </article>
-          </div>
-          <div class="col-12 col-md-6 col-xxl-3">
-            <article class="metric-card h-100">
-              <div class="metric-icon icon-green">
-                <i class="bi bi-clock-history"></i>
-              </div>
-              <div class="metric-content">
-                <span class="metric-label">Movimentacoes recentes</span>
-                <h2 class="metric-value" id="totalMovimentacoes">0</h2>
-                <p class="metric-helper">Lancamentos recentes de entrada, saida e ajuste.</p>
-              </div>
-            </article>
-          </div>
+        <section class="metrics-grid mb-3">
+          <article class="metric-card">
+            <div class="metric-icon metric-icon-blue">
+              <i class="bi bi-boxes"></i>
+            </div>
+            <div class="metric-body">
+              <span class="metric-label">Total de produtos</span>
+              <strong class="metric-value" id="totalProdutos">0</strong>
+              <small class="metric-note">Cadastros ativos no estoque.</small>
+            </div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-icon metric-icon-amber">
+              <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="metric-body">
+              <span class="metric-label">Estoque baixo</span>
+              <strong class="metric-value" id="estoqueBaixo">0</strong>
+              <small class="metric-note">No minimo ou abaixo.</small>
+            </div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-icon metric-icon-slate">
+              <i class="bi bi-slash-circle"></i>
+            </div>
+            <div class="metric-body">
+              <span class="metric-label">Estoque zerado</span>
+              <strong class="metric-value" id="estoqueZerado">0</strong>
+              <small class="metric-note">Reposicao imediata.</small>
+            </div>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-icon metric-icon-green">
+              <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="metric-body">
+              <span class="metric-label">Movimentacoes</span>
+              <strong class="metric-value" id="totalMovimentacoes">0</strong>
+              <small class="metric-note">Ultimos lancamentos.</small>
+            </div>
+          </article>
         </section>
 
-        <section class="row g-4">
-          <div class="col-12 col-xl-8">
-            <section class="panel-card h-100">
-              <div class="panel-header">
-                <div>
-                  <h3 class="section-title mb-1">Movimentacoes recentes</h3>
-                  <p class="section-subtitle mb-0">Ultimos registros que impactaram o estoque.</p>
-                </div>
-                <span class="panel-chip">
-                  <i class="bi bi-arrow-repeat"></i>
-                  Atualizado agora
-                </span>
+        <section class="content-grid">
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Movimentacoes recentes</h2>
+                <p class="panel-subtitle">Historico mais recente do estoque.</p>
               </div>
+            </div>
 
-              <div class="table-responsive">
-                <table class="table table-dashboard align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Produto</th>
-                      <th>Tipo</th>
-                      <th>Quantidade</th>
-                      <th>Motivo</th>
-                      <th>Data</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboardMovimentacoes">
-                    <tr>
-                      <td colspan="5">
-                        <div class="empty-state compact-empty">
-                          <div class="empty-state-icon">
-                            <i class="bi bi-hourglass-split"></i>
-                          </div>
-                          <div>
-                            <div class="empty-state-title">Carregando movimentacoes</div>
-                            <div class="empty-state-text">Buscando os ultimos registros do estoque.</div>
-                          </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-app align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Tipo</th>
+                    <th>Qtd.</th>
+                    <th>Motivo</th>
+                    <th>Data</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardMovimentacoes">
+                  <tr>
+                    <td colspan="5">
+                      <div class="empty-state empty-state-inline">
+                        <div class="empty-state-icon"><i class="bi bi-hourglass-split"></i></div>
+                        <div>
+                          <div class="empty-state-title">Carregando movimentacoes</div>
+                          <div class="empty-state-text">Buscando os registros mais recentes.</div>
                         </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-          <div class="col-12 col-xl-4">
-            <section class="panel-card h-100">
-              <div class="panel-header">
-                <div>
-                  <h3 class="section-title mb-1">Alertas de estoque</h3>
-                  <p class="section-subtitle mb-0">Itens que exigem atencao para reposicao.</p>
-                </div>
+          <aside class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Alertas de estoque</h2>
+                <p class="panel-subtitle">Produtos que exigem atencao.</p>
               </div>
+            </div>
 
-              <div id="alertasEstoque" class="alerts-list">
-                <div class="empty-state">
-                  <div class="empty-state-icon">
-                    <i class="bi bi-hourglass-split"></i>
-                  </div>
-                  <div class="empty-state-title">Carregando alertas</div>
-                  <div class="empty-state-text">Verificando produtos com nivel de estoque critico.</div>
-                </div>
+            <div class="alerts-list" id="alertasEstoque">
+              <div class="empty-state">
+                <div class="empty-state-icon"><i class="bi bi-hourglass-split"></i></div>
+                <div class="empty-state-title">Carregando alertas</div>
+                <div class="empty-state-text">Verificando itens criticos do estoque.</div>
               </div>
-            </section>
-          </div>
+            </div>
+          </aside>
         </section>
       </main>
     </div>
 
     <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
     <script src="js/dashboard.js"></script>
   </body>
 </html>

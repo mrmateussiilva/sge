@@ -7,9 +7,9 @@ function formatarData(valor) {
 
 function badgeTipo(tipo) {
   const classes = {
-    entrada: "badge-entrada",
-    saida: "badge-saida",
-    ajuste: "badge-ajuste",
+    entrada: "type-entrada",
+    saida: "type-saida",
+    ajuste: "type-ajuste",
   };
 
   const icons = {
@@ -18,25 +18,18 @@ function badgeTipo(tipo) {
     ajuste: "bi-sliders",
   };
 
-  return `
-    <span class="custom-badge ${classes[tipo] || "badge-ajuste"}">
-      <i class="bi ${icons[tipo] || "bi-circle"}"></i>
-      ${tipo}
-    </span>
-  `;
+  return `<span class="type-badge ${classes[tipo] || "type-ajuste"}"><i class="bi ${icons[tipo] || "bi-circle"}"></i>${tipo}</span>`;
 }
 
-function renderEmptyMovimentacoes(titulo, texto, icone = "bi-inbox") {
+function renderEmptyMovimentacoes(title, text, icon) {
   dashboardMovimentacoes.innerHTML = `
     <tr>
       <td colspan="5">
-        <div class="empty-state compact-empty">
-          <div class="empty-state-icon">
-            <i class="bi ${icone}"></i>
-          </div>
+        <div class="empty-state empty-state-inline">
+          <div class="empty-state-icon"><i class="bi ${icon}"></i></div>
           <div>
-            <div class="empty-state-title">${titulo}</div>
-            <div class="empty-state-text">${texto}</div>
+            <div class="empty-state-title">${title}</div>
+            <div class="empty-state-text">${text}</div>
           </div>
         </div>
       </td>
@@ -44,88 +37,37 @@ function renderEmptyMovimentacoes(titulo, texto, icone = "bi-inbox") {
   `;
 }
 
-function renderEmptyAlertas(titulo, texto, icone = "bi-shield-check") {
-  alertasEstoque.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-state-icon">
-        <i class="bi ${icone}"></i>
-      </div>
-      <div class="empty-state-title">${titulo}</div>
-      <div class="empty-state-text">${texto}</div>
-    </div>
-  `;
-}
-
-function renderMovimentacoes(movimentacoes) {
-  if (!movimentacoes.length) {
-    renderEmptyMovimentacoes(
-      "Nenhuma movimentacao encontrada",
-      "As entradas, saidas e ajustes aparecerao aqui assim que forem registrados.",
-      "bi-journal-x",
-    );
-    return;
-  }
-
-  dashboardMovimentacoes.innerHTML = movimentacoes
-    .map(
-      (movimentacao) => `
-        <tr>
-          <td>
-            <div class="produto-cell">
-              <span class="produto-cell-title">${movimentacao.produto.nome}</span>
-              <span class="produto-cell-subtitle">SKU ${movimentacao.produto.sku}</span>
-            </div>
-          </td>
-          <td>${badgeTipo(movimentacao.tipo)}</td>
-          <td>${movimentacao.quantidade}</td>
-          <td>${movimentacao.motivo || "-"}</td>
-          <td>${formatarData(movimentacao.created_at)}</td>
-        </tr>
-      `,
-    )
-    .join("");
-}
-
-function renderAlertas(produtosBaixos, produtosZerados) {
+function renderAlertas(produtosBaixos) {
   if (!produtosBaixos.length) {
-    renderEmptyAlertas(
-      "Nenhum alerta no momento",
-      "Todos os produtos estao acima do estoque minimo configurado.",
-      "bi-check2-circle",
-    );
+    alertasEstoque.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon"><i class="bi bi-check2-circle"></i></div>
+        <div class="empty-state-title">Nenhum alerta no momento</div>
+        <div class="empty-state-text">Todos os produtos estao acima do minimo configurado.</div>
+      </div>
+    `;
     return;
   }
 
-  const prioridades = [...produtosBaixos].sort((a, b) => a.estoque_atual - b.estoque_atual);
-
-  alertasEstoque.innerHTML = prioridades
+  alertasEstoque.innerHTML = produtosBaixos
+    .sort((a, b) => a.estoque_atual - b.estoque_atual)
     .slice(0, 6)
     .map((produto) => {
       const zerado = produto.estoque_atual === 0;
-      const classe = zerado ? "alert-item-danger" : "alert-item-warning";
-      const icone = zerado ? "bi-x-octagon" : "bi-exclamation-circle";
-      const mensagem = zerado
-        ? "Sem estoque disponivel. Reposicao recomendada com prioridade."
-        : `Abaixo do minimo configurado (${produto.estoque_minimo} ${produto.unidade}).`;
-
       return `
-        <article class="alert-item ${classe}">
-          <div class="alert-item-icon">
-            <i class="bi ${icone}"></i>
+        <article class="alert-row ${zerado ? "alert-row-zero" : "alert-row-low"}">
+          <div class="alert-icon">
+            <i class="bi ${zerado ? "bi-x-octagon" : "bi-exclamation-triangle"}"></i>
           </div>
           <div>
-            <h4 class="alert-item-title">${produto.nome}</h4>
-            <p class="alert-item-text">${mensagem}</p>
-            <span class="alert-item-meta">
-              SKU ${produto.sku} • Atual: ${produto.estoque_atual} ${produto.unidade}
-            </span>
+            <h3 class="alert-title">${produto.nome}</h3>
+            <p class="alert-text">${zerado ? "Estoque zerado." : "Abaixo do minimo configurado."}</p>
+            <p class="alert-meta">SKU ${produto.sku} • Atual ${produto.estoque_atual} ${produto.unidade}</p>
           </div>
         </article>
       `;
     })
     .join("");
-
-  document.getElementById("estoqueZerado").textContent = produtosZerados.length;
 }
 
 async function carregarDashboard() {
@@ -138,19 +80,43 @@ async function carregarDashboard() {
     document.getElementById("estoqueZerado").textContent = produtosZerados.length;
     document.getElementById("totalMovimentacoes").textContent = dashboard.ultimas_movimentacoes.length;
 
-    renderMovimentacoes(dashboard.ultimas_movimentacoes);
-    renderAlertas(dashboard.produtos_com_estoque_baixo, produtosZerados);
+    if (!dashboard.ultimas_movimentacoes.length) {
+      renderEmptyMovimentacoes(
+        "Nenhuma movimentacao encontrada",
+        "Os novos lancamentos aparecerao aqui.",
+        "bi-journal-x",
+      );
+    } else {
+      dashboardMovimentacoes.innerHTML = dashboard.ultimas_movimentacoes
+        .map(
+          (movimentacao) => `
+            <tr>
+              <td>
+                <div class="item-main">
+                  <span class="item-title">${movimentacao.produto.nome}</span>
+                  <span class="item-subtitle">SKU ${movimentacao.produto.sku}</span>
+                </div>
+              </td>
+              <td>${badgeTipo(movimentacao.tipo)}</td>
+              <td>${movimentacao.quantidade}</td>
+              <td>${movimentacao.motivo || "-"}</td>
+              <td>${formatarData(movimentacao.created_at)}</td>
+            </tr>
+          `,
+        )
+        .join("");
+    }
+
+    renderAlertas(dashboard.produtos_com_estoque_baixo);
   } catch (error) {
-    renderEmptyMovimentacoes(
-      "Nao foi possivel carregar o painel",
-      error.message,
-      "bi-wifi-off",
-    );
-    renderEmptyAlertas(
-      "Falha ao buscar alertas",
-      "Confira se a API esta em execucao e tente novamente.",
-      "bi-exclamation-diamond",
-    );
+    renderEmptyMovimentacoes("Falha ao carregar", error.message, "bi-wifi-off");
+    alertasEstoque.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon"><i class="bi bi-exclamation-diamond"></i></div>
+        <div class="empty-state-title">Falha ao buscar alertas</div>
+        <div class="empty-state-text">Confira se a API esta em execucao.</div>
+      </div>
+    `;
   }
 }
 
