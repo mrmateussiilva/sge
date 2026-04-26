@@ -89,7 +89,7 @@ app.include_router(movimentacoes.router)
 app.include_router(dashboard.router)
 app.include_router(importacao_xml.router)
 
-@app.get("/")
+@app.get("/api")
 def root():
     return {"message": "API de estoque em funcionamento no Vercel.", "environment": "Vercel" if os.getenv("VERCEL") else "Local"}
 
