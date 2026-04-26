@@ -65,5 +65,7 @@ window.api = {
     }
     return res.json();
   },
-  confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) })
+  confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) }),
+  getHealth: () => request("/health"),
+  getDbHealth: () => request("/health/db")
 };
