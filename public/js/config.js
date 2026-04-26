@@ -1,4 +1,4 @@
 window.SGE_CONFIG = {
-  // Troque pelo dominio real da API na Vercel antes de publicar no GitHub Pages.
-  API_BASE_URL: "https://SEU-BACKEND-NA-VERCEL.vercel.app/api",
+  // This file can be overwritten at deploy time by scripts/build-frontend-config.mjs.
+  API_BASE_URL: "http://127.0.0.1:8000/api",
 };

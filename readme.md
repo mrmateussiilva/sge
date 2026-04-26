@@ -2,21 +2,25 @@
 
 Frontend estatico em `public/` e API FastAPI em `api/`.
 
-## Deploy do frontend no GitHub Pages
+## Deploy do frontend na Vercel
 
-1. Edite `public/js/config.js`
-2. Troque `https://SEU-BACKEND-NA-VERCEL.vercel.app/api` pela URL real da API
-3. Envie para a branch `main`
-4. No GitHub, abra `Settings > Pages`
-5. Em `Source`, selecione `GitHub Actions`
-6. Aguarde o workflow `Deploy Frontend to GitHub Pages`
+Configure o projeto da Vercel apontando para a raiz do repositorio e defina a variavel:
+
+- `SGE_API_BASE_URL`
+
+Exemplo:
+
+- `SGE_API_BASE_URL=https://seu-backend-na-vercel.vercel.app/api`
+
+Durante o build, o arquivo `public/js/config.js` e gerado automaticamente com esse valor.
 
 Arquivos importantes:
 
 - `public/index.html`: app principal
 - `public/login.html`: tela de login
-- `public/404.html`: redireciona rotas amigaveis no Pages
-- `.github/workflows/deploy-pages.yml`: deploy automatico do frontend
+- `public/js/config.js`: configuracao consumida pelo navegador
+- `scripts/build-frontend-config.mjs`: gera `public/js/config.js` no deploy
+- `vercel.json`: configuracao de build do frontend
 
 ## Deploy da API na Vercel
 
@@ -25,9 +29,19 @@ Mantenha a API publicada na Vercel com as variaveis:
 - `DATABASE_URL`
 - `SECRET_KEY`
 
-O frontend faz requisicoes para a URL definida em `public/js/config.js`.
+## Desenvolvimento local
+
+Localmente, `public/js/config.js` aponta por padrao para:
+
+- `http://127.0.0.1:8000/api`
+
+Se quiser testar o frontend contra outra API, altere esse arquivo localmente ou gere-o manualmente:
+
+```bash
+SGE_API_BASE_URL=https://seu-backend.vercel.app/api node scripts/build-frontend-config.mjs
+```
 
 ## Observacoes
 
-- Os assets do frontend usam caminhos relativos para funcionar em subpastas do GitHub Pages.
+- O frontend usa hash routing, entao nao precisa de rewrites de SPA na Vercel.
 - O backend ja aceita requisicoes cross-origin com token Bearer.
