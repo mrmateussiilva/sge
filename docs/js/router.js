@@ -2,59 +2,65 @@
 const appContent = document.getElementById("app-content");
 
 const routes = {
-    "#/dashboard": "renderDashboard",
-    "#/produtos": "renderProdutos",
-    "#/movimentacoes": "renderMovimentacoes",
+  "#/dashboard": { fn: "renderDashboard", title: "SGE | Dashboard" },
+  "#/produtos": { fn: "renderProdutos", title: "SGE | Produtos" },
+  "#/movimentacoes": { fn: "renderMovimentacoes", title: "SGE | Movimentações" },
 };
 
 async function handleRoute() {
-    let hash = window.location.hash;
+  let hash = window.location.hash;
 
-    if (!hash || hash === "#/" || hash === "#") {
-        hash = "#/dashboard";
-        window.location.hash = hash;
-        return;
-    }
+  if (!hash || hash === "#/" || hash === "#") {
+    hash = "#/dashboard";
+    window.location.hash = hash;
+    return;
+  }
 
-    // Highlight active menu item
-    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-    const activeLink = document.querySelector(`.nav-item[href="${hash}"]`);
-    if (activeLink) {
-        activeLink.classList.add("active");
-    }
+  // Highlight active menu item
+  document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+  const activeLink = document.querySelector(`.nav-item[href="${hash}"]`);
+  if (activeLink) {
+    activeLink.classList.add("active");
+  }
 
-    // Find view render function
-    const renderFunctionName = routes[hash];
-    if (renderFunctionName && typeof window[renderFunctionName] === "function") {
-        // Show a small loader while rendering
-        appContent.innerHTML = `
-      <div class="d-flex align-items-center justify-content-center h-100 w-100" style="min-height:300px;">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
+  // Find view render function
+  const routeObj = routes[hash];
+
+  if (routeObj && typeof window[routeObj.fn] === "function") {
+    document.title = routeObj.title;
+
+    // Elegant loading state wrapper
+    appContent.innerHTML = `
+      <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100" style="min-height:400px;">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 2rem; height: 2rem;"></div>
+        <span class="text-secondary fw-medium">Carregando módulo...</span>
       </div>
     `;
-        try {
-            await window[renderFunctionName]();
-        } catch (err) {
-            console.error(err);
-            appContent.innerHTML = `
-        <div class="alert alert-danger m-4">
-          <h5>Erro ao carregar a página</h5>
-          <p>${err.message}</p>
+    try {
+      await window[routeObj.fn]();
+    } catch (err) {
+      console.error(err);
+      appContent.innerHTML = `
+        <div class="card-enterprise p-5 text-center empty-state m-auto w-100" style="max-width:500px">
+          <i class="bi bi-exclamation-octagon text-danger display-4 mb-3 d-block"></i>
+          <h4 class="fw-bold">Erro ao exibir a página</h4>
+          <p class="text-secondary">Ocorreu um problema ao carregar este módulo. Tente novamente.</p>
+          <div class="alert alert-danger text-start small mt-3">${err.message}</div>
+          <button class="btn btn-outline-secondary mt-2 px-4" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise me-2"></i>Recarregar App</button>
         </div>
       `;
-        }
-    } else {
-        appContent.innerHTML = `
-      <div class="empty-state m-auto">
-        <div class="empty-state-icon fs-1 text-muted mb-3"><i class="bi bi-exclamation-triangle"></i></div>
-        <h4 class="fw-bold">Página não encontrada</h4>
-        <p class="text-secondary">O endereço que você tentou acessar não existe.</p>
-        <button class="btn btn-primary mt-2" onclick="window.location.hash='#/dashboard'">Voltar ao Dashboard</button>
+    }
+  } else {
+    document.title = "SGE | Página não encontrada";
+    appContent.innerHTML = `
+      <div class="card-enterprise p-5 text-center empty-state m-auto w-100" style="max-width:500px">
+        <i class="bi bi-search text-muted display-4 mb-3 d-block"></i>
+        <h4 class="fw-bold text-dark">Página não encontrada</h4>
+        <p class="text-secondary">O endereço que você procurou não foi identificado no sistema.</p>
+        <button class="btn btn-primary mt-2 px-4" onclick="window.location.hash='#/dashboard'">Voltar ao Início</button>
       </div>
     `;
-    }
+  }
 }
 
 window.addEventListener("hashchange", handleRoute);

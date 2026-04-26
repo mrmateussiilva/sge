@@ -1,41 +1,42 @@
 /* js/views/dashboard.js */
 window.renderDashboard = async function () {
-    const appContent = document.getElementById("app-content");
+  const appContent = document.getElementById("app-content");
 
-    appContent.innerHTML = `
-    <header class="page-header d-flex justify-content-between align-items-end flex-wrap gap-2">
+  appContent.innerHTML = `
+    <!-- Dense Page Header Pattern -->
+    <header class="d-flex justify-content-between align-items-center mb-2">
       <div>
-        <h1>Dashboard</h1>
-        <p>Visão geral do sistema de estoque</p>
+        <h1 class="page-title fs-4 fw-bold mb-0 text-dark">Dashboard</h1>
+        <p class="text-secondary small mb-0 mt-1">Visão geral e resumo operacional</p>
       </div>
-      <div class="text-secondary small"><i class="bi bi-clock me-1"></i>Última atualização: agora</div>
+      <button class="btn btn-light shadow-sm border" onclick="window.renderDashboard()" title="Atualizar dados">
+        <i class="bi bi-arrow-clockwise me-1"></i> Recarregar
+      </button>
     </header>
 
-    <div class="row g-3" id="dash-metrics">
-       <div class="col-12"><div class="text-center py-5 text-muted"><div class="spinner-border text-primary spinner-border-sm me-2"></div>Carregando métricas...</div></div>
+    <div class="row g-2 mb-2" id="dash-metrics">
+       <div class="col-12"><div class="skeleton rounded-3" style="height: 84px; width: 100%;"></div></div>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-2 mb-2">
       <div class="col-lg-8">
-        <div class="card-enterprise h-100">
-          <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold mb-0 text-dark">Movimentações recentes</h6>
-            <a href="#/movimentacoes" class="btn btn-sm btn-light">Ver todas</a>
+        <div class="card-enterprise h-100 d-flex flex-column">
+          <div class="card-header-polished px-3 py-2 d-flex justify-content-between align-items-center bg-white">
+            <h6 class="fw-bold mb-0 text-dark" style="font-size:0.85rem">Lançamentos Recentes</h6>
+            <a href="#/movimentacoes" class="btn btn-sm btn-light border py-1" style="font-size:0.75rem">Ver Tudo</a>
           </div>
-          <div class="p-0">
-            <div class="table-responsive">
-              <table class="table table-compact table-hover mb-0 border-0">
+          <div class="p-0 flex-grow-1 overflow-auto">
+            <div class="table-responsive h-100">
+              <table class="table table-compact mb-0 border-0">
                 <thead>
                   <tr>
-                    <th class="border-top-0">Produto</th>
-                    <th class="border-top-0">Tipo</th>
-                    <th class="border-top-0">Qtd.</th>
-                    <th class="border-top-0">Motivo</th>
-                    <th class="border-top-0">Data</th>
+                    <th class="border-top-0 border-start-0 ps-3">Data</th>
+                    <th class="border-top-0">Operação</th>
+                    <th class="border-top-0 border-end-0 text-end pe-3">Resumo</th>
                   </tr>
                 </thead>
                 <tbody id="dash-movimentacoes">
-                   <tr><td colspan="5" class="text-center text-muted py-4">Aguardando dados...</td></tr>
+                   <tr><td colspan="3" class="p-4"><div class="skeleton w-100 mb-2" style="height: 34px;"></div></td></tr>
                 </tbody>
               </table>
             </div>
@@ -45,113 +46,136 @@ window.renderDashboard = async function () {
       
       <div class="col-lg-4">
         <div class="card-enterprise h-100 d-flex flex-column">
-          <div class="p-3 border-bottom">
-            <h6 class="fw-bold mb-0 text-dark">Alertas de Estoque</h6>
+          <div class="card-header-polished px-3 py-2 bg-white">
+            <h6 class="fw-bold mb-0 text-dark" style="font-size:0.85rem">Demandam Atenção</h6>
           </div>
-          <div class="flex-grow-1 p-3 overflow-y-auto" id="dash-alertas" style="max-height: 400px;">
-             <!-- Alertas -->
+          <div class="flex-grow-1 p-2 overflow-y-auto bg-light" id="dash-alertas" style="max-height: 360px;">
+             <div class="p-2"><div class="skeleton w-100 mb-2" style="height: 52px;"></div></div>
           </div>
         </div>
       </div>
     </div>
   `;
 
-    try {
-        const [dashboard, produtos] = await Promise.all([window.api.getDashboard(), window.api.getProdutos()]);
-        const zeros = produtos.filter(p => p.estoque_atual === 0).length;
+  try {
+    const [dashboard, produtos] = await Promise.all([window.api.getDashboard(), window.api.getProdutos()]);
+    const zeros = produtos.filter(p => p.estoque_atual === 0).length;
+    const ok = produtos.length - dashboard.produtos_com_estoque_baixo.length;
 
-        // Fill metrics
-        document.getElementById("dash-metrics").innerHTML = `
+    document.getElementById("dash-metrics").innerHTML = `
       <div class="col-xl-3 col-md-6">
-        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between">
+        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between h-100 border-0 bg-white">
           <div>
-            <span class="text-secondary small fw-medium text-uppercase section-label">Total de produtos</span>
-            <h3 class="mb-0 fw-bold mt-1 text-dark">${dashboard.total_produtos}</h3>
+            <span class="text-secondary fw-bold text-uppercase section-label">Acervo Total</span>
+            <div class="d-flex align-items-baseline gap-2 mt-1">
+               <h3 class="mb-0 fw-bold text-dark lh-1 fs-4">${dashboard.total_produtos}</h3>
+            </div>
           </div>
-          <div class="bg-primary-subtle text-primary rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="bi bi-box2 fs-5"></i>
+          <div class="bg-primary-subtle text-primary rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+            <i class="bi bi-box-seam fs-5"></i>
           </div>
         </div>
       </div>
       <div class="col-xl-3 col-md-6">
-        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between">
+        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between h-100 border-0 bg-white">
           <div>
-            <span class="text-secondary small fw-medium text-uppercase section-label">Estoque baixo</span>
-            <h3 class="mb-0 fw-bold mt-1 text-warning">${dashboard.produtos_com_estoque_baixo.length}</h3>
+            <span class="text-secondary fw-bold text-uppercase section-label">Saudável</span>
+            <div class="d-flex align-items-baseline gap-2 mt-1">
+               <h3 class="mb-0 fw-bold text-success lh-1 fs-4">${ok}</h3>
+            </div>
           </div>
-          <div class="bg-warning-subtle text-warning rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+          <div class="bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+            <i class="bi bi-check2-circle fs-5"></i>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-md-6">
+        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between h-100 border-0 bg-white">
+          <div>
+            <span class="text-secondary fw-bold text-uppercase section-label">Baixo Estoque</span>
+            <div class="d-flex align-items-baseline gap-2 mt-1">
+               <h3 class="mb-0 fw-bold text-warning lh-1 fs-4">${dashboard.produtos_com_estoque_baixo.length - zeros}</h3>
+            </div>
+          </div>
+          <div class="bg-warning-subtle text-warning rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
             <i class="bi bi-exclamation-triangle fs-5"></i>
           </div>
         </div>
       </div>
       <div class="col-xl-3 col-md-6">
-        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between">
+        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between h-100 border-0 bg-white border-start border-danger border-4">
           <div>
-            <span class="text-secondary small fw-medium text-uppercase section-label">Estoque zerado</span>
-            <h3 class="mb-0 fw-bold mt-1 text-danger">${zeros}</h3>
+            <span class="text-secondary fw-bold text-uppercase section-label">Zerados</span>
+            <div class="d-flex align-items-baseline gap-2 mt-1">
+               <h3 class="mb-0 fw-bold text-danger lh-1 fs-4">${zeros}</h3>
+            </div>
           </div>
-          <div class="bg-danger-subtle text-danger rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="bi bi-x-circle fs-5"></i>
-          </div>
-        </div>
-      </div>
-      <div class="col-xl-3 col-md-6">
-        <div class="card-enterprise p-3 d-flex flex-row align-items-center justify-content-between">
-          <div>
-            <span class="text-secondary small fw-medium text-uppercase section-label">Movimentações</span>
-            <h3 class="mb-0 fw-bold mt-1 text-info">${dashboard.ultimas_movimentacoes.length}</h3>
-          </div>
-          <div class="bg-info-subtle text-info rounded-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="bi bi-arrow-left-right fs-5"></i>
+          <div class="bg-danger-subtle text-danger rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+            <i class="bi bi-dash-circle fs-5"></i>
           </div>
         </div>
       </div>
     `;
 
-        // format tables
-        const formatData = (d) => new Date(d).toLocaleString("pt-BR");
-        const badgeType = (tipo) => {
-            const b = { entrada: "bg-success-subtle", saida: "bg-danger-subtle", ajuste: "bg-info-subtle" }[tipo] || "bg-secondary-subtle";
-            return `<span class="badge-status ${b}">${tipo}</span>`;
-        };
+    const formatData = (d) => {
+      const dt = new Date(d);
+      return `<strong class="text-dark d-block mb-0" style="font-size:0.8rem">${dt.toLocaleDateString("pt-BR")}</strong><span class="text-muted font-monospace" style="font-size:0.7rem">${dt.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}</span>`;
+    };
+    const badgeType = (tipo) => {
+      const b = { entrada: "bg-success-subtle", saida: "bg-danger-subtle", ajuste: "bg-info-subtle" }[tipo] || "bg-secondary-subtle";
+      return `<div class="badge-status ${b} text-uppercase lh-1" style="font-size: 0.60rem; padding: 3px 5px;">${tipo}</div>`;
+    };
 
-        const movTable = document.getElementById("dash-movimentacoes");
-        if (dashboard.ultimas_movimentacoes.length === 0) {
-            movTable.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox d-block fs-3 mb-2"></i>Nenhuma movimentação</td></tr>`;
-        } else {
-            movTable.innerHTML = dashboard.ultimas_movimentacoes.map(m => `
+    const movTable = document.getElementById("dash-movimentacoes");
+    if (dashboard.ultimas_movimentacoes.length === 0) {
+      movTable.innerHTML = `<tr><td colspan="3" class="empty-state py-4"><i class="bi bi-archive empty-icon d-block fs-3"></i><h6 class="text-secondary fw-medium fs-6">Auditoria inativa</h6></td></tr>`;
+    } else {
+      movTable.innerHTML = dashboard.ultimas_movimentacoes.slice(0, 6).map(m => `
          <tr>
-           <td><span class="fw-medium text-dark">${m.produto.nome}</span><br/><small class="text-secondary">SKU ${m.produto.sku}</small></td>
-           <td>${badgeType(m.tipo)}</td>
-           <td class="fw-medium">${m.quantidade} ${m.produto.unidade}</td>
-           <td class="text-secondary" style="font-size:0.8rem">${m.motivo || "-"}</td>
-           <td><small class="text-secondary">${formatData(m.created_at)}</small></td>
+           <td class="ps-3 align-middle" style="width: 20%">${formatData(m.created_at)}</td>
+           <td class="align-middle">
+             <div class="fw-bold text-dark text-truncate" style="max-width: 240px; font-size: 0.85rem" title="${m.produto.nome}">${m.produto.nome}</div>
+             <div class="d-flex align-items-center gap-2">
+               <span class="text-muted fw-normal font-monospace" style="font-size:0.7rem">${m.produto.sku}</span>
+             </div>
+           </td>
+           <td class="pe-3 align-middle text-end" style="width: 25%">
+             <div class="d-flex flex-column align-items-end gap-1">
+               <strong class="fs-6 lh-1 ${m.tipo === 'entrada' ? 'text-success' : (m.tipo === 'saida' ? 'text-danger' : 'text-primary')}">${m.tipo === 'entrada' ? '+' : (m.tipo === 'saida' ? '-' : '')}${m.quantidade}</strong>
+               ${badgeType(m.tipo)}
+             </div>
+           </td>
          </tr>
        `).join("");
-        }
+    }
 
-        // Alerts
-        const alertas = document.getElementById("dash-alertas");
-        if (dashboard.produtos_com_estoque_baixo.length === 0) {
-            alertas.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i><p>Tudo em ordem no estoque</p></div>`;
-        } else {
-            alertas.innerHTML = `<div class="d-flex flex-column gap-2">` +
-                dashboard.produtos_com_estoque_baixo.slice(0, 8).map(p => {
-                    const isZero = p.estoque_atual === 0;
-                    return `
-        <div class="d-flex align-items-start gap-3 p-2 rounded bg-white border">
-           <div class="mt-1 ${isZero ? 'text-danger' : 'text-warning'} fs-5 lh-1"><i class="bi ${isZero ? 'bi-x-octagon-fill' : 'bi-exclamation-triangle-fill'}"></i></div>
+    const alertas = document.getElementById("dash-alertas");
+    if (dashboard.produtos_com_estoque_baixo.length === 0) {
+      alertas.innerHTML = `<div class="empty-state py-4 mt-2"><i class="bi bi-shield-check text-success fs-2 mb-2 d-block"></i><span class="text-secondary fw-semibold">Estoque Saudável</span></div>`;
+    } else {
+      alertas.innerHTML = `<div class="d-flex flex-column gap-2 mb-1">` +
+        dashboard.produtos_com_estoque_baixo.slice(0, 6).map(p => {
+          const isZero = p.estoque_atual === 0;
+          return `
+        <div class="d-flex gap-2 p-2 px-3 rounded-2 bg-white border shadow-sm align-items-center">
+           <div class="${isZero ? 'text-danger bg-danger-subtle' : 'text-warning bg-warning-subtle'} rounded d-flex align-items-center justify-content-center flex-shrink-0" style="width:28px; height:28px;">
+              <i class="bi ${isZero ? 'bi-x-octagon-fill' : 'bi-exclamation-triangle-fill'}" style="font-size:0.9rem"></i>
+           </div>
            <div class="flex-grow-1 min-vw-0">
-             <div class="fw-bold text-dark text-truncate" style="font-size:0.85rem">${p.nome}</div>
-             <div class="text-secondary mt-1" style="font-size:0.75rem">Estoque Atual: <strong>${p.estoque_atual}</strong> ${p.unidade}</div>
-             <div class="text-secondary" style="font-size:0.75rem">Mínimo: ${p.estoque_minimo}</div>
+             <div class="fw-bold text-dark text-truncate lh-1 mb-1" style="font-size:0.8rem" title="${p.nome}">${p.nome} 
+               <span class="text-secondary font-monospace fw-normal ms-1" style="font-size:0.65rem">${p.sku}</span>
+             </div>
+             <div class="d-flex justify-content-between align-items-baseline lh-1">
+                 <span class="text-muted" style="font-size:0.65rem">Mín: ${p.estoque_minimo}</span>
+                 <strong class="${isZero ? 'text-danger' : 'text-warning'}" style="font-size:0.8rem">${p.estoque_atual} <span class="fw-normal text-muted" style="font-size:0.7rem">${p.unidade}</span></strong>
+             </div>
            </div>
         </div>
         `;
-                }).join("") + `</div>`;
-        }
-
-    } catch (error) {
-        document.getElementById("dash-metrics").innerHTML = `<div class="col-12"><div class="alert alert-danger w-100">${error.message}</div></div>`;
+        }).join("") + `</div>`;
     }
+
+  } catch (error) {
+    if (window.ui) ui.showToast("Falha em Dashboard: " + error.message, "danger");
+  }
 };
