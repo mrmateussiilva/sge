@@ -171,7 +171,7 @@ window.renderMovimentacoes = async function () {
         document.getElementById("form-movimentacao").reset();
         if (window.ui) ui.showToast("Registrado!", "success");
       } catch (err) {
-        if (window.ui) ui.showToast("Opa: " + err.message, "danger");
+        if (window.ui) ui.showToast("Não foi possível salvar a movimentação: " + ui.getErrorMessage(err), "danger");
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
@@ -179,7 +179,16 @@ window.renderMovimentacoes = async function () {
     });
 
   } catch (error) {
-    if (window.ui) ui.showToast("Erro: " + error.message, "danger");
-    document.getElementById("movimentacoes-list").innerHTML = `<tr><td colspan="4"><div class="alert alert-danger m-3 border-0 bg-danger-subtle">${error.message}</div></td></tr>`;
+    if (window.ui) {
+      ui.showToast("Falha ao carregar movimentações: " + ui.getErrorMessage(error), "danger");
+      ui.renderInlineError(document.getElementById("movimentacoes-list"), {
+        title: "Falha ao carregar movimentações",
+        message: "O histórico e o formulário dependem de dados que não foram carregados.",
+        details: ui.getErrorMessage(error),
+        tableCols: 4,
+        actionLabel: "Recarregar módulo",
+        action: "window.renderMovimentacoes()"
+      });
+    }
   }
 };

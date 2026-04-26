@@ -41,15 +41,15 @@ async function handleRoute() {
       await window[routeObj.fn]();
     } catch (err) {
       console.error(err);
-      appContent.innerHTML = `
-        <div class="card-enterprise p-5 text-center empty-state m-auto w-100" style="max-width:500px">
-          <i class="bi bi-exclamation-octagon text-danger display-4 mb-3 d-block"></i>
-          <h4 class="fw-bold">Erro ao exibir a página</h4>
-          <p class="text-secondary">Ocorreu um problema ao carregar este módulo. Tente novamente.</p>
-          <div class="alert alert-danger text-start small mt-3">${err.message}</div>
-          <button class="btn btn-outline-secondary mt-2 px-4" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise me-2"></i>Recarregar App</button>
-        </div>
-      `;
+      if (window.ui) {
+        window.ui.renderPageError(appContent, {
+          title: "Erro ao exibir a página",
+          message: "O módulo não conseguiu carregar os dados necessários.",
+          details: window.ui.getErrorMessage(err),
+          actionLabel: "Tentar novamente",
+          action: "window.handleRoute()"
+        });
+      }
     }
   } else {
     document.title = "SGE | Página não encontrada";
@@ -65,3 +65,4 @@ async function handleRoute() {
 }
 
 window.addEventListener("hashchange", handleRoute);
+window.handleRoute = handleRoute;

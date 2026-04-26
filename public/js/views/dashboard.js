@@ -188,7 +188,15 @@ window.renderDashboard = async function () {
     }
 
   } catch (error) {
-    if (window.ui) ui.showToast("Falha em Dashboard: " + error.message, "danger");
-    document.getElementById("app-content").innerHTML += `<div class="alert alert-danger m-3 border-0 bg-danger-subtle">${error.message}</div>`;
+    if (window.ui) {
+      ui.showToast("Falha em Dashboard: " + ui.getErrorMessage(error), "danger");
+      ui.renderPageError(appContent, {
+        title: "Dashboard indisponível no momento",
+        message: "Não foi possível montar a visão geral com os dados atuais.",
+        details: ui.getErrorMessage(error),
+        actionLabel: "Recarregar dashboard",
+        action: "window.renderDashboard()"
+      });
+    }
   }
 };

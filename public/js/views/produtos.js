@@ -212,7 +212,16 @@ window.renderProdutos = async function () {
     applyFilters();
 
   } catch (error) {
-    if (window.ui) ui.showToast("Falha ao abrir produtos: " + error.message, "danger");
-    document.getElementById("produtos-list").innerHTML = `<tr><td colspan="6"><div class="alert alert-danger m-3 border-0 bg-danger-subtle">${error.message}</div></td></tr>`;
+    if (window.ui) {
+      ui.showToast("Falha ao abrir produtos: " + ui.getErrorMessage(error), "danger");
+      ui.renderInlineError(document.getElementById("produtos-list"), {
+        title: "Falha ao carregar produtos",
+        message: "A listagem não pôde ser exibida agora.",
+        details: ui.getErrorMessage(error),
+        tableCols: 6,
+        actionLabel: "Tentar novamente",
+        action: "window.renderProdutos()"
+      });
+    }
   }
 };

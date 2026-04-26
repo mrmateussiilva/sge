@@ -187,8 +187,16 @@ window.renderImportarXml = async function () {
             if (window.ui) ui.showToast("XML processado com sucesso. Verifique os dados e confirme a importação.", "success");
 
         } catch (err) {
-            if (window.ui) ui.showToast(err.message, "danger");
-            document.getElementById("produtosTableContainer").innerHTML = `<div class="p-4 text-danger text-center fw-bold"><i class="bi bi-x-circle me-1"></i> Falha: ${err.message}</div>`;
+            if (window.ui) {
+                ui.showToast(ui.getErrorMessage(err), "danger");
+                ui.renderInlineError(document.getElementById("produtosTableContainer"), {
+                    title: "Falha ao analisar o XML",
+                    message: "O arquivo não pôde ser processado neste momento.",
+                    details: ui.getErrorMessage(err),
+                    actionLabel: "Tentar novamente",
+                    action: "document.getElementById('btnProcessarXml').click()"
+                });
+            }
         } finally {
             btnProcessar.innerHTML = `<i class="bi bi-gear me-2"></i> Processar Novamente`;
             btnProcessar.disabled = false;
@@ -224,7 +232,7 @@ window.renderImportarXml = async function () {
             }, 1500);
 
         } catch (err) {
-            if (window.ui) ui.showToast("Falha na gravação: " + err.message, "danger");
+            if (window.ui) ui.showToast("Falha na gravação: " + ui.getErrorMessage(err), "danger");
             btnConfirmar.disabled = false;
             btnConfirmar.innerHTML = originalText;
         }
