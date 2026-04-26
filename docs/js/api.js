@@ -1,3 +1,4 @@
+/* js/api.js */
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 async function request(path, options = {}) {
@@ -17,19 +18,17 @@ async function request(path, options = {}) {
       logout(false);
     }
     window.location.replace("login.html");
-    throw new Error("Sessao expirada. Faca login novamente.");
+    throw new Error("Sessão expirada. Faça login novamente.");
   }
 
   if (!response.ok) {
     let message = "Erro ao comunicar com a API.";
-
     try {
       const errorData = await response.json();
       message = errorData.detail || message;
     } catch (error) {
       message = response.statusText || message;
     }
-
     throw new Error(message);
   }
 
@@ -40,34 +39,13 @@ async function request(path, options = {}) {
   return response.json();
 }
 
-const api = {
-  getProdutos() {
-    return request("/produtos");
-  },
-  getProduto(id) {
-    return request(`/produtos/${id}`);
-  },
-  createProduto(payload) {
-    return request("/produtos", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  },
-  deleteProduto(id) {
-    return request(`/produtos/${id}`, {
-      method: "DELETE",
-    });
-  },
-  getMovimentacoes() {
-    return request("/movimentacoes");
-  },
-  createMovimentacao(payload) {
-    return request("/movimentacoes", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  },
-  getDashboard() {
-    return request("/dashboard");
-  },
+window.api = {
+  getProdutos: () => request("/produtos"),
+  getProduto: (id) => request(`/produtos/${id}`),
+  createProduto: (payload) => request("/produtos", { method: "POST", body: JSON.stringify(payload) }),
+  updateProduto: (id, payload) => request(`/produtos/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteProduto: (id) => request(`/produtos/${id}`, { method: "DELETE" }),
+  getMovimentacoes: () => request("/movimentacoes"),
+  createMovimentacao: (payload) => request("/movimentacoes", { method: "POST", body: JSON.stringify(payload) }),
+  getDashboard: () => request("/dashboard"),
 };

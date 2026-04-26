@@ -1,3 +1,4 @@
+/* js/auth.js */
 const AUTH_API_BASE_URL = "http://127.0.0.1:8000";
 const TOKEN_STORAGE_KEY = "sge_access_token";
 const USER_STORAGE_KEY = "sge_usuario";
@@ -42,15 +43,13 @@ function logout(redirecionar = true) {
 async function login(email, senha) {
   const response = await fetch(`${AUTH_API_BASE_URL}/auth/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, senha }),
   });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || "Nao foi possivel fazer login.");
+    throw new Error(data.detail || "Não foi possível fazer login.");
   }
 
   salvarToken(data.access_token);
@@ -61,7 +60,7 @@ async function login(email, senha) {
 function protegerPagina() {
   if (!obterToken()) {
     window.location.replace("login.html");
-    return;
+    return false;
   }
 
   preencherUsuario();
@@ -70,6 +69,7 @@ function protegerPagina() {
     element.addEventListener("click", () => logout());
   });
   liberarRenderAuth();
+  return true;
 }
 
 function redirecionarSeAutenticado() {
