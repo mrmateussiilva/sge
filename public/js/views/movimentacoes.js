@@ -42,7 +42,7 @@ window.renderMovimentacoes = async function () {
 
               <div class="form-group">
                  <label for="quantidade" class="form-label">Quantidade</label>
-                 <input type="number" class="form-control fw-bold fs-6" id="quantidade" min="1" required placeholder="Inteiro" aria-label="Quantidade">
+                 <input type="number" class="form-control fw-bold fs-6" id="quantidade" min="1" step="1" inputmode="numeric" required placeholder="Inteiro" aria-label="Quantidade">
               </div>
 
               <div class="form-group flex-grow-1 d-flex flex-column">
@@ -151,6 +151,11 @@ window.renderMovimentacoes = async function () {
 
     renderTable();
 
+    const quantidadeInput = document.getElementById("quantidade");
+    if (window.enforceIntegerInput) {
+      window.enforceIntegerInput(quantidadeInput, { min: 1 });
+    }
+
     document.getElementById("form-movimentacao").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("btnSalvarMov");
@@ -159,10 +164,16 @@ window.renderMovimentacoes = async function () {
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>...';
 
       try {
+        const quantidade = Number.parseInt(quantidadeInput.value, 10);
+
+        if (!Number.isInteger(quantidade) || quantidade < 1) {
+          throw new Error("Informe uma quantidade inteira maior que zero.");
+        }
+
         const payload = {
           produto_id: parseInt(document.getElementById("produtoId").value),
           tipo: document.querySelector('input[name="tipoMov"]:checked').value,
-          quantidade: parseInt(document.getElementById("quantidade").value),
+          quantidade,
           motivo: document.getElementById("motivo").value.trim() || null
         };
         const nova = await window.api.createMovimentacao(payload);

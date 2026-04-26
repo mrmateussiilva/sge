@@ -27,6 +27,48 @@ function normalizeErrorMessage(error, fallback = "Ocorreu um erro inesperado. Te
     return fallback;
 }
 
+function enforceIntegerInput(input, options = {}) {
+    if (!input) return;
+
+    const min = options.min ?? null;
+
+    const sanitize = () => {
+        let value = input.value.replace(/[^\d-]/g, "");
+
+        if (min !== null && min >= 0) {
+            value = value.replace(/-/g, "");
+        } else if (value.includes("-")) {
+            value = `${value.startsWith("-") ? "-" : ""}${value.replace(/-/g, "")}`;
+        }
+
+        input.value = value;
+    };
+
+    input.addEventListener("input", sanitize);
+    input.addEventListener("keydown", (event) => {
+        if (["e", "E", ".", ",", "+"].includes(event.key)) {
+            event.preventDefault();
+        }
+    });
+    input.addEventListener("blur", () => {
+        sanitize();
+        if (!input.value) return;
+
+        const parsed = Number.parseInt(input.value, 10);
+        if (Number.isNaN(parsed)) {
+            input.value = "";
+            return;
+        }
+
+        if (min !== null && parsed < min) {
+            input.value = String(min);
+            return;
+        }
+
+        input.value = String(parsed);
+    });
+}
+
 function buildErrorStateHTML(options = {}) {
     const {
         title = "Não foi possível concluir esta operação",
@@ -142,6 +184,7 @@ function installGlobalErrorHandlers() {
 
 window.escapeHtml = escapeHtml;
 window.normalizeErrorMessage = normalizeErrorMessage;
+window.enforceIntegerInput = enforceIntegerInput;
 window.buildErrorStateHTML = buildErrorStateHTML;
 
 function initApp() {

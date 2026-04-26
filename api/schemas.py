@@ -15,8 +15,8 @@ class ProdutoBase(BaseModel):
     unidade: str = Field(..., min_length=1, max_length=30)
     custo: Decimal = Field(..., ge=0)
     preco: Decimal = Field(..., ge=0)
-    estoque_atual: int = Field(default=0, ge=0)
-    estoque_minimo: int = Field(default=0, ge=0)
+    estoque_atual: int = Field(default=0, ge=0, strict=True)
+    estoque_minimo: int = Field(default=0, ge=0, strict=True)
     localizacao: str | None = Field(default=None, max_length=100)
 
 
@@ -36,9 +36,9 @@ class ProdutoResponse(ProdutoBase):
 
 
 class MovimentacaoBase(BaseModel):
-    produto_id: int = Field(..., gt=0)
+    produto_id: int = Field(..., gt=0, strict=True)
     tipo: TipoMovimentacao
-    quantidade: int = Field(..., ge=0)
+    quantidade: int = Field(..., ge=1, strict=True)
     motivo: str | None = Field(default=None, max_length=255)
 
 
