@@ -1,5 +1,6 @@
 /* js/api.js */
-const API_BASE_URL = "http://127.0.0.1:8000";
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const API_BASE_URL = isLocal ? "http://127.0.0.1:8000" : "/api";
 
 async function request(path, options = {}) {
   const token = window.obterToken ? obterToken() : null;
