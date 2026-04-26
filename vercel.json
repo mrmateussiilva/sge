@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "api/index.py",
@@ -12,11 +13,11 @@
     },
     {
       "src": "/(.*\\.(?:js|css|png|jpg|jpeg|gif|svg|ico|webp|json))",
-      "dest": "/$1"
+      "dest": "/public/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/public/index.html"
     }
   ]
 }
