@@ -58,8 +58,12 @@
           <div class="topbar-actions">
             <div class="user-chip">
               <span class="user-chip-icon"><i class="bi bi-person-circle"></i></span>
-              <span>Operador</span>
+              <span data-usuario-nome>Operador</span>
             </div>
+            <button class="btn btn-light btn-sm px-3" type="button" data-logout>
+              <i class="bi bi-box-arrow-right me-1"></i>
+              Sair
+            </button>
           </div>
         </header>
 
@@ -154,6 +158,10 @@
       </main>
     </div>
 
+    <script src="js/auth.js"></script>
+    <script>
+      protegerPagina();
+    </script>
     <script src="js/api.js"></script>
     <script src="js/layout.js"></script>
     <script src="js/movimentacoes.js"></script>

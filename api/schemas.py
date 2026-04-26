@@ -58,3 +58,32 @@ class DashboardResponse(BaseModel):
     total_produtos: int
     produtos_com_estoque_baixo: list[ProdutoResponse]
     ultimas_movimentacoes: list[MovimentacaoResponse]
+
+
+class UsuarioBase(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=150)
+    email: str = Field(..., min_length=5, max_length=150)
+    perfil: str = Field(default="operador", min_length=1, max_length=50)
+
+
+class UsuarioCreate(UsuarioBase):
+    senha: str = Field(..., min_length=6, max_length=128)
+
+
+class UsuarioLogin(BaseModel):
+    email: str = Field(..., min_length=5, max_length=150)
+    senha: str = Field(..., min_length=1, max_length=128)
+
+
+class UsuarioResponse(UsuarioBase):
+    id: int
+    ativo: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    usuario: UsuarioResponse

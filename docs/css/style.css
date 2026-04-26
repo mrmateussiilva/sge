@@ -39,6 +39,12 @@ body {
   overflow-x: hidden;
 }
 
+body.login-page {
+  background:
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 28%),
+    var(--body-bg);
+}
+
 a {
   text-decoration: none;
 }
@@ -629,6 +635,52 @@ a {
 .modal-subtitle {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.login-card {
+  width: min(100%, 420px);
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.login-brand-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.login-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
 }
 
 body.sidebar-collapsed .sidebar {

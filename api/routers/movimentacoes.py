@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from auth import get_current_user
 import crud
 import schemas
 from database import get_db
 
 
-router = APIRouter(prefix="/movimentacoes", tags=["movimentacoes"])
+router = APIRouter(
+    prefix="/movimentacoes",
+    tags=["movimentacoes"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=list[schemas.MovimentacaoResponse])
