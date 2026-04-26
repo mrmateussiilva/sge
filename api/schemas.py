@@ -87,3 +87,31 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     usuario: UsuarioResponse
+
+class NotaMeta(BaseModel):
+    numero_nota: str
+    serie: str
+    chave_acesso: str
+    data_emissao: str | None = None
+    fornecedor_nome: str
+    fornecedor_cnpj: str
+    valor_total: float
+
+class XmlProduto(BaseModel):
+    codigo: str
+    descricao: str
+    ncm: str | None = None
+    cfop: str | None = None
+    unidade: str
+    quantidade: float
+    valor_unitario: float
+    valor_total: float
+    status: str | None = None
+
+class PreviewXmlResponse(BaseModel):
+    nota: NotaMeta
+    produtos: list[XmlProduto]
+
+class ConfirmarImportacaoPayload(BaseModel):
+    nota: NotaMeta
+    produtos: list[XmlProduto]

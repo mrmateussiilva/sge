@@ -48,4 +48,21 @@ window.api = {
   getMovimentacoes: () => request("/movimentacoes"),
   createMovimentacao: (payload) => request("/movimentacoes", { method: "POST", body: JSON.stringify(payload) }),
   getDashboard: () => request("/dashboard"),
+  previewXml: async (file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const token = window.obterToken ? window.obterToken() : null;
+    const res = await fetch(`${API_BASE_URL}/importacao/xml/preview`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd
+    });
+    if (!res.ok) {
+      let errStr = "Falha ao processar arquivo XML";
+      try { errStr = (await res.json()).detail || errStr } catch (e) { }
+      throw new Error(errStr);
+    }
+    return res.json();
+  },
+  confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) })
 };

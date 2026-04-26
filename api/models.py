@@ -51,3 +51,17 @@ class Movimentacao(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     produto: Mapped["Produto"] = relationship(back_populates="movimentacoes")
+
+
+class NotaImportada(Base):
+    __tablename__ = "notas_importadas"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    chave_acesso: Mapped[str] = mapped_column(String(44), nullable=False, unique=True, index=True)
+    numero_nota: Mapped[str] = mapped_column(String(20), nullable=False)
+    serie: Mapped[str] = mapped_column(String(10), nullable=False)
+    fornecedor_nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    fornecedor_cnpj: Mapped[str] = mapped_column(String(20), nullable=False)
+    valor_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    data_emissao: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

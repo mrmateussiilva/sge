@@ -7,7 +7,7 @@ import auth as auth_service
 import models
 import schemas
 from database import Base, SessionLocal, engine
-from routers import auth, dashboard, movimentacoes, produtos
+from routers import auth, dashboard, movimentacoes, produtos, importacao_xml
 
 
 Base.metadata.create_all(bind=engine)
@@ -50,6 +50,7 @@ app.include_router(auth.router)
 app.include_router(produtos.router)
 app.include_router(movimentacoes.router)
 app.include_router(dashboard.router)
+app.include_router(importacao_xml.router)
 
 
 @app.get("/")
