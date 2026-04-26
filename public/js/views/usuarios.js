@@ -91,6 +91,11 @@ window.renderUsuarios = async function () {
 
   const tbody = document.getElementById("usuariosList");
   const countEl = document.getElementById("usuariosCount");
+  const createForm = document.getElementById("usuarioCreateForm");
+
+  if (!tbody || !countEl || !createForm) {
+    throw new Error("A interface de usuarios nao foi montada corretamente.");
+  }
 
   const renderRows = (usuarios) => {
     countEl.textContent = `${usuarios.length} conta(s)`;
@@ -175,7 +180,7 @@ window.renderUsuarios = async function () {
     }
   }
 
-  document.getElementById("usuarioCreateForm").addEventListener("submit", async (event) => {
+  createForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorBox = document.getElementById("usuarioCreateErro");
     const button = document.getElementById("usuarioCreateButton");
