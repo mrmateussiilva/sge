@@ -17,7 +17,7 @@ async function request(path, options = {}) {
     if (window.logout) {
       logout(false);
     }
-    window.location.replace("login.html");
+    window.location.replace("/login");
     throw new Error("Sessão expirada. Faça login novamente.");
   }
 
@@ -65,6 +65,18 @@ window.api = {
     return res.json();
   },
   confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) }),
-  getHealth: () => request("/health"),
-  getDbHealth: () => request("/health/db")
+  getHealth: async () => {
+    const response = await fetch("/health", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Erro ao consultar a saude da aplicacao.");
+    }
+    return response.json();
+  },
+  getDbHealth: async () => {
+    const response = await fetch("/health/db", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Erro ao consultar a saude do banco.");
+    }
+    return response.json();
+  }
 };

@@ -1,21 +1,20 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "handle": "filesystem"
     },
     {
-      "source": "/",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/login",
-      "destination": "/login.html"
+      "src": "/login",
+      "dest": "/login.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

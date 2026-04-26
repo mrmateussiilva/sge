@@ -1,5 +1,6 @@
 /* js/auth.js */
-const AUTH_API_BASE_URL = "http://127.0.0.1:8000";
+const isLocalAuth = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const AUTH_API_BASE_URL = isLocalAuth ? "http://127.0.0.1:8000/api" : "/api";
 const TOKEN_STORAGE_KEY = "sge_access_token";
 const USER_STORAGE_KEY = "sge_usuario";
 
@@ -36,7 +37,7 @@ function logout(redirecionar = true) {
   localStorage.removeItem(USER_STORAGE_KEY);
 
   if (redirecionar) {
-    window.location.replace("login.html");
+    window.location.replace("/login");
   }
 }
 
@@ -59,7 +60,7 @@ async function login(email, senha) {
 
 function protegerPagina() {
   if (!obterToken()) {
-    window.location.replace("login.html");
+    window.location.replace("/login");
     return false;
   }
 
@@ -77,5 +78,5 @@ function redirecionarSeAutenticado() {
     liberarRenderAuth();
     return;
   }
-  window.location.replace("index.html");
+  window.location.replace("/");
 }
