@@ -92,7 +92,7 @@ app.include_router(importacao_xml.router, prefix="/api")
 def root():
     return {"message": "API de estoque em funcionamento no Vercel.", "environment": "Vercel" if os.getenv("VERCEL") else "Local"}
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {
         "status": "ok",
@@ -101,7 +101,7 @@ def health():
         "vercel_env": bool(os.getenv("VERCEL"))
     }
 
-@app.get("/health/db")
+@app.get("/api/health/db")
 def health_db():
     try:
         db = SessionLocal()

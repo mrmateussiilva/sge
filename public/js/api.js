@@ -65,18 +65,6 @@ window.api = {
     return res.json();
   },
   confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) }),
-  getHealth: async () => {
-    const response = await fetch("/health", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Erro ao consultar a saude da aplicacao.");
-    }
-    return response.json();
-  },
-  getDbHealth: async () => {
-    const response = await fetch("/health/db", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Erro ao consultar a saude do banco.");
-    }
-    return response.json();
-  }
+  getHealth: () => request("/health"),
+  getDbHealth: () => request("/health/db")
 };
