@@ -19,7 +19,7 @@ try:
     import models
     import schemas
     from database import Base, SessionLocal, engine, DATABASE_URL
-    from routers import auth, dashboard, movimentacoes, produtos, importacao_xml
+    from routers import auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
     logger.info("Internal modules imported successfully.")
 except Exception as e:
     logger.error(f"Error importing internal modules: {e}")
@@ -87,6 +87,7 @@ app.include_router(produtos.router, prefix="/api")
 app.include_router(movimentacoes.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(importacao_xml.router, prefix="/api")
+app.include_router(usuarios.router, prefix="/api")
 
 @app.get("/api")
 def root():

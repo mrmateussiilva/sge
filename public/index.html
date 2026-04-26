@@ -59,6 +59,10 @@
               <i class="bi bi-filetype-xml"></i>
               <span class="nav-label">Importar XML</span>
             </a>
+            <a href="#/usuarios" class="nav-item d-none" data-admin-only data-route="/usuarios" title="Usuarios">
+              <i class="bi bi-people"></i>
+              <span class="nav-label">Usuários</span>
+            </a>
           </div>
         </div>
 
@@ -75,7 +79,7 @@
               <div class="user-info transition-fade flex-grow-1 min-vw-0">
                 <span class="d-block fw-bold text-dark lh-1 text-truncate" style="font-size: 0.75rem;"
                   data-usuario-nome>Carregando...</span>
-                <small class="text-muted d-block text-truncate" style="font-size: 0.65rem;">Sessão Ativa</small>
+                <small class="text-muted d-block text-truncate" style="font-size: 0.65rem;" data-usuario-perfil>Sessão Ativa</small>
               </div>
             </div>
             <button class="nav-item w-100 border-0 bg-transparent text-start text-danger" title="Encerrar sessão segura"
@@ -133,6 +137,7 @@
   <script src="./js/views/produtos.js"></script>
   <script src="./js/views/movimentacoes.js"></script>
   <script src="./js/views/importarXml.js"></script>
+  <script src="./js/views/usuarios.js"></script>
   <script src="./js/router.js"></script>
   <script src="./js/app.js"></script>
   <script>

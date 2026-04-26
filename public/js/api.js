@@ -54,6 +54,9 @@ window.api = {
   getMovimentacoes: () => request("/movimentacoes"),
   createMovimentacao: (payload) => request("/movimentacoes", { method: "POST", body: JSON.stringify(payload) }),
   getDashboard: () => request("/dashboard"),
+  getUsuarios: () => request("/usuarios"),
+  createUsuario: (payload) => request("/usuarios", { method: "POST", body: JSON.stringify(payload) }),
+  updateUsuario: (id, payload) => request(`/usuarios/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   previewXml: async (file) => {
     const fd = new FormData();
     fd.append("file", file);

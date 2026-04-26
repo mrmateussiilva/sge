@@ -832,6 +832,33 @@ html.auth-pending body {
   line-height: 1.6;
 }
 
+.login-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.35rem;
+  margin-bottom: 1.25rem;
+  border-radius: 18px;
+  background: #f2f6fd;
+}
+
+.login-mode-tab {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #5e6e8d;
+  font-size: 0.87rem;
+  font-weight: 800;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-mode-tab.active {
+  background: #fff;
+  color: #10337d;
+  box-shadow: 0 8px 18px rgba(16, 51, 125, 0.1);
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

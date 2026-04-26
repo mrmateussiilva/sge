@@ -55,10 +55,15 @@
 
       <header class="login-header">
         <h2>Acessar painel</h2>
-        <p>Use suas credenciais corporativas para entrar no sistema.</p>
+        <p>Entre com sua conta existente ou crie um novo acesso inicial.</p>
       </header>
 
-      <form id="loginForm" class="login-form">
+      <div class="login-mode-switch" role="tablist" aria-label="Acesso e cadastro">
+        <button type="button" class="login-mode-tab active" data-auth-tab="login">Entrar</button>
+        <button type="button" class="login-mode-tab" data-auth-tab="register">Criar conta</button>
+      </div>
+
+      <form id="loginForm" class="login-form" data-auth-panel="login">
         <div class="login-field">
           <label for="email" class="form-label">Email corporativo</label>
           <div class="login-input-wrap">
@@ -86,6 +91,43 @@
           <span class="login-button-text">Entrar no sistema</span>
         </button>
       </form>
+
+      <form id="registerForm" class="login-form d-none" data-auth-panel="register">
+        <div class="login-field">
+          <label for="registerNome" class="form-label">Nome completo</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-person"></i>
+            <input type="text" class="form-control login-control" id="registerNome" placeholder="Nome do usuario" required />
+          </div>
+        </div>
+
+        <div class="login-field">
+          <label for="registerEmail" class="form-label">Email</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-envelope"></i>
+            <input type="email" class="form-control login-control" id="registerEmail" placeholder="usuario@empresa.com" required />
+          </div>
+        </div>
+
+        <div class="login-field">
+          <label for="registerSenha" class="form-label">Senha</label>
+          <div class="login-input-wrap">
+            <i class="bi bi-lock"></i>
+            <input type="password" class="form-control login-control" id="registerSenha" minlength="6" placeholder="Minimo de 6 caracteres" required />
+          </div>
+        </div>
+
+        <div class="login-assurance">
+          <i class="bi bi-shield-lock"></i>
+          <span>O primeiro cadastro do sistema recebe perfil de administrador automaticamente.</span>
+        </div>
+
+        <div id="registerErro" class="alert alert-danger py-2 px-3 d-none mb-0 rounded-3" role="alert"></div>
+
+        <button type="submit" class="btn btn-primary login-submit" id="registerButton">
+          <span class="login-button-text">Criar conta e entrar</span>
+        </button>
+      </form>
     </section>
   </main>
 
@@ -97,6 +139,26 @@
     const loginForm = document.getElementById("loginForm");
     const loginErro = document.getElementById("loginErro");
     const loginButton = document.getElementById("loginButton");
+    const registerForm = document.getElementById("registerForm");
+    const registerErro = document.getElementById("registerErro");
+    const registerButton = document.getElementById("registerButton");
+    const authTabs = document.querySelectorAll("[data-auth-tab]");
+    const authPanels = document.querySelectorAll("[data-auth-panel]");
+
+    function activateAuthTab(tabName) {
+      authTabs.forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.authTab === tabName);
+      });
+      authPanels.forEach((panel) => {
+        panel.classList.toggle("d-none", panel.dataset.authPanel !== tabName);
+      });
+      loginErro.classList.add("d-none");
+      registerErro.classList.add("d-none");
+    }
+
+    authTabs.forEach((tab) => {
+      tab.addEventListener("click", () => activateAuthTab(tab.dataset.authTab));
+    });
 
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -116,6 +178,28 @@
       } finally {
         loginButton.disabled = false;
         loginButton.innerHTML = '<span class="login-button-text">Entrar no sistema</span>';
+      }
+    });
+
+    registerForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      registerErro.classList.add("d-none");
+      registerButton.disabled = true;
+      registerButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Criando conta...';
+
+      try {
+        await registrar(
+          document.getElementById("registerNome").value.trim(),
+          document.getElementById("registerEmail").value.trim(),
+          document.getElementById("registerSenha").value,
+        );
+        window.location.replace(getHomeUrl());
+      } catch (error) {
+        registerErro.textContent = error.message;
+        registerErro.classList.remove("d-none");
+      } finally {
+        registerButton.disabled = false;
+        registerButton.innerHTML = '<span class="login-button-text">Criar conta e entrar</span>';
       }
     });
   </script>

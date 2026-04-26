@@ -47,13 +47,17 @@ def get_usuario_by_email(db: Session, email: str) -> models.Usuario | None:
     return db.scalar(stmt)
 
 
+def count_usuarios(db: Session) -> int:
+    return len(list(db.scalars(select(models.Usuario.id)).all()))
+
+
 def create_usuario(db: Session, usuario_in: schemas.UsuarioCreate) -> models.Usuario:
     usuario = models.Usuario(
         nome=usuario_in.nome,
         email=usuario_in.email.lower(),
         senha_hash=get_password_hash(usuario_in.senha),
         perfil=usuario_in.perfil,
-        ativo=True,
+        ativo=getattr(usuario_in, "ativo", True),
     )
     db.add(usuario)
     db.commit()
@@ -65,6 +69,17 @@ def authenticate_usuario(db: Session, email: str, senha: str) -> models.Usuario 
     usuario = get_usuario_by_email(db, email)
     if usuario is None or not usuario.ativo or not verify_password(senha, usuario.senha_hash):
         return None
+    return usuario
+
+
+def get_current_admin(
+    usuario: models.Usuario = Depends(get_current_user),
+) -> models.Usuario:
+    if usuario.perfil != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
     return usuario
 
 

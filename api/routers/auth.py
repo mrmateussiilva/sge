@@ -17,7 +17,14 @@ def register(
     if auth.get_usuario_by_email(db, usuario_in.email):
         raise HTTPException(status_code=400, detail="Email ja cadastrado.")
 
-    return auth.create_usuario(db, usuario_in)
+    perfil = "admin" if auth.count_usuarios(db) == 0 else "operador"
+    novo_usuario = schemas.UsuarioCreate(
+        nome=usuario_in.nome,
+        email=usuario_in.email,
+        senha=usuario_in.senha,
+        perfil=perfil,
+    )
+    return auth.create_usuario(db, novo_usuario)
 
 
 @router.post("/login", response_model=schemas.LoginResponse)

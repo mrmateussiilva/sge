@@ -6,6 +6,7 @@ const routes = {
   "#/produtos": { fn: "renderProdutos", title: "SGE | Produtos" },
   "#/movimentacoes": { fn: "renderMovimentacoes", title: "SGE | Movimentações" },
   "#/importar-xml": { fn: "renderImportarXml", title: "SGE | Importar NF-e" },
+  "#/usuarios": { fn: "renderUsuarios", title: "SGE | Usuários" },
 };
 
 async function handleRoute() {

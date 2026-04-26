@@ -47,6 +47,12 @@ function preencherUsuario() {
   document.querySelectorAll("[data-usuario-nome]").forEach((element) => {
     element.textContent = usuario?.nome || "Operador";
   });
+  document.querySelectorAll("[data-usuario-perfil]").forEach((element) => {
+    element.textContent = usuario?.perfil === "admin" ? "Administrador" : "Operador";
+  });
+  document.querySelectorAll("[data-admin-only]").forEach((element) => {
+    element.classList.toggle("d-none", usuario?.perfil !== "admin");
+  });
 }
 
 function logout(redirecionar = true) {
@@ -75,6 +81,22 @@ async function login(email, senha) {
   return data;
 }
 
+async function registrar(nome, email, senha) {
+  const response = await fetch(`${AUTH_API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, email, senha }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || "Nao foi possivel criar a conta.");
+  }
+
+  await login(email, senha);
+  return data;
+}
+
 function protegerPagina() {
   if (!obterToken()) {
     window.location.replace(getLoginUrl());
@@ -97,3 +119,6 @@ function redirecionarSeAutenticado() {
   }
   window.location.replace(getHomeUrl());
 }
+
+window.registrar = registrar;
+window.usuarioAtual = usuarioAtual;
