@@ -14,5 +14,5 @@ const fileContents = `window.SGE_CONFIG = {
 };
 `;
 
-writeFileSync("public/js/config.js", fileContents, "utf8");
-console.log(`Generated public/js/config.js with API_BASE_URL=${normalizedApiBaseUrl}`);
+writeFileSync("js/config.js", fileContents, "utf8");
+console.log(`Generated js/config.js with API_BASE_URL=${normalizedApiBaseUrl}`);
