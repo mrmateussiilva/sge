@@ -3,6 +3,7 @@ const API_BASE_URL = "http://127.0.0.1:8000";
 async function request(path, options = {}) {
   const token = window.obterToken ? obterToken() : null;
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -15,7 +16,7 @@ async function request(path, options = {}) {
     if (window.logout) {
       logout(false);
     }
-    window.location.href = "login.html";
+    window.location.replace("login.html");
     throw new Error("Sessao expirada. Faca login novamente.");
   }
 
@@ -40,9 +41,6 @@ async function request(path, options = {}) {
 }
 
 const api = {
-  getMe() {
-    return request("/auth/me");
-  },
   getProdutos() {
     return request("/produtos");
   },

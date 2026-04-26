@@ -4,14 +4,21 @@
   const closeTargets = document.querySelectorAll("[data-sidebar-close]");
   const mobileQuery = window.matchMedia("(max-width: 991.98px)");
 
+  function syncCollapsedClass(collapsed) {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    document.documentElement.classList.toggle("sidebar-collapsed", collapsed);
+  }
+
   function applyDesktopState() {
     if (mobileQuery.matches) {
-      document.body.classList.remove("sidebar-collapsed");
+      syncCollapsedClass(false);
+      document.documentElement.classList.remove("layout-pending");
       return;
     }
 
     const collapsed = localStorage.getItem(STORAGE_KEY) === "true";
-    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    syncCollapsedClass(collapsed);
+    document.documentElement.classList.remove("layout-pending");
   }
 
   function closeMobileSidebar() {
@@ -25,7 +32,7 @@
     }
 
     const collapsed = !document.body.classList.contains("sidebar-collapsed");
-    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    syncCollapsedClass(collapsed);
     localStorage.setItem(STORAGE_KEY, String(collapsed));
   }
 

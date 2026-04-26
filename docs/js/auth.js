@@ -2,6 +2,10 @@ const AUTH_API_BASE_URL = "http://127.0.0.1:8000";
 const TOKEN_STORAGE_KEY = "sge_access_token";
 const USER_STORAGE_KEY = "sge_usuario";
 
+function liberarRenderAuth() {
+  document.documentElement.classList.remove("auth-pending");
+}
+
 function salvarToken(token) {
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
 }
@@ -31,7 +35,7 @@ function logout(redirecionar = true) {
   localStorage.removeItem(USER_STORAGE_KEY);
 
   if (redirecionar) {
-    window.location.href = "login.html";
+    window.location.replace("login.html");
   }
 }
 
@@ -56,7 +60,7 @@ async function login(email, senha) {
 
 function protegerPagina() {
   if (!obterToken()) {
-    window.location.href = "login.html";
+    window.location.replace("login.html");
     return;
   }
 
@@ -65,10 +69,13 @@ function protegerPagina() {
   document.querySelectorAll("[data-logout]").forEach((element) => {
     element.addEventListener("click", () => logout());
   });
+  liberarRenderAuth();
 }
 
 function redirecionarSeAutenticado() {
-  if (obterToken()) {
-    window.location.href = "index.html";
+  if (!obterToken()) {
+    liberarRenderAuth();
+    return;
   }
+  window.location.replace("index.html");
 }

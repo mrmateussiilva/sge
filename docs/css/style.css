@@ -30,6 +30,17 @@
   box-sizing: border-box;
 }
 
+html.auth-pending body {
+  visibility: hidden;
+}
+
+html.layout-pending .sidebar,
+html.layout-pending .main-content,
+html.layout-pending .brand-copy,
+html.layout-pending .nav-label {
+  transition: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -683,56 +694,67 @@ a {
   font-size: 0.84rem;
 }
 
-body.sidebar-collapsed .sidebar {
+body.sidebar-collapsed .sidebar,
+html.sidebar-collapsed .sidebar {
   width: var(--sidebar-collapsed-width);
 }
 
-body.sidebar-collapsed .main-content {
+body.sidebar-collapsed .main-content,
+html.sidebar-collapsed .main-content {
   margin-left: var(--sidebar-collapsed-width);
   width: calc(100% - var(--sidebar-collapsed-width));
 }
 
-body.sidebar-collapsed .brand-block {
+body.sidebar-collapsed .brand-block,
+html.sidebar-collapsed .brand-block {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
 }
 
-body.sidebar-collapsed .nav-label {
+body.sidebar-collapsed .nav-label,
+html.sidebar-collapsed .nav-label {
   width: 0;
   opacity: 0;
   overflow: hidden;
 }
 
-body.sidebar-collapsed .sidebar-header {
+body.sidebar-collapsed .sidebar-header,
+html.sidebar-collapsed .sidebar-header {
   flex-direction: column;
   align-items: center;
 }
 
-body.sidebar-collapsed .nav-item {
+body.sidebar-collapsed .nav-item,
+html.sidebar-collapsed .nav-item {
   justify-content: center;
   padding: 0;
 }
 
-body.sidebar-collapsed .nav-item i {
+body.sidebar-collapsed .nav-item i,
+html.sidebar-collapsed .nav-item i {
   width: auto;
 }
 
-body.sidebar-collapsed .brand-title::after {
+body.sidebar-collapsed .brand-title::after,
+html.sidebar-collapsed .brand-title::after {
   content: "SGE";
   font-size: 0.68rem;
   letter-spacing: 0.08em;
 }
 
-body.sidebar-collapsed .brand-title {
+body.sidebar-collapsed .brand-title,
+html.sidebar-collapsed .brand-title {
   font-size: 0;
 }
 
-body.sidebar-collapsed .brand-subtitle {
+body.sidebar-collapsed .brand-subtitle,
+html.sidebar-collapsed .brand-subtitle {
   display: none;
 }
 
-body.sidebar-collapsed .brand-block {
+body.sidebar-collapsed .brand-block,
+html.sidebar-collapsed .brand-block {
   width: 100%;
   flex-direction: column;
   gap: 4px;
@@ -740,14 +762,16 @@ body.sidebar-collapsed .brand-block {
   padding-bottom: 8px;
 }
 
-body.sidebar-collapsed .brand-copy {
+body.sidebar-collapsed .brand-copy,
+html.sidebar-collapsed .brand-copy {
   width: auto;
   opacity: 1;
   overflow: visible;
   align-items: center;
 }
 
-body.sidebar-collapsed .sidebar-toggle {
+body.sidebar-collapsed .sidebar-toggle,
+html.sidebar-collapsed .sidebar-toggle {
   width: 100%;
 }
 
