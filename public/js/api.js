@@ -79,6 +79,19 @@ window.api = {
     return res.json();
   },
   confirmarImportacaoXml: (payload) => request("/importacao/xml/confirmar", { method: "POST", body: JSON.stringify(payload) }),
+  downloadXml: async (url) => {
+    const token = window.obterToken ? window.obterToken() : null;
+    const res = await fetch(`${API_BASE_URL}/importacao/xml/download?url=${encodeURIComponent(url)}`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      let msg = "Falha ao baixar XML";
+      try { msg = (await res.json()).detail || msg; } catch (e) { }
+      throw new Error(msg);
+    }
+    return res;
+  },
   getHealth: () => request("/health"),
   getDbHealth: () => request("/health/db")
 };

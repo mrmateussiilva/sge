@@ -1,9 +1,12 @@
 import xml.etree.ElementTree as ET
 from decimal import Decimal
+from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+import httpx
 
 import auth
 from database import get_db
@@ -16,6 +19,48 @@ def get_ns(root, tag):
     if "}" in root.tag:
         return f"{{{root.tag.split('}')[0].strip('{')}}}{tag}"
     return tag
+
+
+@router.post("/download")
+async def download_xml(
+    url: str = Query(..., description="URL do arquivo XML para download"),
+    usuario = Depends(auth.get_current_user)
+):
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Não foi possível baixar o XML. Status: {response.status_code}"
+            )
+
+        content = response.content
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="O arquivo baixado está vazio.")
+
+        if not response.headers.get("content-type", "").startswith("application/xml") and \
+           not response.headers.get("content-type", "").startswith("text/xml") and \
+           not url.lower().endswith(".xml"):
+            raise HTTPException(
+                status_code=400,
+                detail="O arquivo retornado não parece ser um XML válido."
+            )
+
+        return Response(
+            content=content,
+            media_type="application/xml",
+            headers={
+                "Content-Disposition": f'attachment; filename="xml_download.xml"',
+                "X-Original-URL": url
+            }
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=408, detail="Tempo limite esgotado ao baixar o XML.")
+    except httpx.RequestError:
+        raise HTTPException(status_code=400, detail="Não foi possível conectar à URL fornecida.")
+
 
 @router.post("/preview", response_model=PreviewXmlResponse)
 async def preview_xml(

@@ -14,17 +14,48 @@ window.renderImportarXml = async function () {
         <div class="col-lg-4 col-xl-3">
             <div class="card-enterprise h-100 bg-white border shadow-sm" style="border-radius: var(--radius-md);">
                 <div class="card-header-polished border-bottom px-3 py-2 bg-white" style="border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem">Arquivo NF-e</h6>
+                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem">Origem do XML</h6>
                 </div>
                 <div class="p-4 d-flex flex-column align-items-center justify-content-center text-center gap-3">
-                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 60px; height: 60px;">
-                       <i class="bi bi-filetype-xml fs-3 text-secondary"></i>
+                    
+                    <!-- Tabs de seleção -->
+                    <ul class="nav nav-pills mb-3 w-100" role="tablist">
+                        <li class="nav-item flex-fill" role="presentation">
+                            <button class="nav-link active w-100" id="tabArquivo-tab" data-bs-toggle="tab" data-bs-target="#tabArquivo" type="button" role="tab">
+                                <i class="bi bi-file-earmark me-1"></i> Arquivo
+                            </button>
+                        </li>
+                        <li class="nav-item flex-fill" role="presentation">
+                            <button class="nav-link w-100" id="tabLink-tab" data-bs-toggle="tab" data-bs-target="#tabLink" type="button" role="tab">
+                                <i class="bi bi-link-45deg me-1"></i> Link/URL
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Arquivo -->
+                    <div class="tab-content w-100">
+                        <div class="tab-pane fade show active" id="tabArquivo" role="tabpanel">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 60px; height: 60px;">
+                               <i class="bi bi-filetype-xml fs-3 text-secondary"></i>
+                            </div>
+                            <div>
+                                <label for="xmlFileInput" class="form-label d-none">Escolha o XML</label>
+                                <input class="form-control form-control-sm mb-2" type="file" id="xmlFileInput" accept=".xml">
+                                <small class="text-muted d-block" style="font-size: 0.70rem;">Apenas arquivos XML assinados pela SEFAZ</small>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="tabLink" role="tabpanel">
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 60px; height: 60px;">
+                               <i class="bi bi-cloud-download fs-3 text-secondary"></i>
+                            </div>
+                            <div class="w-100 text-start">
+                                <label for="xmlUrlInput" class="form-label small fw-medium">URL do XML</label>
+                                <textarea class="form-control form-control-sm mb-2" id="xmlUrlInput" rows="3" placeholder="Cole aqui o link do XML (https://...)"></textarea>
+                                <small class="text-muted d-block" style="font-size: 0.70rem;">Cole a URL completa do arquivo XML para download automático</small>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label for="xmlFileInput" class="form-label d-none">Escolha o XML</label>
-                        <input class="form-control form-control-sm mb-2" type="file" id="xmlFileInput" accept=".xml">
-                        <small class="text-muted d-block" style="font-size: 0.70rem;">Apenas arquivos assinalados emitidos pela SEFAZ do respectivo emitente</small>
-                    </div>
+
                     <button class="btn btn-primary shadow-sm w-100 mt-2" id="btnProcessarXml" disabled>
                         <i class="bi bi-gear me-2"></i> Processar XML
                     </button>
@@ -86,13 +117,27 @@ window.renderImportarXml = async function () {
   `;
 
     let currentAnalysis = null;
+    let currentFile = null;
 
     const inputXML = document.getElementById("xmlFileInput");
+    const inputUrl = document.getElementById("xmlUrlInput");
     const btnProcessar = document.getElementById("btnProcessarXml");
-    const btnConfirmar = document.getElementById("btnConfirmarImportacao");
 
     inputXML.addEventListener("change", (e) => {
-        btnProcessar.disabled = !e.target.files.length;
+        currentFile = e.target.files[0] || null;
+        btnProcessar.disabled = !currentFile;
+    });
+
+    inputUrl.addEventListener("input", (e) => {
+        const hasUrl = e.target.value.trim().length > 0;
+        btnProcessar.disabled = !hasUrl && !currentFile;
+    });
+
+    inputUrl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            btnProcessar.click();
+        }
     });
 
     const generateTable = (produtos) => {
@@ -148,14 +193,47 @@ window.renderImportarXml = async function () {
     };
 
     btnProcessar.addEventListener("click", async () => {
-        if (!inputXML.files.length) return;
-        const file = inputXML.files[0];
+        if (!currentFile && !inputUrl.value.trim()) {
+            if (window.ui) ui.showToast("Selecione um arquivo ou informe uma URL", "warning");
+            return;
+        }
 
         btnProcessar.disabled = true;
-        btnProcessar.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Analisando...`;
+        btnProcessar.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Baixando XML...`;
 
         try {
-            const resp = await window.api.previewXml(file);
+            let fileToProcess = currentFile;
+
+            if (!fileToProcess && inputUrl.value.trim()) {
+                const url = inputUrl.value.trim();
+                btnProcessar.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Baixando XML...`;
+
+                try {
+                    let xmlContent;
+                    try {
+                        xmlContent = await fetch(url);
+                        if (!xmlContent.ok) {
+                            throw new Error(`Falha ao baixar XML: ${xmlContent.status}`);
+                        }
+                        xmlContent = await xmlContent.text();
+                    } catch {
+                        const resp = await window.api.downloadXml(url);
+                        xmlContent = await resp.text();
+                    }
+
+                    fileToProcess = new File(
+                        [new Blob([xmlContent], { type: "application/xml" })],
+                        `xml_${Date.now()}.xml`,
+                        { type: "application/xml" }
+                    );
+                } catch (fetchError) {
+                    throw new Error(`Não foi possível baixar o XML: ${fetchError.message}`);
+                }
+            }
+
+            btnProcessar.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Analisando...`;
+
+            const resp = await window.api.previewXml(fileToProcess);
             currentAnalysis = resp;
 
             // Render Meta
