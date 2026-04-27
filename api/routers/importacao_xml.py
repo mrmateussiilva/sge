@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-import httpx
 
 import auth
 from database import get_db
@@ -26,6 +25,14 @@ async def download_xml(
     url: str = Query(..., description="URL do arquivo XML para download"),
     usuario = Depends(auth.get_current_user)
 ):
+    try:
+        import httpx
+    except ModuleNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Dependencia de download XML indisponivel no servidor.",
+        ) from exc
+
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(url)
