@@ -212,15 +212,19 @@ produtosTabela.addEventListener("click", async (event) => {
   }
 
   const { deleteId } = button.dataset;
-  if (!window.confirm("Excluir este produto?")) {
-    return;
-  }
+  const confirmed = await window.ui.showConfirm({
+    title: "Excluir produto",
+    message: "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.",
+    confirmText: "Excluir",
+    danger: true
+  });
+  if (!confirmed) return;
 
   try {
     await api.deleteProduto(deleteId);
     await carregarProdutos();
   } catch (error) {
-    window.alert(error.message);
+    window.ui.showToast(error.message, "danger");
   }
 });
 

@@ -330,8 +330,10 @@ window.renderProdutos = async function () {
       try {
         if (editingId) {
           await window.api.updateProduto(editingId, payload);
+          window.ui.showToast("Produto atualizado com sucesso!", "success");
         } else {
           await window.api.createProduto(payload);
+          window.ui.showToast("Produto cadastrado com sucesso!", "success");
         }
         produtoForm.reset();
         produtoModal.hide();
@@ -353,12 +355,19 @@ window.renderProdutos = async function () {
 
       const delBtn = e.target.closest("[data-delete-id]");
       if (delBtn) {
-        if (!confirm("Excluir este produto?")) return;
+        const confirmed = await window.ui.showConfirm({
+          title: "Excluir produto",
+          message: "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.",
+          confirmText: "Excluir",
+          danger: true
+        });
+        if (!confirmed) return;
         try {
           await window.api.deleteProduto(parseInt(delBtn.dataset.deleteId));
+          window.ui.showToast("Produto excluído com sucesso!", "success");
           window.renderProdutos();
         } catch (err) {
-          alert(err.message);
+          window.ui.showToast(err.message, "danger");
         }
         return;
       }

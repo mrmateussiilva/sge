@@ -131,6 +131,73 @@ window.ui = {
         toast.show();
         toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
     },
+    showConfirm: function (options = {}) {
+        return new Promise((resolve) => {
+            const {
+                title = "Confirmar ação",
+                message = "Tem certeza que deseja continuar?",
+                confirmText = "Confirmar",
+                cancelText = "Cancelar",
+                confirmClass = "btn-primary",
+                icon = "bi-question-circle text-primary",
+                danger = false
+            } = options;
+
+            const id = 'confirm-' + Date.now();
+            const iconClass = danger ? "bi-exclamation-triangle text-danger" : icon;
+            const finalConfirmClass = danger ? "btn-danger" : confirmClass;
+
+            const html = `
+                <div class="modal fade" id="${id}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-sm">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="confirm-icon">
+                                        <i class="bi ${iconClass}"></i>
+                                    </div>
+                                    <h5 class="modal-title fw-bold mb-0" id="${id}-label">${escapeHtml(title)}</h5>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body px-4 pb-2 pt-2">
+                                <p class="text-secondary mb-0" style="font-size:0.9rem">${escapeHtml(message)}</p>
+                            </div>
+                            <div class="modal-footer border-top-0 pt-2 pb-4 px-4">
+                                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal" id="${id}-cancel">${escapeHtml(cancelText)}</button>
+                                <button type="button" class="btn ${finalConfirmClass} px-4" id="${id}-confirm">${escapeHtml(confirmText)}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const host = document.getElementById("app-modals") || document.body;
+            host.insertAdjacentHTML('beforeend', html);
+
+            const modalEl = document.getElementById(id);
+            const modal = new bootstrap.Modal(modalEl);
+
+            const cleanup = () => {
+                modalEl.remove();
+            };
+
+            document.getElementById(`${id}-confirm`).addEventListener('click', () => {
+                cleanup();
+                resolve(true);
+            });
+
+            document.getElementById(`${id}-cancel`).addEventListener('click', () => {
+                resolve(false);
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                resolve(false);
+            });
+
+            modal.show();
+        });
+    },
     getErrorMessage: function (error, fallback) {
         return normalizeErrorMessage(error, fallback);
     },
