@@ -8,6 +8,7 @@ Configure o projeto da Vercel com:
 
 - `Root Directory`: `public`
 - `Framework Preset`: `Other`
+- `Build Command`: `node scripts/build-frontend-config.mjs`
 
 Defina a variavel:
 
@@ -25,14 +26,14 @@ Arquivos importantes:
 - `public/login.html`: tela de login
 - `public/js/config.js`: configuracao consumida pelo navegador
 - `public/scripts/build-frontend-config.mjs`: gera `js/config.js` no deploy
-- `public/vercel.json`: configuracao de build para projeto com root em `public`
 
 ## Deploy da API na Vercel
 
 Configure o projeto da API com:
 
-- `Root Directory`: `.`
+- `Root Directory`: `api`
 - `Framework Preset`: `Other`
+- sem `vercel.json`
 
 Mantenha a API publicada na Vercel com as variaveis:
 

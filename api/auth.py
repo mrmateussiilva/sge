@@ -72,17 +72,6 @@ def authenticate_usuario(db: Session, email: str, senha: str) -> models.Usuario 
     return usuario
 
 
-def get_current_admin(
-    usuario: models.Usuario = Depends(get_current_user),
-) -> models.Usuario:
-    if usuario.perfil != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso restrito a administradores.",
-        )
-    return usuario
-
-
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
@@ -105,4 +94,15 @@ def get_current_user(
     if usuario is None or not usuario.ativo:
         raise credentials_exception
 
+    return usuario
+
+
+def get_current_admin(
+    usuario: models.Usuario = Depends(get_current_user),
+) -> models.Usuario:
+    if usuario.perfil != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores.",
+        )
     return usuario
