@@ -25,9 +25,14 @@ Arquivos importantes:
 - `public/login.html`: tela de login
 - `public/js/config.js`: configuracao consumida pelo navegador
 - `public/scripts/build-frontend-config.mjs`: gera `js/config.js` no deploy
-- `vercel.json`: configuracao de build para projeto com root em `public`
+- `public/vercel.json`: configuracao de build para projeto com root em `public`
 
 ## Deploy da API na Vercel
+
+Configure o projeto da API com:
+
+- `Root Directory`: `api`
+- `Framework Preset`: `Other`
 
 Mantenha a API publicada na Vercel com as variaveis:
 
