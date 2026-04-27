@@ -6,35 +6,21 @@ from contextlib import asynccontextmanager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vercel_backend")
 
-sys.path.insert(0, os.path.dirname(__file__))
+API_DIR = os.path.dirname(__file__)
+sys.path.insert(0, API_DIR)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+import database
 
-def safe_import_modules():
-    from database import Base, SessionLocal
-    try:
-        import models
-    except Exception as e:
-        logger.warning(f"Could not import models: {e}")
+import models
+import schemas
+from database import Base, SessionLocal
+from routers import auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
 
-    try:
-        import schemas
-    except Exception as e:
-        logger.warning(f"Could not import schemas: {e}")
-
-    try:
-        from routers import auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
-        return auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
-    except Exception as e:
-        logger.error(f"Error importing routers: {e}")
-        raise
-
-
-routers = safe_import_modules()
-auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios = routers
+logger.info("All modules imported successfully.")
 
 
 @asynccontextmanager
