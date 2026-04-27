@@ -1,13 +1,17 @@
+const produtoModalEl = document.getElementById("produtoModal");
+const produtoModal = new bootstrap.Modal(produtoModalEl);
+
+let produtosCache = [];
+let editingProdutoId = null;
+
 const produtosTabela = document.getElementById("produtosTabela");
 const produtoForm = document.getElementById("produtoForm");
 const produtoErro = document.getElementById("produtoErro");
+const produtoTitulo = document.getElementById("produtoModalLabel");
 const buscaProduto = document.getElementById("buscaProduto");
 const filtroStatus = document.getElementById("filtroStatus");
 const filtroCategoria = document.getElementById("filtroCategoria");
 const contadorProdutos = document.getElementById("contadorProdutos");
-const produtoModal = new bootstrap.Modal(document.getElementById("produtoModal"));
-
-let produtosCache = [];
 
 function getStatusProduto(produto) {
   if (produto.estoque_atual === 0) {
@@ -92,6 +96,9 @@ function aplicarFiltros() {
           <td><span class="status-badge ${statusProduto.className}">${statusProduto.label}</span></td>
           <td>
             <div class="action-buttons">
+              <button class="icon-button" type="button" title="Editar produto" data-edit-id="${produto.id}">
+                <i class="bi bi-pencil"></i>
+              </button>
               <a class="icon-button" href="movimentacoes.html" title="Nova movimentacao">
                 <i class="bi bi-arrow-left-right"></i>
               </a>
@@ -127,6 +134,36 @@ async function carregarProdutos() {
   }
 }
 
+function abrirFormulario(produto = null) {
+  editingProdutoId = produto?.id || null;
+  produtoForm.reset();
+  produtoErro.classList.add("d-none");
+
+  if (produto) {
+    produtoTitulo.textContent = "Editar produto";
+    document.getElementById("nome").value = produto.nome || "";
+    document.getElementById("sku").value = produto.sku || "";
+    document.getElementById("categoria").value = produto.categoria || "";
+    document.getElementById("unidade").value = produto.unidade || "";
+    document.getElementById("custo").value = produto.custo || "";
+    document.getElementById("preco").value = produto.preco || "";
+    document.getElementById("estoque_atual").value = produto.estoque_atual || "";
+    document.getElementById("estoque_minimo").value = produto.estoque_minimo || "";
+    document.getElementById("localizacao").value = produto.localizacao || "";
+  } else {
+    produtoTitulo.textContent = "Novo produto";
+  }
+
+  produtoModal.show();
+}
+
+function inicializarFormulario() {
+  const novoBtn = document.getElementById("novoProdutoBtn");
+  if (novoBtn) {
+    novoBtn.addEventListener("click", () => abrirFormulario());
+  }
+}
+
 produtoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   produtoErro.classList.add("d-none");
@@ -144,7 +181,11 @@ produtoForm.addEventListener("submit", async (event) => {
   };
 
   try {
-    await api.createProduto(payload);
+    if (editingProdutoId) {
+      await api.updateProduto(editingProdutoId, payload);
+    } else {
+      await api.createProduto(payload);
+    }
     produtoForm.reset();
     produtoModal.hide();
     await carregarProdutos();
@@ -155,6 +196,16 @@ produtoForm.addEventListener("submit", async (event) => {
 });
 
 produtosTabela.addEventListener("click", async (event) => {
+  const editButton = event.target.closest("[data-edit-id]");
+  if (editButton) {
+    const id = Number(editButton.dataset.editId);
+    const produto = produtosCache.find((p) => p.id === id);
+    if (produto) {
+      abrirFormulario(produto);
+    }
+    return;
+  }
+
   const button = event.target.closest("[data-delete-id]");
   if (!button) {
     return;
@@ -177,4 +228,5 @@ buscaProduto.addEventListener("input", aplicarFiltros);
 filtroStatus.addEventListener("change", aplicarFiltros);
 filtroCategoria.addEventListener("change", aplicarFiltros);
 
+inicializarFormulario();
 carregarProdutos();

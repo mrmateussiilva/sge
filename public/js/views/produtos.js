@@ -1,6 +1,70 @@
 /* js/views/produtos.js */
 window.renderProdutos = async function () {
   const appContent = document.getElementById("app-content");
+  const appModals = document.getElementById("app-modals");
+
+  appModals.innerHTML = `
+    <div class="modal fade" id="produtoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header border-bottom py-3">
+            <h5 class="modal-title fw-bold" id="produtoModalLabel">Novo produto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body py-4">
+            <form id="produtoForm" class="row g-3">
+              <input type="hidden" id="produtoId">
+              <div class="col-md-6">
+                <label for="nome" class="form-label small fw-medium">Nome *</label>
+                <input type="text" class="form-control" id="nome" required maxlength="150">
+              </div>
+              <div class="col-md-6">
+                <label for="sku" class="form-label small fw-medium">SKU / Código *</label>
+                <input type="text" class="form-control" id="sku" required maxlength="80">
+              </div>
+              <div class="col-md-6">
+                <label for="categoria" class="form-label small fw-medium">Categoria</label>
+                <input type="text" class="form-control" id="categoria" maxlength="100" placeholder="Ex: Eletrônicos">
+              </div>
+              <div class="col-md-6">
+                <label for="unidade" class="form-label small fw-medium">Unidade *</label>
+                <input type="text" class="form-control" id="unidade" required maxlength="30" placeholder="Ex: UN, KG, MT">
+              </div>
+              <div class="col-md-4">
+                <label for="custo" class="form-label small fw-medium">Custo *</label>
+                <input type="number" class="form-control" id="custo" required min="0" step="0.01">
+              </div>
+              <div class="col-md-4">
+                <label for="preco" class="form-label small fw-medium">Preço *</label>
+                <input type="number" class="form-control" id="preco" required min="0" step="0.01">
+              </div>
+              <div class="col-md-4">
+                <label for="localizacao" class="form-label small fw-medium">Localização</label>
+                <input type="text" class="form-control" id="localizacao" maxlength="100" placeholder="Ex: Prateleira A-1">
+              </div>
+              <div class="col-md-6">
+                <label for="estoque_atual" class="form-label small fw-medium">Estoque Atual *</label>
+                <input type="number" class="form-control" id="estoque_atual" required min="0" step="1">
+              </div>
+              <div class="col-md-6">
+                <label for="estoque_minimo" class="form-label small fw-medium">Estoque Mínimo *</label>
+                <input type="number" class="form-control" id="estoque_minimo" required min="0" step="1">
+              </div>
+              <div class="col-12">
+                <div id="produtoErro" class="alert alert-danger py-2 mb-0 d-none small"></div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer border-top py-3">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" form="produtoForm" class="btn btn-primary px-4">
+              <i class="bi bi-check2 me-1"></i> Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 
   appContent.innerHTML = `
     <!-- Minimal Header -->
@@ -33,7 +97,7 @@ window.renderProdutos = async function () {
       </button>
 
       <!-- Novo Registro -->
-      <button class="btn btn-primary shadow-sm flex-shrink-0 ms-xl-auto px-3 d-flex align-items-center justify-content-center mt-2 mt-xl-0" onclick="ui.showToast('Recurso em desenvolvimento', 'info')" style="height: var(--input-height);">
+      <button class="btn btn-primary shadow-sm flex-shrink-0 ms-xl-auto px-3 d-flex align-items-center justify-content-center mt-2 mt-xl-0" id="novoProdutoBtn" style="height: var(--input-height);">
         <i class="bi bi-plus-lg me-2"></i> Novo Registro
       </button>
 
@@ -172,14 +236,17 @@ window.renderProdutos = async function () {
                   <span class="dot"></span> ${lbl}
                </div>
             </td>
-            <td class="text-end pe-4">
+<td class="text-end pe-4">
                <div class="d-flex justify-content-end gap-2 actions-group">
-                 <button class="btn border border-light-subtle text-primary p-0 d-flex align-items-center justify-content-center action-btn" style="width:32px; height:32px; border-radius: 6px;" title="Lançar Movimento" aria-label="Atalho" onclick="window.location.hash='#/movimentacoes'">
-                    <i class="bi bi-arrow-down-up" style="font-size: 0.95rem"></i>
-                 </button>
-                 <button class="btn border border-light-subtle text-secondary p-0 d-flex align-items-center justify-content-center action-btn" style="width:32px; height:32px; border-radius: 6px;" title="Editar">
-                    <i class="bi bi-pencil" style="font-size: 0.90rem"></i>
-                 </button>
+                  <button class="btn border border-light-subtle text-primary p-0 d-flex align-items-center justify-content-center action-btn" style="width:32px; height:32px; border-radius: 6px;" title="Lançar Movimento" aria-label="Atalho" onclick="window.location.hash='#/movimentacoes'">
+                     <i class="bi bi-arrow-down-up" style="font-size: 0.95rem"></i>
+                  </button>
+                  <button class="btn border border-light-subtle text-secondary p-0 d-flex align-items-center justify-content-center action-btn" style="width:32px; height:32px; border-radius: 6px;" title="Editar" data-edit-id="${p.id}">
+                     <i class="bi bi-pencil" style="font-size: 0.90rem"></i>
+                  </button>
+                  <button class="btn border border-light-subtle text-danger p-0 d-flex align-items-center justify-content-center action-btn" style="width:32px; height:32px; border-radius: 6px;" title="Excluir" data-delete-id="${p.id}">
+                     <i class="bi bi-trash3" style="font-size: 0.90rem"></i>
+                  </button>
                </div>
             </td>
           </tr>
@@ -210,6 +277,92 @@ window.renderProdutos = async function () {
 
     renderTabs();
     applyFilters();
+
+    const produtoModal = new bootstrap.Modal(document.getElementById("produtoModal"));
+    const produtoForm = document.getElementById("produtoForm");
+    const produtoErro = document.getElementById("produtoErro");
+    const produtoTitulo = document.getElementById("produtoModalLabel");
+    let editingId = null;
+
+    function abrirFormulario(produto = null) {
+      editingId = produto?.id || null;
+      produtoForm.reset();
+      produtoErro.classList.add("d-none");
+
+      if (produto) {
+        produtoTitulo.textContent = "Editar produto";
+        document.getElementById("produtoId").value = produto.id;
+        document.getElementById("nome").value = produto.nome || "";
+        document.getElementById("sku").value = produto.sku || "";
+        document.getElementById("categoria").value = produto.categoria || "";
+        document.getElementById("unidade").value = produto.unidade || "";
+        document.getElementById("custo").value = produto.custo || "";
+        document.getElementById("preco").value = produto.preco || "";
+        document.getElementById("estoque_atual").value = produto.estoque_atual || "";
+        document.getElementById("estoque_minimo").value = produto.estoque_minimo || "";
+        document.getElementById("localizacao").value = produto.localizacao || "";
+      } else {
+        produtoTitulo.textContent = "Novo produto";
+        document.getElementById("produtoId").value = "";
+      }
+
+      produtoModal.show();
+    }
+
+    document.getElementById("novoProdutoBtn").addEventListener("click", () => abrirFormulario());
+
+    produtoForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      produtoErro.classList.add("d-none");
+
+      const payload = {
+        nome: document.getElementById("nome").value.trim(),
+        sku: document.getElementById("sku").value.trim(),
+        categoria: document.getElementById("categoria").value.trim() || null,
+        unidade: document.getElementById("unidade").value.trim(),
+        custo: parseFloat(document.getElementById("custo").value),
+        preco: parseFloat(document.getElementById("preco").value),
+        estoque_atual: parseInt(document.getElementById("estoque_atual").value),
+        estoque_minimo: parseInt(document.getElementById("estoque_minimo").value),
+        localizacao: document.getElementById("localizacao").value.trim() || null,
+      };
+
+      try {
+        if (editingId) {
+          await window.api.updateProduto(editingId, payload);
+        } else {
+          await window.api.createProduto(payload);
+        }
+        produtoForm.reset();
+        produtoModal.hide();
+        window.renderProdutos();
+      } catch (err) {
+        produtoErro.textContent = err.message;
+        produtoErro.classList.remove("d-none");
+      }
+    });
+
+    tbody.addEventListener("click", async (e) => {
+      const editBtn = e.target.closest("[data-edit-id]");
+      if (editBtn) {
+        const id = parseInt(editBtn.dataset.editId);
+        const prod = produtos.find(p => p.id === id);
+        if (prod) abrirFormulario(prod);
+        return;
+      }
+
+      const delBtn = e.target.closest("[data-delete-id]");
+      if (delBtn) {
+        if (!confirm("Excluir este produto?")) return;
+        try {
+          await window.api.deleteProduto(parseInt(delBtn.dataset.deleteId));
+          window.renderProdutos();
+        } catch (err) {
+          alert(err.message);
+        }
+        return;
+      }
+    });
 
   } catch (error) {
     if (window.ui) {
