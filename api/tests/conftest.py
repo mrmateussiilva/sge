@@ -13,9 +13,11 @@ API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-import auth
 import models
-from database import get_db
+import schemas
+import auth
+import crud
+from database import Base, get_db
 from index import app
 
 
@@ -30,10 +32,10 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(autouse=True)
 def reset_database() -> Generator[None, None, None]:
-    models.Base.metadata.drop_all(bind=engine)
-    models.Base.metadata.create_all(bind=engine)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
-    models.Base.metadata.drop_all(bind=engine)
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture
@@ -66,7 +68,7 @@ def client() -> Generator[TestClient, None, None]:
 def admin_user(db_session):
     return auth.create_usuario(
         db_session,
-        auth.schemas.UsuarioCreate(
+        schemas.UsuarioCreate(
             nome="Admin",
             email="admin@example.com",
             senha="secret123",

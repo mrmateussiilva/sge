@@ -65,3 +65,123 @@ def test_saida_rejects_insufficient_stock(client, admin_headers):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Estoque insuficiente para a saida."
+
+
+def test_entrada_movimentacao_increases_stock(client, admin_headers):
+    produto_response = client.post(
+        "/api/produtos",
+        headers=admin_headers,
+        json={
+            "nome": "Caneta",
+            "sku": "CAN-001",
+            "categoria": "Escritorio",
+            "unidade": "UN",
+            "custo": "1.00",
+            "preco": "2.00",
+            "estoque_atual": 10,
+            "estoque_minimo": 5,
+        },
+    )
+    assert produto_response.status_code == 201
+    produto_id = produto_response.json()["id"]
+
+    mov_response = client.post(
+        "/api/movimentacoes",
+        headers=admin_headers,
+        json={
+            "produto_id": produto_id,
+            "tipo": "entrada",
+            "quantidade": 20,
+            "motivo": "Reposicao de estoque",
+        },
+    )
+
+    assert mov_response.status_code == 201
+    assert mov_response.json()["tipo"] == "entrada"
+    assert mov_response.json()["quantidade"] == 20
+
+    produto_atualizado = client.get(f"/api/produtos/{produto_id}", headers=admin_headers)
+    assert produto_atualizado.json()["estoque_atual"] == 30
+
+
+def test_list_movimentacoes(client, admin_headers):
+    produto_response = client.post(
+        "/api/produtos",
+        headers=admin_headers,
+        json={
+            "nome": "Produto Teste",
+            "sku": "TST-001",
+            "categoria": "Teste",
+            "unidade": "UN",
+            "custo": "5.00",
+            "preco": "10.00",
+            "estoque_atual": 100,
+            "estoque_minimo": 20,
+        },
+    )
+    assert produto_response.status_code == 201
+    produto_id = produto_response.json()["id"]
+
+    client.post(
+        "/api/movimentacoes",
+        headers=admin_headers,
+        json={"produto_id": produto_id, "tipo": "entrada", "quantidade": 10},
+    )
+    client.post(
+        "/api/movimentacoes",
+        headers=admin_headers,
+        json={"produto_id": produto_id, "tipo": "saida", "quantidade": 5},
+    )
+
+    list_response = client.get("/api/movimentacoes", headers=admin_headers)
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 2
+
+
+def test_movimentacao_produto_nao_encontrado(client, admin_headers):
+    response = client.post(
+        "/api/movimentacoes",
+        headers=admin_headers,
+        json={
+            "produto_id": 99999,
+            "tipo": "entrada",
+            "quantidade": 10,
+        },
+    )
+    assert response.status_code == 400
+    assert "nao encontrado" in response.json()["detail"].lower()
+
+
+def test_ajuste_movimentacao_sets_absolute_value(client, admin_headers):
+    produto_response = client.post(
+        "/api/produtos",
+        headers=admin_headers,
+        json={
+            "nome": "Produto Ajuste",
+            "sku": "AJU-001",
+            "categoria": "Teste",
+            "unidade": "UN",
+            "custo": "10.00",
+            "preco": "20.00",
+            "estoque_atual": 50,
+            "estoque_minimo": 10,
+        },
+    )
+    assert produto_response.status_code == 201
+    produto_id = produto_response.json()["id"]
+
+    mov_response = client.post(
+        "/api/movimentacoes",
+        headers=admin_headers,
+        json={
+            "produto_id": produto_id,
+            "tipo": "ajuste",
+            "quantidade": 25,
+            "motivo": "Inventario - ajuste para 25 unidades",
+        },
+    )
+
+    assert mov_response.status_code == 201
+
+    produto_atualizado = client.get(f"/api/produtos/{produto_id}", headers=admin_headers)
+    assert produto_atualizado.json()["estoque_atual"] == 25
