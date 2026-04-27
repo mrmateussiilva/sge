@@ -122,6 +122,7 @@ window.renderImportarXml = async function () {
     const inputXML = document.getElementById("xmlFileInput");
     const inputUrl = document.getElementById("xmlUrlInput");
     const btnProcessar = document.getElementById("btnProcessarXml");
+    const btnConfirmar = document.getElementById("btnConfirmarImportacao");
 
     inputXML.addEventListener("change", (e) => {
         currentFile = e.target.files[0] || null;
