@@ -53,6 +53,20 @@ cd public
 SGE_API_BASE_URL=https://seu-backend.vercel.app/api node scripts/build-frontend-config.mjs
 ```
 
+## Testes do backend
+
+Os testes da API ficam em `api/tests/` e usam SQLite em memoria para isolar cada caso.
+
+Para rodar localmente:
+
+```bash
+cd api
+uv sync --group dev
+uv run pytest
+```
+
+O GitHub Actions executa essa mesma suite no workflow `Backend Tests`.
+
 ## Observacoes
 
 - O frontend usa hash routing, entao nao precisa de rewrites de SPA na Vercel.
