@@ -11,6 +11,7 @@ DATABASE_URL = os.getenv(
 )
 
 _engine = None
+_SessionLocal = None
 
 
 def get_engine():
@@ -23,11 +24,13 @@ def get_engine():
             connect_args={"connect_timeout": 10} if "mysql" in DATABASE_URL else {},
             echo=False,
         )
+        logger.info("Database engine created.")
     return _engine
 
 
 def get_db():
-    db = SessionLocal()
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    db = Session()
     try:
         yield db
     finally:
@@ -36,11 +39,3 @@ def get_db():
 
 class Base(DeclarativeBase):
     pass
-
-
-# Lazy session factory
-def get_session_factory():
-    return sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
-
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())

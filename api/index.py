@@ -14,10 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 import database
-
 import models
 import schemas
-from database import Base, SessionLocal
 from routers import auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
 
 logger.info("All modules imported successfully.")
@@ -37,8 +35,7 @@ async def lifespan(app: FastAPI):
 
     if DEVELOPMENT:
         try:
-            from database import get_engine
-            from database import Base
+            from database import get_engine, Base
             engine = get_engine()
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables created.")
@@ -90,10 +87,11 @@ def health():
 @app.get("/api/health/db")
 def health_db():
     try:
-        from database import SessionLocal
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
+        from database import get_engine
+        from sqlalchemy.orm import Session
+        session: Session = next(get_engine().connect().execution_options(auto_commit=True))
+        session.execute(text("SELECT 1"))
+        session.close()
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
