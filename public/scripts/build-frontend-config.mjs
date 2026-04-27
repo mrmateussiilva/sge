@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const apiBaseUrl = process.env.SGE_API_BASE_URL?.trim();
 
@@ -8,11 +9,14 @@ if (!apiBaseUrl) {
 }
 
 const normalizedApiBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+const outputPath = existsSync(join(process.cwd(), "public", "js"))
+  ? join(process.cwd(), "public", "js", "config.js")
+  : join(process.cwd(), "js", "config.js");
 
 const fileContents = `window.SGE_CONFIG = {
   API_BASE_URL: ${JSON.stringify(normalizedApiBaseUrl)},
 };
 `;
 
-writeFileSync("js/config.js", fileContents, "utf8");
-console.log(`Generated js/config.js with API_BASE_URL=${normalizedApiBaseUrl}`);
+writeFileSync(outputPath, fileContents, "utf8");
+console.log(`Generated ${outputPath} with API_BASE_URL=${normalizedApiBaseUrl}`);
