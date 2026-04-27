@@ -31,7 +31,7 @@ Arquivos importantes:
 
 Configure o projeto da API com:
 
-- `Root Directory`: `api`
+- `Root Directory`: `.`
 - `Framework Preset`: `Other`
 
 Mantenha a API publicada na Vercel com as variaveis:
