@@ -12,12 +12,15 @@
       document.documentElement.classList.add("sidebar-collapsed");
     }
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 
-<body>
+<body class="app-page">
   <div class="app-layout">
     <!-- Side overlay for mobile -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
@@ -27,19 +30,17 @@
       <!-- Brand -->
       <div class="sidebar-brand px-3 py-3 d-flex align-items-center gap-3 border-bottom border-light">
         <div
-          class="brand-logo text-primary bg-primary-subtle rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-          style="width: 32px; height: 32px;">
+          class="brand-logo text-primary bg-primary-subtle rounded-3 d-flex align-items-center justify-content-center flex-shrink-0">
           <i class="bi bi-box-seam-fill fs-6"></i>
         </div>
         <div class="brand-text d-flex flex-column flex-grow-1 min-vw-0">
           <span class="fw-bold fs-6 lh-1 text-dark text-truncate">SGE</span>
-          <small class="text-secondary" style="font-size: 0.65rem;">Enterprise v1.0</small>
+          <small class="text-secondary brand-subtitle">Painel operacional</small>
         </div>
       </div>
 
       <!-- Navigation -->
-      <nav class="sidebar-nav flex-grow-1 px-3 d-flex flex-column gap-3 mt-3 pb-4 overflow-y-auto"
-        style="scrollbar-width: thin;">
+      <nav class="sidebar-nav flex-grow-1 px-3 d-flex flex-column gap-3 mt-3 pb-4 overflow-y-auto">
         <div class="nav-section">
           <small class="section-label text-muted fw-bold mb-1 d-block px-1 text-uppercase">Operacional</small>
           <div class="nav-links d-flex flex-column gap-1">
@@ -72,14 +73,13 @@
             <div
               class="nav-item-user px-2 py-2 mb-1 d-flex align-items-center gap-2 rounded-3 bg-light border border-light-subtle">
               <div
-                class="user-avatar text-primary bg-white border rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                style="width: 28px; height: 28px;">
+                class="user-avatar text-primary bg-white border rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                 <i class="bi bi-person-fill"></i>
               </div>
               <div class="user-info transition-fade flex-grow-1 min-vw-0">
-                <span class="d-block fw-bold text-dark lh-1 text-truncate" style="font-size: 0.75rem;"
+                <span class="d-block fw-bold text-dark lh-1 text-truncate user-name"
                   data-usuario-nome>Carregando...</span>
-                <small class="text-muted d-block text-truncate" style="font-size: 0.65rem;" data-usuario-perfil>Sessão Ativa</small>
+                <small class="text-muted d-block text-truncate user-role" data-usuario-perfil>Sessão Ativa</small>
               </div>
             </div>
             <button class="nav-item w-100 border-0 bg-transparent text-start text-danger" title="Encerrar sessão segura"
@@ -97,7 +97,7 @@
           class="btn btn-light border w-100 d-flex align-items-center gap-2 px-3 text-secondary justify-content-center"
           id="sidebarToggle" title="Recolher menu lateral" aria-label="Recolher">
           <i class="bi bi-chevron-bar-left transition-icon fs-6"></i>
-          <span class="nav-label fw-medium w-100 text-start" style="font-size:0.8rem">Recolher</span>
+          <span class="nav-label fw-medium w-100 text-start sidebar-toggle-label">Recolher</span>
         </button>
       </div>
     </aside>
@@ -107,15 +107,14 @@
 
       <!-- Minimal Mobile Topbar (only visible on mobile) -->
       <div
-        class="d-lg-none d-flex align-items-center px-3 py-2 border-bottom bg-white shadow-sm w-100 position-sticky top-0 z-3">
+        class="mobile-topbar d-lg-none d-flex align-items-center px-3 py-2 border-bottom bg-white shadow-sm w-100 position-sticky top-0 z-3">
         <button class="btn btn-light border btn-icon me-2" id="mobileMenuBtn" aria-label="Abrir Menu">
           <i class="bi bi-list fs-5 lh-1"></i>
         </button>
         <span class="fw-bold text-dark fs-6 lh-1">SGE</span>
       </div>
 
-      <div class="container-fluid flex-grow-1 px-4 pt-2 d-flex flex-column gap-3 overflow-y-auto"
-        style="max-width: 1280px; width: 100%; margin: 0 auto; padding-bottom: 2rem !important;">
+      <div class="app-content-shell container-fluid flex-grow-1 px-4 pt-2 d-flex flex-column gap-3 overflow-y-auto">
         <div id="app-content" class="w-100 h-100">
           <!-- Dynamic SPa Views will be injected here -->
         </div>
