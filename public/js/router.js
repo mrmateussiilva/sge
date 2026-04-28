@@ -4,6 +4,8 @@ const appContent = document.getElementById("app-content");
 const routes = {
   "#/dashboard": { fn: "renderDashboard", title: "SGE | Dashboard" },
   "#/produtos": { fn: "renderProdutos", title: "SGE | Produtos" },
+  "#/categorias": { fn: "renderCategorias", title: "SGE | Categorias" },
+  "#/tags": { fn: "renderTags", title: "SGE | Tags" },
   "#/movimentacoes": { fn: "renderMovimentacoes", title: "SGE | Movimentações" },
   "#/importar-xml": { fn: "renderImportarXml", title: "SGE | Importar NF-e" },
   "#/usuarios": { fn: "renderUsuarios", title: "SGE | Usuários" },

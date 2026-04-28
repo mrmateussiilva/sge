@@ -23,19 +23,25 @@ window.renderMovimentacoes = async function () {
                 <label class="form-label">Natureza da operação</label>
                 <div class="segmented-group d-flex w-100">
                   <input type="radio" class="btn-check" name="tipoMov" id="tipoEnt" value="entrada" checked>
-                  <label class="btn btn-outline-success flex-grow-1" for="tipoEnt">Entrada</label>
+                  <label class="btn btn-outline-success flex-grow-1" for="tipoEnt">
+                    <i class="bi bi-arrow-down-circle me-1"></i>Entrada
+                  </label>
                   
                   <input type="radio" class="btn-check" name="tipoMov" id="tipoSai" value="saida">
-                  <label class="btn btn-outline-danger flex-grow-1" for="tipoSai">Saída</label>
+                  <label class="btn btn-outline-danger flex-grow-1" for="tipoSai">
+                    <i class="bi bi-arrow-up-circle me-1"></i>Saída
+                  </label>
 
                   <input type="radio" class="btn-check" name="tipoMov" id="tipoAju" value="ajuste">
-                  <label class="btn btn-outline-secondary flex-grow-1" for="tipoAju">Ajuste</label>
+                  <label class="btn btn-outline-secondary flex-grow-1" for="tipoAju">
+                    <i class="bi bi-sliders me-1"></i>Ajuste
+                  </label>
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="produtoId" class="form-label">Produto alvo</label>
-                <select class="form-select bg-light" id="produtoId" required aria-label="Selecione o produto">
+                <select class="form-select" id="produtoId" required aria-label="Selecione o produto">
                   <option value="">Carregando dados...</option>
                 </select>
               </div>
@@ -45,11 +51,15 @@ window.renderMovimentacoes = async function () {
                  <input type="number" class="form-control fw-bold fs-6" id="quantidade" min="1" step="1" inputmode="numeric" required placeholder="Inteiro" aria-label="Quantidade">
               </div>
 
-              <div class="form-group flex-grow-1 d-flex flex-column">
+              <div class="form-group" id="motivoGroup" style="display: none;">
                  <label for="motivo" class="form-label d-flex justify-content-between">
-                    Justificativa <span class="text-secondary fw-normal">Opcional</span>
+                    Justificativa <span class="text-danger fw-bold">*Obrigatório</span>
                  </label>
-                 <textarea class="form-control bg-light flex-grow-1" id="motivo" placeholder="Detalhes (ex: avaria, doação)" style="resize: none; min-height: 70px;" aria-label="Motivo"></textarea>
+                 <textarea class="form-control" id="motivo" rows="2" placeholder="Detalhes (ex: avaria, doação, correção)" style="resize: none;" aria-label="Motivo" required></textarea>
+              </div>
+
+              <div id="estoqueInfo" class="alert alert-light border py-2 px-3 mb-0 d-none">
+                <small class="text-secondary">Estoque atual: <strong id="estoqueAtual">--</strong></small>
               </div>
 
               <button type="submit" class="btn btn-primary w-100 mt-2 shadow-sm" id="btnSalvarMov" aria-label="Salvar movimentação">
@@ -156,6 +166,40 @@ window.renderMovimentacoes = async function () {
       window.enforceIntegerInput(quantidadeInput, { min: 1 });
     }
 
+    const tipoInputs = document.querySelectorAll('input[name="tipoMov"]');
+    const motivoGroup = document.getElementById("motivoGroup");
+    const estoqueInfo = document.getElementById("estoqueInfo");
+    const estoqueAtual = document.getElementById("estoqueAtual");
+    const motivoInput = document.getElementById("motivo");
+
+    function updateConditionalFields() {
+      const tipo = document.querySelector('input[name="tipoMov"]:checked')?.value;
+      if (tipo === "saida" || tipo === "ajuste") {
+        motivoGroup.style.display = "block";
+        motivoInput.required = true;
+      } else {
+        motivoGroup.style.display = "none";
+        motivoInput.required = false;
+        motivoInput.value = "";
+      }
+    }
+
+    tipoInputs.forEach(input => {
+      input.addEventListener("change", updateConditionalFields);
+    });
+
+    select.addEventListener("change", () => {
+      const selectedProd = produtos.find(p => p.id === parseInt(select.value));
+      if (selectedProd) {
+        estoqueInfo.classList.remove("d-none");
+        estoqueAtual.textContent = `${selectedProd.estoque_atual} ${selectedProd.unidade}`;
+      } else {
+        estoqueInfo.classList.add("d-none");
+      }
+    });
+
+    updateConditionalFields();
+
     document.getElementById("form-movimentacao").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("btnSalvarMov");
@@ -170,16 +214,25 @@ window.renderMovimentacoes = async function () {
           throw new Error("Informe uma quantidade inteira maior que zero.");
         }
 
+        const tipo = document.querySelector('input[name="tipoMov"]:checked').value;
+        const motivo = motivoInput.value.trim() || null;
+
+        if ((tipo === "saida" || tipo === "ajuste") && !motivo) {
+          throw new Error("Justificativa é obrigatória para saída ou ajuste.");
+        }
+
         const payload = {
           produto_id: parseInt(document.getElementById("produtoId").value),
-          tipo: document.querySelector('input[name="tipoMov"]:checked').value,
+          tipo,
           quantidade,
-          motivo: document.getElementById("motivo").value.trim() || null
+          motivo
         };
         const nova = await window.api.createMovimentacao(payload);
-        movimentacoes.push(nova);
+        movimentacoes.unshift(nova);
         renderTable();
         document.getElementById("form-movimentacao").reset();
+        estoqueInfo.classList.add("d-none");
+        updateConditionalFields();
         if (window.ui) ui.showToast("Registrado!", "success");
       } catch (err) {
         if (window.ui) ui.showToast("Não foi possível salvar a movimentação: " + ui.getErrorMessage(err), "danger");

@@ -1,4 +1,13 @@
 /* js/views/produtos.js */
+function isLightColor(hex) {
+  const h = hex?.replace('#', '') || '';
+  if (h.length !== 6) return true;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+}
+
 window.renderProdutos = async function () {
   const appContent = document.getElementById("app-content");
   const appModals = document.getElementById("app-modals");
@@ -12,43 +21,88 @@ window.renderProdutos = async function () {
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
           </div>
           <div class="modal-body py-4">
-            <form id="produtoForm" class="row g-3">
+            <form id="produtoForm" class="row g-3" novalidate>
               <input type="hidden" id="produtoId">
               <div class="col-md-6">
                 <label for="nome" class="form-label small fw-medium">Nome *</label>
-                <input type="text" class="form-control" id="nome" required maxlength="150">
+                <div class="input-group has-validation">
+                  <input type="text" class="form-control" id="nome" required maxlength="150" minlength="1" placeholder="Nome do produto">
+                  <div class="invalid-feedback">Nome é obrigatório</div>
+                </div>
               </div>
               <div class="col-md-6">
                 <label for="sku" class="form-label small fw-medium">SKU / Código *</label>
-                <input type="text" class="form-control" id="sku" required maxlength="80">
+                <div class="input-group has-validation">
+                  <input type="text" class="form-control" id="sku" required maxlength="80" placeholder="Código único" style="text-transform: uppercase;">
+                  <div class="invalid-feedback">SKU é obrigatório</div>
+                </div>
               </div>
               <div class="col-md-6">
                 <label for="categoria" class="form-label small fw-medium">Categoria</label>
-                <input type="text" class="form-control" id="categoria" maxlength="100" placeholder="Ex: Eletrônicos">
+                <select class="form-select" id="categoria">
+                  <option value="">Nenhuma</option>
+                </select>
               </div>
               <div class="col-md-6">
+                <label for="tag" class="form-label small fw-medium">Tag</label>
+                <select class="form-select" id="tag">
+                  <option value="">Nenhuma</option>
+                </select>
+              </div>
+              <div class="col-md-4">
                 <label for="unidade" class="form-label small fw-medium">Unidade *</label>
-                <input type="text" class="form-control" id="unidade" required maxlength="30" placeholder="Ex: UN, KG, MT">
-              </div>
-              <div class="col-md-4">
-                <label for="custo" class="form-label small fw-medium">Custo *</label>
-                <input type="number" class="form-control" id="custo" required min="0" step="0.01">
-              </div>
-              <div class="col-md-4">
-                <label for="preco" class="form-label small fw-medium">Preço *</label>
-                <input type="number" class="form-control" id="preco" required min="0" step="0.01">
+                <div class="input-group has-validation">
+                  <input type="text" class="form-control" id="unidade" required maxlength="30" placeholder="UN, KG, MT" style="text-transform: uppercase;">
+                  <div class="invalid-feedback">Unidade é obrigatória</div>
+                </div>
               </div>
               <div class="col-md-4">
                 <label for="localizacao" class="form-label small fw-medium">Localização</label>
                 <input type="text" class="form-control" id="localizacao" maxlength="100" placeholder="Ex: Prateleira A-1">
               </div>
+              <div class="col-12">
+                <div class="card bg-light border-0 py-2 px-3">
+                  <span class="small fw-medium text-secondary mb-2">Valores</span>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label for="custo" class="form-label small fw-medium">Custo *</label>
+                      <div class="input-group has-validation">
+                        <span class="input-group-text bg-white border-end-0">R$</span>
+                        <input type="text" class="form-control border-start-0" id="custo" required min="0" placeholder="0,00">
+                        <div class="invalid-feedback">Custo inválido</div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="preco" class="form-label small fw-medium">Preço *</label>
+                      <div class="input-group has-validation">
+                        <span class="input-group-text bg-white border-end-0">R$</span>
+                        <input type="text" class="form-control border-start-0" id="preco" required min="0" placeholder="0,00">
+                        <div class="invalid-feedback">Preço inválido</div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="margem" class="form-label small fw-medium">Margem</label>
+                      <div class="input-group">
+                        <input type="text" class="form-control bg-light border-0" id="margem" readonly placeholder="--">
+                        <span class="input-group-text bg-light border-0">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="col-md-6">
                 <label for="estoque_atual" class="form-label small fw-medium">Estoque Atual *</label>
-                <input type="number" class="form-control" id="estoque_atual" required min="0" step="1">
+                <div class="input-group has-validation">
+                  <input type="number" class="form-control" id="estoque_atual" required min="0" step="1" placeholder="0">
+                  <div class="invalid-feedback">Estoque inválido</div>
+                </div>
               </div>
               <div class="col-md-6">
                 <label for="estoque_minimo" class="form-label small fw-medium">Estoque Mínimo *</label>
-                <input type="number" class="form-control" id="estoque_minimo" required min="0" step="1">
+                <div class="input-group has-validation">
+                  <input type="number" class="form-control" id="estoque_minimo" required min="0" step="1" placeholder="0">
+                  <div class="invalid-feedback">Estoque mínimo inválido</div>
+                </div>
               </div>
               <div class="col-12">
                 <div id="produtoErro" class="alert alert-danger py-2 mb-0 d-none small"></div>
@@ -148,11 +202,15 @@ window.renderProdutos = async function () {
 
   try {
     const rawProdutos = await window.api.getProdutos();
+    const [categorias, tags] = await Promise.all([
+      window.api.getCategorias(),
+      window.api.getTags()
+    ]);
 
     const produtos = rawProdutos.map(p => {
-      let cat = (p.categoria || "Sem categoria").trim().replace(/\s+/g, ' ');
-      if (cat === "") cat = "Sem categoria";
-      return { ...p, catNorm: cat };
+      let cat = p.categoria?.nome || "Sem categoria";
+      let tag = p.tag?.nome || null;
+      return { ...p, catNorm: cat, tagNorm: tag };
     });
 
     const categoriesSet = new Set();
@@ -216,13 +274,15 @@ window.renderProdutos = async function () {
           badgeClass = "low"; lbl = "Baixo";
         }
 
+        const tagHtml = p.tag ? `<span class="badge rounded-pill ms-2" style="background-color: ${p.tag.cor || '#6c757d'}; color: ${isLightColor(p.tag.cor || '#6c757d') ? '#000' : '#fff'}; font-size: 0.65rem;">${window.escapeHtml(p.tag.nome)}</span>` : '';
+
         return `
           <tr>
             <td class="ps-4">
               <div class="d-flex flex-column justify-content-center">
                  <span class="fw-bold text-dark text-truncate" style="max-width: 300px; font-size: 0.90rem; letter-spacing: -0.01em;" title="${p.nome}">${p.nome}</span>
                  <span class="text-muted d-flex align-items-center mt-1" style="font-size: 0.75rem;">
-                   <i class="bi bi-tag me-1 opacity-75"></i> ${p.catNorm}
+                   <i class="bi bi-tag me-1 opacity-75"></i> ${p.catNorm}${tagHtml}
                  </span>
               </div>
             </td>
@@ -284,26 +344,74 @@ window.renderProdutos = async function () {
     const produtoTitulo = document.getElementById("produtoModalLabel");
     let editingId = null;
 
+    function formatCurrency(value) {
+      if (!value || isNaN(value)) return "0,00";
+      return parseFloat(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function parseCurrency(str) {
+      if (!str) return 0;
+      return parseFloat(str.replace(/\./g, "").replace(",", ".")) || 0;
+    }
+
+    function calculateMargem() {
+      const custo = parseCurrency(document.getElementById("custo").value);
+      const preco = parseCurrency(document.getElementById("preco").value);
+      const margemInput = document.getElementById("margem");
+      if (custo > 0 && preco > 0) {
+        const margem = ((preco - custo) / custo * 100).toFixed(1);
+        margemInput.value = margem + "%";
+      } else {
+        margemInput.value = "--";
+      }
+    }
+
+    function setupCurrencyMask(input) {
+      input.addEventListener("input", (e) => {
+        let value = e.target.value.replace(/\D/g, "");
+        if (value) {
+          value = (parseInt(value) / 100).toFixed(2);
+          value = value.replace(".", ",");
+        }
+        e.target.value = value;
+      });
+      input.addEventListener("blur", () => {
+        calculateMargem();
+      });
+    }
+
     function abrirFormulario(produto = null) {
       editingId = produto?.id || null;
       produtoForm.reset();
       produtoErro.classList.add("d-none");
+      produtoForm.classList.remove("was-validated");
+
+      const catSelect = document.getElementById("categoria");
+      const tagSelect = document.getElementById("tag");
+      catSelect.innerHTML = '<option value="">Nenhuma</option>' + categorias.map(c => `<option value="${c.id}">${window.escapeHtml(c.nome)}</option>`).join("");
+      tagSelect.innerHTML = '<option value="">Nenhuma</option>' + tags.map(t => `<option value="${t.id}">${window.escapeHtml(t.nome)}</option>`).join("");
+
+      setupCurrencyMask(document.getElementById("custo"));
+      setupCurrencyMask(document.getElementById("preco"));
 
       if (produto) {
         produtoTitulo.textContent = "Editar produto";
         document.getElementById("produtoId").value = produto.id;
         document.getElementById("nome").value = produto.nome || "";
         document.getElementById("sku").value = produto.sku || "";
-        document.getElementById("categoria").value = produto.categoria || "";
+        catSelect.value = produto.categoria_id || "";
+        tagSelect.value = produto.tag_id || "";
         document.getElementById("unidade").value = produto.unidade || "";
-        document.getElementById("custo").value = produto.custo || "";
-        document.getElementById("preco").value = produto.preco || "";
+        document.getElementById("custo").value = produto.custo ? formatCurrency(produto.custo) : "";
+        document.getElementById("preco").value = produto.preco ? formatCurrency(produto.preco) : "";
         document.getElementById("estoque_atual").value = produto.estoque_atual || "";
         document.getElementById("estoque_minimo").value = produto.estoque_minimo || "";
         document.getElementById("localizacao").value = produto.localizacao || "";
+        calculateMargem();
       } else {
         produtoTitulo.textContent = "Novo produto";
         document.getElementById("produtoId").value = "";
+        document.getElementById("margem").value = "--";
       }
 
       produtoModal.show();
@@ -315,15 +423,21 @@ window.renderProdutos = async function () {
       e.preventDefault();
       produtoErro.classList.add("d-none");
 
+      if (!produtoForm.checkValidity()) {
+        produtoForm.classList.add("was-validated");
+        return;
+      }
+
       const payload = {
         nome: document.getElementById("nome").value.trim(),
-        sku: document.getElementById("sku").value.trim(),
-        categoria: document.getElementById("categoria").value.trim() || null,
-        unidade: document.getElementById("unidade").value.trim(),
-        custo: parseFloat(document.getElementById("custo").value),
-        preco: parseFloat(document.getElementById("preco").value),
-        estoque_atual: parseInt(document.getElementById("estoque_atual").value),
-        estoque_minimo: parseInt(document.getElementById("estoque_minimo").value),
+        sku: document.getElementById("sku").value.trim().toUpperCase(),
+        categoria_id: document.getElementById("categoria").value ? parseInt(document.getElementById("categoria").value) : null,
+        tag_id: document.getElementById("tag").value ? parseInt(document.getElementById("tag").value) : null,
+        unidade: document.getElementById("unidade").value.trim().toUpperCase(),
+        custo: parseCurrency(document.getElementById("custo").value),
+        preco: parseCurrency(document.getElementById("preco").value),
+        estoque_atual: parseInt(document.getElementById("estoque_atual").value) || 0,
+        estoque_minimo: parseInt(document.getElementById("estoque_minimo").value) || 0,
         localizacao: document.getElementById("localizacao").value.trim() || null,
       };
 

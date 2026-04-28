@@ -8,10 +8,53 @@ from pydantic import BaseModel, ConfigDict, Field
 TipoMovimentacao = Literal["entrada", "saida", "ajuste"]
 
 
+class CategoriaBase(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=100)
+    descricao: str | None = Field(default=None, max_length=255)
+
+
+class CategoriaCreate(CategoriaBase):
+    pass
+
+
+class CategoriaUpdate(BaseModel):
+    nome: str | None = Field(default=None, min_length=1, max_length=100)
+    descricao: str | None = Field(default=None, max_length=255)
+
+
+class CategoriaResponse(CategoriaBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TagBase(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=50)
+    cor: str | None = Field(default=None, max_length=7)
+
+
+class TagCreate(TagBase):
+    pass
+
+
+class TagUpdate(BaseModel):
+    nome: str | None = Field(default=None, min_length=1, max_length=50)
+    cor: str | None = Field(default=None, max_length=7)
+
+
+class TagResponse(TagBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProdutoBase(BaseModel):
     nome: str = Field(..., min_length=1, max_length=150)
     sku: str = Field(..., min_length=1, max_length=80)
-    categoria: str | None = Field(default=None, max_length=100)
+    categoria_id: int | None = Field(default=None)
+    tag_id: int | None = Field(default=None)
     unidade: str = Field(..., min_length=1, max_length=30)
     custo: Decimal = Field(..., ge=0)
     preco: Decimal = Field(..., ge=0)
@@ -31,6 +74,8 @@ class ProdutoUpdate(ProdutoBase):
 class ProdutoResponse(ProdutoBase):
     id: int
     created_at: datetime
+    categoria: CategoriaResponse | None = None
+    tag: TagResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

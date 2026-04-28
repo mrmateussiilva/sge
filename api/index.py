@@ -16,7 +16,7 @@ from sqlalchemy import text
 import database
 import models
 import schemas
-from routers import auth, dashboard, movimentacoes, produtos, importacao_xml, usuarios
+from routers import auth, categorias, dashboard, movimentacoes, produtos, importacao_xml, tags, usuarios
 
 logger.info("All modules imported successfully.")
 
@@ -60,6 +60,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(categorias.router, prefix="/api")
+app.include_router(tags.router, prefix="/api")
 app.include_router(produtos.router, prefix="/api")
 app.include_router(movimentacoes.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")

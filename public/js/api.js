@@ -46,6 +46,17 @@ async function request(path, options = {}) {
 }
 
 window.api = {
+  getCategorias: () => request("/categorias"),
+  getCategoria: (id) => request(`/categorias/${id}`),
+  createCategoria: (payload) => request("/categorias", { method: "POST", body: JSON.stringify(payload) }),
+  updateCategoria: (id, payload) => request(`/categorias/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteCategoria: (id) => request(`/categorias/${id}`, { method: "DELETE" }),
+  migrateCategorias: () => request("/categorias/migrate", { method: "POST" }),
+  getTags: () => request("/tags"),
+  getTag: (id) => request(`/tags/${id}`),
+  createTag: (payload) => request("/tags", { method: "POST", body: JSON.stringify(payload) }),
+  updateTag: (id, payload) => request(`/tags/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteTag: (id) => request(`/tags/${id}`, { method: "DELETE" }),
   getProdutos: () => request("/produtos"),
   getProduto: (id) => request(`/produtos/${id}`),
   createProduto: (payload) => request("/produtos", { method: "POST", body: JSON.stringify(payload) }),
