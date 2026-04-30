@@ -9,11 +9,9 @@ logger = logging.getLogger("vercel_backend")
 API_DIR = os.path.dirname(__file__)
 sys.path.insert(0, API_DIR)
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 import database
 import models
@@ -53,16 +51,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-class CorsMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
-            response = Response(status_code=200)
-        else:
-            response = await call_next(request)
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = Response(status_code=204)
         response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "600"
         return response
+
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,8 +74,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(CorsMiddleware)
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(categorias.router, prefix="/api")
