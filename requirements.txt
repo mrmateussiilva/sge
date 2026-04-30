@@ -10,4 +10,3 @@ cryptography
 greenlet
 httpx
 requests
-cachetools
