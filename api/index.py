@@ -127,3 +127,60 @@ def health_db():
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/admin/migrate")
+def run_migration():
+    """
+    One-time endpoint to sync the production database schema.
+    Adds missing columns and creates missing tables.
+    DELETE THIS ENDPOINT after running it once.
+    """
+    from database import get_engine, Base
+    engine = get_engine()
+    results = []
+
+    # Step 1: Create all tables that don't exist yet (categorias, tags, notas_importadas, etc.)
+    try:
+        Base.metadata.create_all(bind=engine)
+        results.append("create_all: OK - all new tables created")
+    except Exception as e:
+        results.append(f"create_all: FAILED - {e}")
+
+    # Step 2: Add missing columns to existing tables
+    migrations = [
+        (
+            "ADD categoria_id to produtos",
+            "ALTER TABLE produtos ADD COLUMN categoria_id INT NULL",
+        ),
+        (
+            "ADD tag_id to produtos",
+            "ALTER TABLE produtos ADD COLUMN tag_id INT NULL",
+        ),
+        (
+            "ADD FK categoria_id",
+            "ALTER TABLE produtos ADD CONSTRAINT fk_produto_categoria "
+            "FOREIGN KEY (categoria_id) REFERENCES categorias(id)",
+        ),
+        (
+            "ADD FK tag_id",
+            "ALTER TABLE produtos ADD CONSTRAINT fk_produto_tag "
+            "FOREIGN KEY (tag_id) REFERENCES tags(id)",
+        ),
+    ]
+
+    with engine.connect() as conn:
+        for label, sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                results.append(f"{label}: OK")
+            except Exception as e:
+                error_msg = str(e)
+                # Ignore "Duplicate column name" or "Duplicate key name" — already exists
+                if "Duplicate" in error_msg or "already exists" in error_msg.lower():
+                    results.append(f"{label}: SKIPPED (already exists)")
+                else:
+                    results.append(f"{label}: FAILED - {error_msg}")
+
+    return {"migration_results": results}
