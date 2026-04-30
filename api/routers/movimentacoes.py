@@ -5,6 +5,7 @@ from auth import get_current_user
 import crud
 import schemas
 from database import get_db
+import cache
 
 
 router = APIRouter(
@@ -16,7 +17,13 @@ router = APIRouter(
 
 @router.get("", response_model=list[schemas.MovimentacaoResponse])
 def listar_movimentacoes(db: Session = Depends(get_db)) -> list[schemas.MovimentacaoResponse]:
-    return crud.get_movimentacoes(db)
+    cached_data = cache.get_cached("movimentacoes")
+    if cached_data is not None:
+        return cached_data
+    
+    data = crud.get_movimentacoes(db)
+    cache.set_cached("movimentacoes", data)
+    return data
 
 
 @router.post(
@@ -29,6 +36,10 @@ def criar_movimentacao(
     db: Session = Depends(get_db),
 ) -> schemas.MovimentacaoResponse:
     try:
-        return crud.create_movimentacao(db, movimentacao_in)
+        result = crud.create_movimentacao(db, movimentacao_in)
+        cache.invalidate("movimentacoes")
+        cache.invalidate("dashboard")
+        cache.invalidate("produtos")
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

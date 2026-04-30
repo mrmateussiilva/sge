@@ -5,6 +5,7 @@ from auth import get_current_user
 import crud
 import schemas
 from database import get_db
+import cache
 
 
 router = APIRouter(
@@ -16,7 +17,13 @@ router = APIRouter(
 
 @router.get("", response_model=list[schemas.CategoriaResponse])
 def listar_categorias(db: Session = Depends(get_db)) -> list[schemas.CategoriaResponse]:
-    return crud.get_categorias(db)
+    cached_data = cache.get_cached("categorias")
+    if cached_data is not None:
+        return cached_data
+    
+    data = crud.get_categorias(db)
+    cache.set_cached("categorias", data)
+    return data
 
 
 @router.post("/migrate", response_model=dict)
@@ -29,10 +36,9 @@ def criar_categoria(
     categoria_in: schemas.CategoriaCreate,
     db: Session = Depends(get_db),
 ) -> schemas.CategoriaResponse:
-    if crud.get_categoria_by_nome(db, categoria_in.nome):
-        raise HTTPException(status_code=400, detail="Categoria ja cadastrada.")
-
-    return crud.create_categoria(db, categoria_in)
+    result = crud.create_categoria(db, categoria_in)
+    cache.invalidate("categorias")
+    return result
 
 
 @router.get("/{categoria_id}", response_model=schemas.CategoriaResponse)
@@ -57,12 +63,9 @@ def atualizar_categoria(
     if categoria is None:
         raise HTTPException(status_code=404, detail="Categoria nao encontrada.")
 
-    if categoria_in.nome:
-        categoria_existente = crud.get_categoria_by_nome(db, categoria_in.nome)
-        if categoria_existente and categoria_existente.id != categoria_id:
-            raise HTTPException(status_code=400, detail="Nome da categoria ja cadastrado.")
-
-    return crud.update_categoria(db, categoria, categoria_in)
+    result = crud.update_categoria(db, categoria, categoria_in)
+    cache.invalidate("categorias")
+    return result
 
 
 @router.delete("/{categoria_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -72,4 +75,5 @@ def remover_categoria(categoria_id: int, db: Session = Depends(get_db)) -> Respo
         raise HTTPException(status_code=404, detail="Categoria nao encontrada.")
 
     crud.delete_categoria(db, categoria)
+    cache.invalidate("categorias")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

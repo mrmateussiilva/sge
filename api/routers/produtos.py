@@ -5,6 +5,7 @@ from auth import get_current_user
 import crud
 import schemas
 from database import get_db
+import cache
 
 
 router = APIRouter(
@@ -16,7 +17,13 @@ router = APIRouter(
 
 @router.get("", response_model=list[schemas.ProdutoResponse])
 def listar_produtos(db: Session = Depends(get_db)) -> list[schemas.ProdutoResponse]:
-    return crud.get_produtos(db)
+    cached_data = cache.get_cached("produtos")
+    if cached_data is not None:
+        return cached_data
+    
+    data = crud.get_produtos(db)
+    cache.set_cached("produtos", data)
+    return data
 
 
 @router.post("", response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
@@ -24,10 +31,10 @@ def criar_produto(
     produto_in: schemas.ProdutoCreate,
     db: Session = Depends(get_db),
 ) -> schemas.ProdutoResponse:
-    if crud.get_produto_by_sku(db, produto_in.sku):
-        raise HTTPException(status_code=400, detail="SKU ja cadastrado.")
-
-    return crud.create_produto(db, produto_in)
+    result = crud.create_produto(db, produto_in)
+    cache.invalidate("produtos")
+    cache.invalidate("dashboard")
+    return result
 
 
 @router.get("/{produto_id}", response_model=schemas.ProdutoResponse)
@@ -52,11 +59,10 @@ def atualizar_produto(
     if produto is None:
         raise HTTPException(status_code=404, detail="Produto nao encontrado.")
 
-    produto_com_sku = crud.get_produto_by_sku(db, produto_in.sku)
-    if produto_com_sku and produto_com_sku.id != produto_id:
-        raise HTTPException(status_code=400, detail="SKU ja cadastrado.")
-
-    return crud.update_produto(db, produto, produto_in)
+    result = crud.update_produto(db, produto, produto_in)
+    cache.invalidate("produtos")
+    cache.invalidate("dashboard")
+    return result
 
 
 @router.delete("/{produto_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -66,4 +72,6 @@ def remover_produto(produto_id: int, db: Session = Depends(get_db)) -> Response:
         raise HTTPException(status_code=404, detail="Produto nao encontrado.")
 
     crud.delete_produto(db, produto)
+    cache.invalidate("produtos")
+    cache.invalidate("dashboard")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
