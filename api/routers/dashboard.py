@@ -5,7 +5,7 @@ from auth import get_current_user
 import crud
 import schemas
 from database import get_db
-import cache
+import app_cache as cache
 
 
 router = APIRouter(
