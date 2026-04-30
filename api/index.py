@@ -11,6 +11,7 @@ sys.path.insert(0, API_DIR)
 
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 import database
@@ -51,19 +52,34 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {exc}", exc_info=True)
-    return Response(
-        content=f'{"error": "Internal Server Error", "detail": "{str(exc)}"}',
-        status_code=500,
-        media_type="application/json",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+    "Access-Control-Allow-Headers": "*",
+}
+
+
+@app.middleware("http")
+async def cors_and_error_middleware(request: Request, call_next):
+    """
+    Outermost middleware: ensures CORS headers are always present,
+    even when the server returns a 500 error that bypasses CORSMiddleware.
+    """
+    if request.method == "OPTIONS":
+        return Response(status_code=204, headers=CORS_HEADERS)
+
+    try:
+        response = await call_next(request)
+        for key, value in CORS_HEADERS.items():
+            response.headers[key] = value
+        return response
+    except Exception as exc:
+        logger.error(f"Unhandled error caught in middleware: {exc}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal Server Error", "detail": str(exc)},
+            headers=CORS_HEADERS,
+        )
 
 
 app.add_middleware(
@@ -105,10 +121,8 @@ def health():
 def health_db():
     try:
         from database import get_engine
-        from sqlalchemy.orm import Session
-        session: Session = next(get_engine().connect().execution_options(auto_commit=True))
-        session.execute(text("SELECT 1"))
-        session.close()
+        with get_engine().connect() as conn:
+            conn.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
