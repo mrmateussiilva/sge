@@ -1,18 +1,18 @@
 services:
   sge:
     build: .
-    ports:
-      - "${PORT:-8000}:${PORT:-8000}"
-    environment:
-      - PORT=${PORT:-8000}
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
-      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
-      - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
-      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-*}
+    expose:
+      - "8000"        # acessível internamente na rede Docker, não exposto ao host
+    env_file: .env
     volumes:
       - sqlite_data:/app/data
+    restart: unless-stopped
+    networks:
+      - caddy_net
 
 volumes:
   sqlite_data:
+
+networks:
+  caddy_net:
+    external: true    # rede criada manualmente: docker network create caddy_net

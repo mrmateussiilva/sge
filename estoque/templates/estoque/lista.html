@@ -168,7 +168,7 @@
                         <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td>
-                                <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-15 text-info' : 'bg-warning bg-opacity-15 text-warning'">
+                                <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
                                     [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
                                 </span>
                             </td>

@@ -1,0 +1,32 @@
+# Caddyfile para sge.finderbit.com.br
+#
+# Pré-requisitos na VPS:
+#   1. DNS de sge.finderbit.com.br apontando para o IP da VPS
+#   2. Rede Docker criada: docker network create caddy_net
+#   3. Container sge rodando nessa rede (via docker compose up -d)
+#
+# Se o Caddy estiver em Docker, conecte-o à mesma rede:
+#   docker network connect caddy_net <container-id-do-caddy>
+#
+# Se o Caddy estiver instalado diretamente no host, substitua
+#   "sge:8000" por "localhost:8000"  e exponha a porta no compose.
+
+sge.finderbit.com.br {
+    # Proxy reverso para o container Django
+    reverse_proxy sge:8000
+
+    # Informa ao Django que a conexão original é HTTPS
+    # (necessário para SECURE_PROXY_SSL_HEADER funcionar)
+    header_up X-Forwarded-Proto {scheme}
+
+    # Compressão gzip das respostas
+    encode gzip
+
+    # Logs de acesso
+    log {
+        output file /var/log/caddy/sge.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}

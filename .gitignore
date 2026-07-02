@@ -8,3 +8,16 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Secrets — nunca commitar em produção
+.env
+
+# Banco de dados e dados persistentes
+data/
+
+# Arquivos temporários de importação
+*.xlsx
+importar_estoque.py
+
+# Arquivos estáticos coletados
+staticfiles/
