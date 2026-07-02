@@ -1,0 +1,127 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Registrar Movimentação{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 fw-bold"><i class="bi bi-arrow-left-right me-2"></i>Registrar Movimentação</h1>
+
+<div id="app">
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-4">
+            <form @submit.prevent="enviar" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-medium">Produto</label>
+                    <select class="form-select" v-model="form.produto_id" required>
+                        <option value="" disabled>Selecione um produto</option>
+                        <option v-for="p in produtos" :key="p.id" :value="p.id">[[ p.descricao ]]</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-medium">Tipo</label>
+                    <div class="d-flex gap-3 mt-1">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" value="ENTRADA" v-model="form.tipo" id="tipo_entrada">
+                            <label class="form-check-label" for="tipo_entrada">
+                                <i class="bi bi-arrow-up-circle text-success me-1"></i>Entrada
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" value="SAIDA" v-model="form.tipo" id="tipo_saida">
+                            <label class="form-check-label" for="tipo_saida">
+                                <i class="bi bi-arrow-down-circle text-danger me-1"></i>Saída
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-medium">Quantidade</label>
+                    <input type="text" inputmode="decimal" class="form-control" :value="formatInitialVal(form.quantidade)" @input="filterDecimal('quantidade', $event)" required>
+                </div>
+
+                <div class="col-md-9">
+                    <label class="form-label fw-medium">Observação</label>
+                    <input type="text" class="form-control" v-model="form.observacao" placeholder="Opcional">
+                </div>
+
+                <div class="col-12 pt-2">
+                    <button type="submit" class="btn btn-primary px-4 shadow-sm" :disabled="carregando">
+                        <i class="bi bi-check-lg me-1"></i>[[ carregando ? 'Salvando...' : 'Registrar' ]]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+    (function() {
+        const { createApp } = Vue;
+        const csrfToken = '{{ csrf_token }}';
+        const app = createApp({
+            compilerOptions: {
+                delimiters: ['[[', ']]']
+            },
+            data() {
+                return {
+                    produtos: {{ produtos|safe }},
+                    form: {
+                        produto_id: '',
+                        tipo: 'ENTRADA',
+                        quantidade: 1,
+                        observacao: '',
+                    },
+                    carregando: false,
+                };
+            },
+            methods: {
+                formatInitialVal(val) {
+                    if (val === null || val === undefined || val === '') return '';
+                    let num = parseFloat(val);
+                    if (isNaN(num)) return '';
+                    let formatted = num.toFixed(2).replace('.', ',');
+                    return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                },
+                filterDecimal(field, event) {
+                    let val = event.target.value.replace(/\D/g, '');
+                    if (!val) {
+                        this.form[field] = '';
+                        event.target.value = '';
+                        return;
+                    }
+                    let num = (parseInt(val, 10) / 100).toFixed(2);
+                    let formatted = num.replace('.', ',');
+                    formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    this.form[field] = num;
+                    event.target.value = formatted;
+                },
+                async enviar() {
+                    this.carregando = true;
+                    try {
+                        const resp = await fetch('/movimentacao/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                            body: JSON.stringify(this.form),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            showToast('Movimentação registrada com sucesso!');
+                            this.form = {produto_id: '', tipo: 'ENTRADA', quantidade: 1, observacao: ''};
+                        } else {
+                            showToast('Erro ao registrar movimentação.', 'danger');
+                        }
+                    } catch {
+                        showToast('Erro de conexão.', 'danger');
+                    } finally {
+                        this.carregando = false;
+                    }
+                },
+            },
+        });
+        app.mount('#app');
+    })();
+</script>
+{% endblock %}

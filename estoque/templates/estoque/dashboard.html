@@ -1,0 +1,240 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0 fw-bold"><i class="bi bi-grid-fill me-2"></i>Dashboard</h1>
+    <a href="{% url 'exportar_csv' %}" class="btn btn-outline-success shadow-sm">
+        <i class="bi bi-download me-1"></i>Exportar para CSV
+    </a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-primary shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-box-seam fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Total de Produtos</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ total_itens }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-success shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-coin fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Valor Estoque (Custo)</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">R$ {{ valor_total|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-info shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-graph-up-arrow fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Valor Estoque (Venda)</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">R$ {{ valor_venda_total|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-warning shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-exclamation-triangle fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Estoque Baixo</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ estoque_baixo|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bi bi-bar-chart-line text-primary me-1"></i>Movimentações por Mês
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="chartMovimentacoes" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bi bi-pie-chart text-success me-1"></i>Valor em Estoque por Tipo
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="chartTipo" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bi bi-exclamation-circle text-warning me-1"></i>Produtos com Estoque Baixo
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Produto</th>
+                            <th>Qtd</th>
+                            <th>Mínimo</th>
+                            <th class="pe-4">Ações Rápidas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in estoque_baixo %}
+                        <tr class="table-danger">
+                            <td class="ps-4">{{ p.descricao }}</td>
+                            <td><span class="badge bg-danger">{{ p.quantidade_base }}</span></td>
+                            <td>{{ p.estoque_minimo }}</td>
+                            <td class="pe-4">
+                                {% if p.fornecedor %}
+                                <a href="https://wa.me/{{ p.fornecedor.telefone|cut:' '|cut:'('|cut:')'|cut:'-'|cut:'+' }}?text=Olá%20{{ p.fornecedor.nome|urlencode }},%20gostaríamos%20de%20solicitar%20uma%20cotação%20para%20mais%20unidades%20do%20produto%20{{ p.descricao|urlencode }}%20(Estoque%20atual:%20{{ p.quantidade_base }})."
+                                   class="btn btn-outline-success btn-sm shadow-sm" title="Solicitar via WhatsApp" target="_blank">
+                                    <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                                </a>
+                                {% endif %}
+                                {% if not p.fornecedor %}
+                                <span class="text-muted small">Sem fornecedor cadastrado</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Nenhum produto com estoque baixo.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-3 h-100">
+            <div class="card-header bg-white border-bottom-0 pt-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bi bi-arrow-left-right text-primary me-1"></i>Últimas Movimentações
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Produto</th>
+                            <th>Tipo</th>
+                            <th>Qtd</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in ultimas_movimentacoes %}
+                        <tr>
+                            <td class="ps-4">{{ m.produto.descricao }}</td>
+                            <td>
+                                {% if m.tipo == 'ENTRADA' %}
+                                <span class="badge bg-success"><i class="bi bi-arrow-up me-1"></i>Entrada</span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="bi bi-arrow-down me-1"></i>Saída</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ m.quantidade }}</td>
+                            <td class="text-muted small">{{ m.data|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Nenhuma movimentação registrada.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">
+                    <i class="bi bi-activity text-secondary me-1"></i>Atividades Recentes
+                </h5>
+                <a href="{% url 'log_acoes' %}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Data</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th class="pe-4">Descrição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in ultimos_logs %}
+                        <tr>
+                            <td class="ps-4 text-muted small">{{ log.data|date:"d/m/Y H:i" }}</td>
+                            <td>{{ log.usuario|default:'-' }}</td>
+                            <td><span class="badge bg-secondary">{{ log.get_acao_display }}</span></td>
+                            <td class="pe-4 small">{{ log.descricao }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">Nenhuma atividade registrada.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    new Chart(document.getElementById('chartMovimentacoes'), {
+        type: 'bar',
+        data: {
+            labels: {{ chart_meses|safe }},
+            datasets: [
+                { label: 'Entradas', data: {{ chart_entradas|safe }}, backgroundColor: 'rgba(40,167,69,0.6)', borderColor: '#28a745', borderWidth: 1 },
+                { label: 'Saídas', data: {{ chart_saidas|safe }}, backgroundColor: 'rgba(220,53,69,0.6)', borderColor: '#dc3545', borderWidth: 1 },
+            ],
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } } },
+    });
+    new Chart(document.getElementById('chartTipo'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ chart_tipo_labels|safe }},
+            datasets: [{ data: {{ chart_tipo_data|safe }}, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14'] }],
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+    });
+})();
+</script>
+{% endblock %}

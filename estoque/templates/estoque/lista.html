@@ -1,0 +1,221 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Produtos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0 fw-bold"><i class="bi bi-box me-2"></i>Produtos</h1>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#importarModal">
+            <i class="bi bi-upload me-1"></i>Importar CSV
+        </button>
+        <a href="{% url 'exportar_csv' %}" class="btn btn-outline-success shadow-sm">
+            <i class="bi bi-download me-1"></i>Exportar para CSV
+        </a>
+    </div>
+</div>
+
+<div id="app">
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control border-start-0" placeholder="Buscar produto..." v-model="searchQuery">
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Descrição</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Preço Custo</th>
+                        <th>Preço Venda</th>
+                        <th>Lucro</th>
+                        <th class="pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="produto in produtosFiltrados" :key="produto.id">
+                        <td class="ps-4">
+                            <a :href="'/produto/' + produto.id + '/'" class="text-decoration-none fw-medium">[[ produto.descricao ]]</a>
+                        </td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">[[ produto.tipo_produto ]]</span></td>
+                        <td>[[ produto.quantidade ]]</td>
+                        <td>R$ [[ produto.preco_custo.toFixed(2) ]]</td>
+                        <td>R$ [[ produto.preco_venda.toFixed(2) ]]</td>
+                        <td :class="produto.lucro >= 0 ? 'text-success' : 'text-danger'">
+                            R$ [[ produto.lucro.toFixed(2) ]]
+                            <span class="badge bg-opacity-10" :class="produto.margem >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
+                                [[ produto.margem ]]%
+                            </span>
+                        </td>
+                        <td class="pe-4">
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-success btn-sm shadow-sm" @click="alterar(produto, 1)" title="Adicionar">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(produto, -1)" title="Remover">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <a :href="'/produto/' + produto.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a :href="'/produto/' + produto.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Ver Histórico">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <p class="text-muted mb-0 small" v-if="produtosFiltrados.length > 0">
+            Exibindo <strong>[[ produtosFiltrados.length ]]</strong> produto(s)
+        </p>
+        <p class="text-muted mb-0 small" v-else>
+            <i class="bi bi-inbox me-1"></i>Nenhum produto encontrado.
+        </p>
+    </div>
+
+    <nav class="mt-3" aria-label="Paginação">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+            {% if produtos.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ produtos.previous_page_number }}">&laquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+            {% endif %}
+            {% for n in produtos.paginator.page_range %}
+            <li class="page-item {% if produtos.number == n %}active{% endif %}">
+                <a class="page-link" href="?page={{ n }}">{{ n }}</a>
+            </li>
+            {% endfor %}
+            {% if produtos.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ produtos.next_page_number }}">&raquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- Modal Importar CSV -->
+<div class="modal fade" id="importarModal" tabindex="-1" aria-labelledby="importarModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="importarModalLabel"><i class="bi bi-filetype-csv me-2 text-primary"></i>Importar Produtos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3">Envie um arquivo CSV seguindo o modelo padrão para adicionar múltiplos produtos ao mesmo tempo.</p>
+        <div class="mb-4">
+          <a href="{% url 'template_csv_produtos' %}" class="btn btn-sm btn-light border shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i>Baixar Modelo em Branco
+          </a>
+        </div>
+        <form id="formImportarCSV" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="arquivoCSV" class="form-label fw-medium">Selecione o Arquivo (.csv)</label>
+            <input class="form-control" type="file" id="arquivoCSV" name="arquivo" accept=".csv" required>
+          </div>
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-primary shadow-sm" id="btnImportar">
+                <i class="bi bi-upload me-1"></i>Iniciar Importação
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+    (function() {
+        const { createApp } = Vue;
+        const csrfToken = '{{ csrf_token }}';
+        const app = createApp({
+            compilerOptions: {
+                delimiters: ['[[', ']]']
+            },
+            data() {
+                return {
+                    produtos: {{ produtos_json|safe }},
+                    searchQuery: '',
+                };
+            },
+            computed: {
+                produtosFiltrados() {
+                    const query = this.searchQuery.toLowerCase();
+                    return this.produtos.filter(p => {
+                        return p.descricao.toLowerCase().includes(query);
+                    });
+                },
+            },
+            methods: {
+                alterar(produto, variacao) {
+                    const novaQtd = produto.quantidade + variacao;
+                    if (novaQtd < 0) return;
+                    produto.quantidade = novaQtd;
+                    fetch('/atualiza-estoque/', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                        body: JSON.stringify({id: produto.id, variacao: variacao}),
+                    }).then(() => showToast('Estoque atualizado!'));
+                },
+            },
+        });
+        app.mount('#app');
+
+        const formImportar = document.getElementById('formImportarCSV');
+        if (formImportar) {
+            formImportar.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('btnImportar');
+                const fileInput = document.getElementById('arquivoCSV');
+                if (fileInput.files.length === 0) return;
+                
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importando...';
+                
+                const formData = new FormData();
+                formData.append('arquivo', fileInput.files[0]);
+                
+                try {
+                    const response = await fetch('{% url "importar_csv_produtos" %}', {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': csrfToken},
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.ok) {
+                        showToast(data.mensagem);
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showToast(data.erro, 'danger');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
+                    }
+                } catch (err) {
+                    showToast('Erro de conexão.', 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

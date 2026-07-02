@@ -1,0 +1,112 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Relatório{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 fw-bold"><i class="bi bi-file-earmark-bar-graph me-2"></i>Relatório de Movimentações</h1>
+
+<div class="card shadow-sm border-0 rounded-3 mb-4">
+    <div class="card-body p-4">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-medium">Data Início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium">Data Fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary shadow-sm flex-grow-1">
+                    <i class="bi bi-search me-1"></i>Filtrar
+                </button>
+                <a href="{% url 'relatorio_mensal' %}" class="btn btn-outline-secondary shadow-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-primary shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-arrow-up fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Total Entradas</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ total_entradas|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-danger shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-arrow-down fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Total Saídas</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ total_saidas|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-info shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-arrow-left-right fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Movimentações</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ total_movimentacoes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-success shadow-sm border-0 rounded-3 h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <i class="bi bi-calculator fs-1"></i>
+                <div>
+                    <h6 class="card-title mb-0 fw-light">Saldo Líquido</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ saldo_liquido|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-header bg-white">
+        <h5 class="mb-0 fw-semibold">
+            <i class="bi bi-box me-1"></i>Movimentações por Produto
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Produto</th>
+                    <th>Entradas</th>
+                    <th>Saídas</th>
+                    <th class="pe-4">Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos_afetados %}
+                <tr>
+                    <td class="ps-4">{{ p.nome }}</td>
+                    <td class="text-success fw-medium">{{ p.entradas|floatformat:2 }}</td>
+                    <td class="text-danger fw-medium">{{ p.saidas|floatformat:2 }}</td>
+                    <td class="pe-4 fw-medium">{{ p.saldo|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox me-1"></i>Nenhuma movimentação no período.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

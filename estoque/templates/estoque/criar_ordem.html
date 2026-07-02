@@ -1,0 +1,164 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Nova Ordem{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 fw-bold"><i class="bi bi-cart-plus me-2"></i>Nova Ordem de Compra</h1>
+
+<div id="app">
+    <form @submit.prevent="salvar">
+        <div class="card shadow-sm border-0 rounded-3 mb-4">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-medium">Fornecedor</label>
+                        <select v-model="fornecedor_id" class="form-select">
+                            <option value="">-- Selecione --</option>
+                            {% for f in fornecedores %}
+                            <option value="{{ f.id }}">{{ f.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-medium">Observação</label>
+                        <input type="text" v-model="observacao" class="form-control" placeholder="Opicional">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-3 mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">Itens</h5>
+                <button type="button" class="btn btn-sm btn-success" @click="adicionarItem">
+                    <i class="bi bi-plus-lg me-1"></i>Item
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Produto</th>
+                            <th>Quantidade</th>
+                            <th>Preço Unitário</th>
+                            <th>Subtotal</th>
+                            <th class="pe-4"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, idx) in itens" :key="idx">
+                            <td class="ps-4">
+                                <select v-model="item.produto_id" class="form-select form-select-sm" required>
+                                    <option value="">-- Selecione --</option>
+                                    {% for p in produtos %}
+                                    <option value="{{ p.id }}">{{ p.descricao }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.quantidade)" @input="filterItemDecimal('quantidade', idx, $event)" class="form-control form-control-sm" style="max-width:120px;" required>
+                            </td>
+                            <td>
+                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.preco_unitario)" @input="filterItemDecimal('preco_unitario', idx, $event)" class="form-control form-control-sm" style="max-width:140px;" required>
+                            </td>
+                            <td class="fw-medium">R$ [[ (item.quantidade * item.preco_unitario).toFixed(2) ]]</td>
+                            <td class="pe-4">
+                                <button type="button" class="btn btn-sm btn-outline-danger" @click="removerItem(idx)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light fw-bold">
+                            <td colspan="3" class="text-end pe-3">Total:</td>
+                            <td>R$ [[ total.toFixed(2) ]]</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary shadow-sm" :disabled="itens.length === 0">
+                <i class="bi bi-check-lg me-1"></i>Salvar Ordem
+            </button>
+            <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary shadow-sm">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+(function() {
+    const { createApp } = Vue;
+    const csrfToken = '{{ csrf_token }}';
+    createApp({
+        compilerOptions: {
+            delimiters: ['[[', ']]']
+        },
+        data() {
+            return {
+                fornecedor_id: '',
+                observacao: '',
+                itens: [],
+            };
+        },
+        computed: {
+            total() {
+                return this.itens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
+            },
+        },
+        methods: {
+            formatInitialVal(val) {
+                if (val === null || val === undefined || val === '') return '';
+                let num = parseFloat(val);
+                if (isNaN(num)) return '';
+                let formatted = num.toFixed(2).replace('.', ',');
+                return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            },
+            filterItemDecimal(field, idx, event) {
+                let val = event.target.value.replace(/\D/g, '');
+                if (!val) {
+                    this.itens[idx][field] = '';
+                    event.target.value = '';
+                    return;
+                }
+                let num = (parseInt(val, 10) / 100).toFixed(2);
+                let formatted = num.replace('.', ',');
+                formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                this.itens[idx][field] = num;
+                event.target.value = formatted;
+            },
+            adicionarItem() {
+                this.itens.push({ produto_id: '', quantidade: 1, preco_unitario: 0 });
+            },
+            removerItem(idx) {
+                this.itens.splice(idx, 1);
+            },
+            salvar() {
+                if (this.itens.length === 0) return;
+                fetch('{% url "criar_ordem" %}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                    body: JSON.stringify({
+                        fornecedor_id: this.fornecedor_id,
+                        observacao: this.observacao,
+                        itens: this.itens,
+                    }),
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (data.ok) {
+                        showToast('Ordem criada com sucesso!');
+                        setTimeout(function() { window.location.href = '/ordens/'; }, 800);
+                    } else {
+                        showToast('Erro ao criar ordem.', 'danger');
+                    }
+                });
+            },
+        },
+    }).mount('#app');
+})();
+</script>
+{% endblock %}

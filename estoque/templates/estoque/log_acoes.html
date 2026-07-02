@@ -1,0 +1,39 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Log de Atividades{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 fw-bold"><i class="bi bi-activity me-2"></i>Log de Atividades</h1>
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Data</th>
+                    <th>Usuário</th>
+                    <th>Ação</th>
+                    <th>Modelo</th>
+                    <th class="pe-4">Descrição</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="ps-4 text-muted small">{{ log.data|date:"d/m/Y H:i" }}</td>
+                    <td>{{ log.usuario|default:'-' }}</td>
+                    <td><span class="badge bg-secondary">{{ log.get_acao_display }}</span></td>
+                    <td><span class="badge bg-info bg-opacity-10 text-info">{{ log.modelo|default:'-' }}</span></td>
+                    <td class="pe-4">{{ log.descricao }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox me-1"></i>Nenhuma atividade registrada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

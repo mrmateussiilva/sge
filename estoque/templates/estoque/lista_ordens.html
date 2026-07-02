@@ -1,0 +1,60 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Ordens de Compra{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0 fw-bold"><i class="bi bi-cart me-2"></i>Ordens de Compra</h1>
+    <a href="{% url 'criar_ordem' %}" class="btn btn-primary shadow-sm">
+        <i class="bi bi-plus-lg me-1"></i>Nova Ordem
+    </a>
+</div>
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">#</th>
+                    <th>Fornecedor</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Observação</th>
+                    <th class="pe-4"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in ordens %}
+                <tr>
+                    <td class="ps-4 fw-medium">{{ o.id }}</td>
+                    <td>{{ o.fornecedor.nome|default:'-' }}</td>
+                    <td class="text-muted small">{{ o.data_criacao|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if o.status == 'PENDENTE' %}
+                        <span class="badge bg-warning text-dark">Pendente</span>
+                        {% elif o.status == 'APROVADA' %}
+                        <span class="badge bg-primary">Aprovada</span>
+                        {% elif o.status == 'RECEBIDA' %}
+                        <span class="badge bg-success">Recebida</span>
+                        {% elif o.status == 'CANCELADA' %}
+                        <span class="badge bg-secondary">Cancelada</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ o.observacao|truncatechars:40|default:'-' }}</td>
+                    <td class="pe-4">
+                        <a href="{% url 'detalhe_ordem' o.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox me-1"></i>Nenhuma ordem de compra registrada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

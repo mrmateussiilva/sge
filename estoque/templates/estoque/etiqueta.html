@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Etiqueta - {{ produto.descricao }}</title>
+    <style>
+        @page { margin: 1cm; }
+        body { font-family: 'Courier New', monospace; margin: 0; padding: 0; }
+        .label {
+            width: 10cm; height: 6cm;
+            border: 2px solid #000;
+            padding: 0.6cm;
+            display: flex; flex-direction: column; justify-content: space-between;
+            page-break-inside: avoid;
+            box-sizing: border-box;
+        }
+        .label h2 { margin: 0 0 0.2cm 0; font-size: 14pt; text-transform: uppercase; }
+        .label .tipo { font-size: 10pt; margin-bottom: 0.3cm; }
+        .label .info { font-size: 11pt; }
+        .label .info strong { display: inline-block; min-width: 3cm; }
+        .label .preco { font-size: 18pt; font-weight: bold; text-align: right; margin-top: auto; }
+        .print-container { display: flex; flex-wrap: wrap; gap: 0.5cm; justify-content: center; padding: 1cm; }
+        @media print {
+            .no-print { display: none; }
+        }
+        .no-print { text-align: center; padding: 1cm; }
+        .no-print button { padding: 0.5cm 2cm; font-size: 16pt; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button onclick="window.print()">🖨️ Imprimir</button>
+        <p style="margin-top:0.5cm;color:#666;">Esta página foi otimizada para impressão.</p>
+    </div>
+    <div class="print-container">
+        <div class="label">
+            <div>
+                <h2>{{ produto.descricao }}</h2>
+                <div class="tipo">{{ produto.get_tipo_produto_display }}</div>
+                <div class="info">
+                    <strong>Fornecedor:</strong> {{ produto.fornecedor.nome|default:'-' }}
+                </div>
+                <div class="info">
+                    <strong>Quantidade:</strong> {{ produto.quantidade_base }} {{ produto.unidade_medida }}
+                </div>
+                {% if produto.tipo_produto == 'TINTA' %}
+                <div class="info">
+                    <strong>Tinta:</strong> {{ produto.get_tipo_tinta_display }} - {{ produto.get_cor_tinta_display }}
+                </div>
+                {% elif produto.tipo_produto == 'TECIDO' or produto.tipo_produto == 'PAPEL' %}
+                <div class="info">
+                    <strong>Rolo:</strong> {{ produto.metros_por_rolo }}m
+                </div>
+                {% endif %}
+            </div>
+            <div class="preco">R$ {{ produto.preco_venda }}</div>
+        </div>
+    </div>
+</body>
+</html>

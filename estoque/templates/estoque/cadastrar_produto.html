@@ -1,0 +1,231 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Novo Produto{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 fw-bold"><i class="bi bi-plus-circle me-2"></i>Novo Produto</h1>
+
+<div id="app">
+  <div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-4">
+      <form @submit.prevent="enviar" class="row g-3">
+
+        <div class="col-12">
+          <label class="form-label fw-medium small text-uppercase text-secondary">Tipo de Insumo</label>
+          <select class="form-select form-select-lg" v-model="produto.tipo_produto" required @change="focarDescricao">
+            <option value="" disabled>Selecione o tipo de insumo...</option>
+            <option value="TECIDO">Tecido</option>
+            <option value="PAPEL">Papel</option>
+            <option value="TINTA">Tinta</option>
+            <option value="AVIAMENTO">Aviamento</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+
+        <template v-if="produto.tipo_produto !== ''">
+          <div class="col-12">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Descrição</label>
+            <input ref="descricao" type="text" class="form-control form-control-lg" v-model="produto.descricao" placeholder="Ex: Papel Vinil Adesivo Branco" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-medium small text-uppercase text-secondary">[[ produto.tipo_produto === 'TINTA' ? 'Qtd (Litros)' : 'Qtd (Metros)' ]]</label>
+            <input type="text" inputmode="decimal" class="form-control" :value="produto.quantidade_base" @input="filterDecimal('quantidade_base', $event)" placeholder="0,00">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Est. Mínimo</label>
+            <input type="text" inputmode="decimal" class="form-control" :value="produto.estoque_minimo" @input="filterDecimal('estoque_minimo', $event)" placeholder="0,00">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Fornecedor</label>
+            <select class="form-select" v-model="produto.fornecedor_id">
+              <option value="">—</option>
+              <option v-for="f in fornecedores" :key="f.id" :value="f.id">[[ f.nome ]]</option>
+            </select>
+          </div>
+
+          <div class="col-12 mt-1">
+            <hr class="my-2">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Preço de Custo</label>
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <input type="text" inputmode="decimal" class="form-control" :value="produto.preco_custo" @input="filterDecimal('preco_custo', $event)" placeholder="0,00">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Preço de Venda</label>
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              <input type="text" inputmode="decimal" class="form-control" :value="produto.preco_venda" @input="filterDecimal('preco_venda', $event)" placeholder="0,00">
+            </div>
+          </div>
+
+          <template v-if="produto.tipo_produto === 'TINTA'">
+            <div class="col-12 mt-1">
+              <hr class="my-2">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary">Tipo de Tinta</label>
+              <select class="form-select" v-model="produto.tipo_tinta">
+                <option value="SUBLIMACAO">Sublimação</option>
+                <option value="SOLVENTE">Solvente</option>
+                <option value="N/A">Não se aplica</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary">Cor</label>
+              <select class="form-select" v-model="produto.cor_tinta">
+                <option value="CYAN">Cyan</option>
+                <option value="MAGENTA">Magenta</option>
+                <option value="YELLOW">Yellow</option>
+                <option value="BLACK">Black (Preto)</option>
+                <option value="LIGHT_CYAN">Light Cyan</option>
+                <option value="LIGHT_MAGENTA">Light Magenta</option>
+                <option value="BRANCO">Branco</option>
+                <option value="INCOLOR">Incolor/N/A</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary">Litros / Vidro</label>
+              <input type="text" inputmode="decimal" class="form-control" :value="produto.litros_por_vidro" @input="filterDecimal('litros_por_vidro', $event)" placeholder="Ex: 3,6">
+            </div>
+          </template>
+
+          <template v-if="produto.tipo_produto === 'TECIDO' || produto.tipo_produto === 'PAPEL'">
+            <div class="col-12 mt-1">
+              <hr class="my-2">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary">Metros / Rolo</label>
+              <input type="text" inputmode="decimal" class="form-control" :value="produto.metros_por_rolo" @input="filterDecimal('metros_por_rolo', $event)" placeholder="Ex: 50">
+            </div>
+          </template>
+
+          <div class="col-12 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm w-100" :disabled="carregando">
+              <i class="bi bi-check-lg me-2"></i>[[ carregando ? 'Salvando...' : 'Cadastrar Produto' ]]
+            </button>
+          </div>
+        </template>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+(function() {
+  const { createApp } = Vue;
+  const csrfToken = '{{ csrf_token }}';
+  const app = createApp({
+    compilerOptions: {
+      delimiters: ['[[', ']]']
+    },
+    data() {
+      return {
+        fornecedores: {{ fornecedores|safe }},
+        produto: {
+          tipo_produto: '',
+          descricao: '',
+          fornecedor_id: '',
+          quantidade_base: '',
+          preco_custo: '',
+          preco_venda: '',
+          estoque_minimo: '',
+          metros_por_rolo: null,
+          tipo_tinta: 'N/A',
+          cor_tinta: 'INCOLOR',
+          litros_por_vidro: null,
+        },
+        carregando: false,
+      };
+    },
+    watch: {
+      'produto.tipo_produto': function (novoTipo) {
+        if (novoTipo !== 'TINTA') {
+          this.produto.tipo_tinta = 'N/A';
+          this.produto.cor_tinta = 'INCOLOR';
+          this.produto.litros_por_vidro = null;
+        }
+        if (novoTipo !== 'TECIDO' && novoTipo !== 'PAPEL') {
+          this.produto.metros_por_rolo = null;
+        }
+      },
+    },
+    methods: {
+      focarDescricao() {
+        this.$nextTick(() => this.$refs.descricao?.focus());
+      },
+      filterDecimal(field, event) {
+        let val = event.target.value.replace(/\D/g, '');
+        if (!val) {
+          this.produto[field] = '';
+          event.target.value = '';
+          return;
+        }
+        let num = (parseInt(val, 10) / 100).toFixed(2);
+        let formatted = num.replace('.', ',');
+        formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        this.produto[field] = formatted;
+        event.target.value = formatted;
+      },
+      toNumber(raw) {
+        if (raw === '' || raw === null || raw === undefined) return 0;
+        const str = String(raw).replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
+        const num = parseFloat(str);
+        return isNaN(num) ? 0 : num;
+      },
+      async enviar() {
+        if (!this.produto.tipo_produto) {
+          showToast('Selecione o tipo de insumo.', 'warning');
+          return;
+        }
+        const p = this.produto;
+        p.quantidade_base = this.toNumber(p.quantidade_base);
+        p.preco_custo = this.toNumber(p.preco_custo);
+        p.preco_venda = this.toNumber(p.preco_venda);
+        p.estoque_minimo = this.toNumber(p.estoque_minimo);
+        if (p.metros_por_rolo !== null) p.metros_por_rolo = this.toNumber(p.metros_por_rolo);
+        if (p.litros_por_vidro !== null) p.litros_por_vidro = this.toNumber(p.litros_por_vidro);
+        this.carregando = true;
+        try {
+          const resp = await fetch('/cadastrar-produto/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(p),
+          });
+          const data = await resp.json();
+          if (data.ok) {
+            showToast('Produto cadastrado com sucesso!');
+            this.produto = {
+              tipo_produto: '',
+              descricao: '',
+              fornecedor_id: '',
+              quantidade_base: 0,
+              preco_custo: 0,
+              preco_venda: 0,
+              estoque_minimo: 0,
+              metros_por_rolo: null,
+              tipo_tinta: 'N/A',
+              cor_tinta: 'INCOLOR',
+              litros_por_vidro: null,
+            };
+          } else {
+            showToast('Erro ao cadastrar produto.', 'danger');
+          }
+        } catch {
+          showToast('Erro de conexão.', 'danger');
+        } finally {
+          this.carregando = false;
+        }
+      },
+    },
+  });
+  app.mount('#app');
+})();
+</script>
+{% endblock %}
