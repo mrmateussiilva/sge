@@ -11,102 +11,280 @@
         <a href="{% url 'exportar_csv' %}" class="btn btn-outline-success shadow-sm">
             <i class="bi bi-download me-1"></i>Exportar para CSV
         </a>
+        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i>Novo Produto
+        </a>
     </div>
 </div>
 
 <div id="app">
-    <div class="row g-2 mb-3">
-        <div class="col-md-6">
+    <!-- Barra de pesquisa + contador -->
+    <div class="row g-2 mb-3 align-items-center">
+        <div class="col-md-5">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control border-start-0" placeholder="Buscar produto..." v-model="searchQuery">
+                <input type="text" class="form-control border-start-0" placeholder="Buscar em todos os tipos..." v-model="searchQuery" id="inputBusca">
             </div>
         </div>
-    </div>
-
-    <div class="card shadow-sm border-0 rounded-3">
-        <div class="card-body p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Descrição</th>
-                        <th>Tipo</th>
-                        <th>Quantidade</th>
-                        <th>Preço Custo</th>
-                        <th>Preço Venda</th>
-                        <th>Lucro</th>
-                        <th class="pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="produto in produtosFiltrados" :key="produto.id">
-                        <td class="ps-4">
-                            <a :href="'/produto/' + produto.id + '/'" class="text-decoration-none fw-medium">[[ produto.descricao ]]</a>
-                        </td>
-                        <td><span class="badge bg-primary bg-opacity-10 text-primary">[[ produto.tipo_produto ]]</span></td>
-                        <td>[[ produto.quantidade ]]</td>
-                        <td>R$ [[ produto.preco_custo.toFixed(2) ]]</td>
-                        <td>R$ [[ produto.preco_venda.toFixed(2) ]]</td>
-                        <td :class="produto.lucro >= 0 ? 'text-success' : 'text-danger'">
-                            R$ [[ produto.lucro.toFixed(2) ]]
-                            <span class="badge bg-opacity-10" :class="produto.margem >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                [[ produto.margem ]]%
-                            </span>
-                        </td>
-                        <td class="pe-4">
-                            <div class="d-flex gap-1">
-                                <button class="btn btn-success btn-sm shadow-sm" @click="alterar(produto, 1)" title="Adicionar">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(produto, -1)" title="Remover">
-                                    <i class="bi bi-dash-lg"></i>
-                                </button>
-                                <a :href="'/produto/' + produto.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a :href="'/produto/' + produto.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Ver Histórico">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="col-auto ms-auto">
+            <span class="text-muted small">
+                <i class="bi bi-box-seam me-1"></i>
+                <strong>[[ totalFiltrado ]]</strong> de <strong>[[ produtos.length ]]</strong> produto(s)
+            </span>
         </div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
-        <p class="text-muted mb-0 small" v-if="produtosFiltrados.length > 0">
-            Exibindo <strong>[[ produtosFiltrados.length ]]</strong> produto(s)
-        </p>
-        <p class="text-muted mb-0 small" v-else>
-            <i class="bi bi-inbox me-1"></i>Nenhum produto encontrado.
-        </p>
-    </div>
+    <!-- Abas por tipo -->
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item" v-for="tab in tabs" :key="tab.key" role="presentation">
+                    <button
+                        class="nav-link px-3 py-2 d-flex align-items-center gap-2"
+                        :class="{ active: abaAtiva === tab.key }"
+                        @click="abaAtiva = tab.key"
+                        type="button"
+                    >
+                        <i :class="tab.icon"></i>
+                        [[ tab.label ]]
+                        <span class="badge rounded-pill ms-1"
+                            :class="abaAtiva === tab.key ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'"
+                            style="font-size: 0.7rem;"
+                        >[[ filtradosPorTipo(tab.key).length ]]</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
 
-    <nav class="mt-3" aria-label="Paginação">
-        <ul class="pagination pagination-sm justify-content-center mb-0">
-            {% if produtos.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ produtos.previous_page_number }}">&laquo;</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-            {% endif %}
-            {% for n in produtos.paginator.page_range %}
-            <li class="page-item {% if produtos.number == n %}active{% endif %}">
-                <a class="page-link" href="?page={{ n }}">{{ n }}</a>
-            </li>
-            {% endfor %}
-            {% if produtos.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ produtos.next_page_number }}">&raquo;</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-            {% endif %}
-        </ul>
-    </nav>
+        <div class="card-body p-0">
+
+            <!-- PAPEL -->
+            <div v-show="abaAtiva === 'PAPEL'">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Descrição</th>
+                            <th>Fornecedor</th>
+                            <th>Metros/Rolo</th>
+                            <th>Rolos Est.</th>
+                            <th>Total Metros</th>
+                            <th>Preço Custo</th>
+                            <th>Preço Venda</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
+                            <td>
+                                <span class="badge bg-primary bg-opacity-10 text-primary" v-if="p.metros_por_rolo > 0">
+                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
+                                </span>
+                                <span v-else class="text-muted">—</span>
+                            </td>
+                            <td><strong>[[ p.quantidade.toFixed(0) ]] m</strong></td>
+                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filtradosPorTipo('PAPEL').length === 0">
+                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum papel encontrado.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TECIDO -->
+            <div v-show="abaAtiva === 'TECIDO'">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Descrição</th>
+                            <th>Fornecedor</th>
+                            <th>Metros/Rolo</th>
+                            <th>Rolos Est.</th>
+                            <th>Total Metros</th>
+                            <th>Preço Custo</th>
+                            <th>Preço Venda</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
+                            <td>
+                                <span class="badge bg-success bg-opacity-10 text-success" v-if="p.metros_por_rolo > 0">
+                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
+                                </span>
+                                <span v-else class="text-muted">—</span>
+                            </td>
+                            <td><strong>[[ p.quantidade.toFixed(0) ]] m</strong></td>
+                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filtradosPorTipo('TECIDO').length === 0">
+                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum tecido encontrado.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TINTA -->
+            <div v-show="abaAtiva === 'TINTA'">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Descrição</th>
+                            <th>Tipo</th>
+                            <th>Cor</th>
+                            <th>L/Vidro</th>
+                            <th>Vidros Est.</th>
+                            <th>Total Litros</th>
+                            <th>Preço Custo</th>
+                            <th>Preço Venda</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td>
+                                <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-15 text-info' : 'bg-warning bg-opacity-15 text-warning'">
+                                    [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
+                                </span>
+                            </td>
+                            <td>
+                                <span class="d-flex align-items-center gap-2">
+                                    <span class="rounded-circle d-inline-block border" style="width:13px;height:13px;" :style="corStyle(p.cor_tinta)"></span>
+                                    [[ p.cor_tinta ]]
+                                </span>
+                            </td>
+                            <td class="text-muted">[[ p.litros_por_vidro ? p.litros_por_vidro + ' L' : '—' ]]</td>
+                            <td>
+                                <span class="badge bg-info bg-opacity-10 text-info" v-if="p.litros_por_vidro > 0">
+                                    [[ Math.floor(p.quantidade / p.litros_por_vidro) ]] vidros
+                                </span>
+                                <span v-else class="text-muted">—</span>
+                            </td>
+                            <td><strong>[[ p.quantidade.toFixed(1) ]] L</strong></td>
+                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filtradosPorTipo('TINTA').length === 0">
+                            <td colspan="9" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhuma tinta encontrada.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- AVIAMENTO -->
+            <div v-show="abaAtiva === 'AVIAMENTO'">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Descrição</th>
+                            <th>Fornecedor</th>
+                            <th>Quantidade</th>
+                            <th>Preço Custo</th>
+                            <th>Preço Venda</th>
+                            <th>Lucro/un.</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td><strong>[[ p.quantidade.toFixed(0) ]]</strong> un.</td>
+                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td :class="p.lucro >= 0 ? 'text-success' : 'text-danger'">
+                                R$ [[ p.lucro.toFixed(2) ]]
+                                <span class="badge bg-opacity-10 ms-1" :class="p.margem >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">[[ p.margem ]]%</span>
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filtradosPorTipo('AVIAMENTO').length === 0">
+                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum aviamento encontrado.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- OUTRO -->
+            <div v-show="abaAtiva === 'OUTRO'">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Descrição</th>
+                            <th>Fornecedor</th>
+                            <th>Quantidade</th>
+                            <th>Preço Custo</th>
+                            <th>Preço Venda</th>
+                            <th>Lucro</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td>[[ p.quantidade.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td :class="p.lucro >= 0 ? 'text-success' : 'text-danger'">R$ [[ p.lucro.toFixed(2) ]]</td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="filtradosPorTipo('OUTRO').length === 0">
+                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum item encontrado.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <!-- Modal Importar CSV -->
@@ -143,78 +321,92 @@
 
 {% block scripts %}
 <script>
-    (function() {
-        const { createApp } = Vue;
-        const csrfToken = '{{ csrf_token }}';
-        const app = createApp({
-            compilerOptions: {
-                delimiters: ['[[', ']]']
-            },
-            data() {
-                return {
-                    produtos: {{ produtos_json|safe }},
-                    searchQuery: '',
-                };
-            },
-            computed: {
-                produtosFiltrados() {
-                    const query = this.searchQuery.toLowerCase();
-                    return this.produtos.filter(p => {
-                        return p.descricao.toLowerCase().includes(query);
-                    });
-                },
-            },
-            methods: {
-                alterar(produto, variacao) {
-                    const novaQtd = produto.quantidade + variacao;
-                    if (novaQtd < 0) return;
-                    produto.quantidade = novaQtd;
-                    fetch('/atualiza-estoque/', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                        body: JSON.stringify({id: produto.id, variacao: variacao}),
-                    }).then(() => showToast('Estoque atualizado!'));
-                },
-            },
-        });
-        app.mount('#app');
+(function() {
+    const { createApp } = Vue;
+    const csrfToken = '{{ csrf_token }}';
 
-        const formImportar = document.getElementById('formImportarCSV');
-        if (formImportar) {
-            formImportar.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const btn = document.getElementById('btnImportar');
-                const fileInput = document.getElementById('arquivoCSV');
-                if (fileInput.files.length === 0) return;
-                
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importando...';
-                
-                const formData = new FormData();
-                formData.append('arquivo', fileInput.files[0]);
-                
-                try {
-                    const response = await fetch('{% url "importar_csv_produtos" %}', {
-                        method: 'POST',
-                        headers: {'X-CSRFToken': csrfToken},
-                        body: formData
-                    });
-                    const data = await response.json();
-                    if (data.ok) {
-                        showToast(data.mensagem);
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else {
-                        showToast(data.erro, 'danger');
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
-                    }
-                } catch (err) {
-                    showToast('Erro de conexão.', 'danger');
+    const COR_COLORS = {
+        'BLACK': '#111111', 'YELLOW': '#f5c400', 'MAGENTA': '#e0115f',
+        'CYAN': '#00b4d8', 'LIGHT_CYAN': '#90e0ef', 'LIGHT_MAGENTA': '#f4a7c3',
+        'BRANCO': '#f8f9fa', 'INCOLOR': '#dee2e6',
+    };
+
+    createApp({
+        compilerOptions: { delimiters: ['[[', ']]'] },
+        data() {
+            return {
+                produtos: {{ produtos_json|safe }},
+                searchQuery: '',
+                abaAtiva: 'PAPEL',
+                tabs: [
+                    { key: 'PAPEL',     label: 'Papel',      icon: 'bi bi-file-earmark-text' },
+                    { key: 'TECIDO',    label: 'Tecido',     icon: 'bi bi-grid-3x3-gap' },
+                    { key: 'TINTA',     label: 'Tinta',      icon: 'bi bi-droplet-half' },
+                    { key: 'AVIAMENTO', label: 'Aviamentos', icon: 'bi bi-tools' },
+                    { key: 'OUTRO',     label: 'Outros',     icon: 'bi bi-three-dots' },
+                ],
+            };
+        },
+        computed: {
+            produtosFiltrados() {
+                const q = this.searchQuery.toLowerCase();
+                if (!q) return this.produtos;
+                return this.produtos.filter(p => p.descricao.toLowerCase().includes(q));
+            },
+            totalFiltrado() { return this.produtosFiltrados.length; },
+        },
+        methods: {
+            filtradosPorTipo(tipo) {
+                return this.produtosFiltrados.filter(p => p.tipo_produto === tipo);
+            },
+            corStyle(cor) {
+                const c = COR_COLORS[cor] || '#dee2e6';
+                return { backgroundColor: c, borderColor: c === '#f8f9fa' ? '#ced4da' : c };
+            },
+            alterar(produto, variacao) {
+                const nova = produto.quantidade + variacao;
+                if (nova < 0) return;
+                produto.quantidade = nova;
+                fetch('/atualiza-estoque/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ id: produto.id, variacao: variacao }),
+                }).then(() => showToast('Estoque atualizado!'));
+            },
+        },
+    }).mount('#app');
+
+    const formImportar = document.getElementById('formImportarCSV');
+    if (formImportar) {
+        formImportar.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnImportar');
+            const fileInput = document.getElementById('arquivoCSV');
+            if (fileInput.files.length === 0) return;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importando...';
+            const formData = new FormData();
+            formData.append('arquivo', fileInput.files[0]);
+            try {
+                const response = await fetch('{% url "importar_csv_produtos" %}', {
+                    method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: formData
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    showToast(data.mensagem);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast(data.erro, 'danger');
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
                 }
-            });
-        }
-    })();
+            } catch (err) {
+                showToast('Erro de conexão.', 'danger');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
+            }
+        });
+    }
+})();
 </script>
 {% endblock %}

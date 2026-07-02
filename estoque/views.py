@@ -71,12 +71,9 @@ def dashboard(request):
 
 @login_required
 def lista_produtos(request):
-    page = request.GET.get('page', 1)
     produtos = Produto.objects.select_related('fornecedor').all().order_by('descricao')
-    paginator = Paginator(produtos, 50)
-    page_obj = paginator.get_page(page)
     produtos_data = []
-    for p in page_obj:
+    for p in produtos:
         lucro = float(p.preco_venda) - float(p.preco_custo)
         margem = (lucro / float(p.preco_custo) * 100) if float(p.preco_custo) > 0 else 0
         produtos_data.append({
@@ -89,9 +86,12 @@ def lista_produtos(request):
             'preco_venda': float(p.preco_venda),
             'lucro': round(lucro, 2),
             'margem': round(margem, 1),
+            'metros_por_rolo': float(p.metros_por_rolo) if p.metros_por_rolo else 0,
+            'litros_por_vidro': float(p.litros_por_vidro) if p.litros_por_vidro else 0,
+            'tipo_tinta': p.tipo_tinta,
+            'cor_tinta': p.cor_tinta,
         })
     return render(request, 'estoque/lista.html', {
-        'produtos': page_obj,
         'produtos_json': json.dumps(produtos_data),
     })
 
