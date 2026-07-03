@@ -2,15 +2,15 @@
 {% block title %}S.G.E - Dashboard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
     <h1 class="mb-0 fw-bold"><i class="bi bi-grid-fill me-2"></i>Dashboard</h1>
     <a href="{% url 'exportar_csv' %}" class="btn btn-outline-success shadow-sm">
         <i class="bi bi-download me-1"></i>Exportar para CSV
     </a>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-md-3">
+<div class="row g-3 g-md-4 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card text-bg-primary shadow-sm border-0 rounded-3 h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-box-seam fs-1"></i>
@@ -21,7 +21,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card text-bg-success shadow-sm border-0 rounded-3 h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-coin fs-1"></i>
@@ -32,7 +32,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card text-bg-info shadow-sm border-0 rounded-3 h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-graph-up-arrow fs-1"></i>
@@ -43,7 +43,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-12 col-sm-6 col-xl-3">
         <div class="card text-bg-warning shadow-sm border-0 rounded-3 h-100">
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-exclamation-triangle fs-1"></i>
@@ -56,8 +56,8 @@
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-md-6">
+<div class="row g-3 g-md-4 mb-4">
+    <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-3 h-100">
             <div class="card-header bg-white border-bottom-0 pt-3">
                 <h5 class="card-title mb-0 fw-semibold">
@@ -69,7 +69,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-3 h-100">
             <div class="card-header bg-white border-bottom-0 pt-3">
                 <h5 class="card-title mb-0 fw-semibold">
@@ -84,7 +84,7 @@
 </div>
 
 <div class="row g-4">
-    <div class="col-md-6">
+    <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-3 h-100">
             <div class="card-header bg-white border-bottom-0 pt-3">
                 <h5 class="card-title mb-0 fw-semibold">
