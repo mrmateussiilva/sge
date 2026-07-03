@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.G.E - Login</title>
+    <title>S.G.E - Painel de Controle e Gestão de Estoque</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
         
         body {
             min-height: 100vh;
-            background-color: #0f172a;
+            background-color: #0b0f19;
             color: #f8fafc;
             display: flex;
             align-items: center;
@@ -21,85 +21,95 @@
             overflow-x: hidden;
         }
 
+        /* Subtle Geometric Background Grid */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+            background-size: 32px 32px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
         /* Ambient Glowing Background Blobs */
         .bg-glow-1 {
             position: absolute;
-            top: -10%;
+            top: -15%;
             left: -10%;
-            width: 50vw;
-            height: 50vw;
-            background: radial-gradient(circle, rgba(13, 110, 253, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
-            filter: blur(80px);
+            width: 55vw;
+            height: 55vw;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            filter: blur(100px);
             z-index: 0;
             pointer-events: none;
         }
         .bg-glow-2 {
             position: absolute;
-            bottom: -10%;
+            bottom: -15%;
             right: -10%;
-            width: 50vw;
-            height: 50vw;
-            background: radial-gradient(circle, rgba(147, 51, 234, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-            filter: blur(80px);
+            width: 55vw;
+            height: 55vw;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+            filter: blur(100px);
             z-index: 0;
             pointer-events: none;
         }
 
         .login-card {
             z-index: 1;
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
             overflow: hidden;
             width: 100%;
-            max-width: 1060px;
+            max-width: 1040px;
         }
 
         .brand-gradient {
-            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 60%, #a855f7 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .feature-badge {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 12px;
-            padding: 12px 16px;
-            transition: all 0.3s ease;
+            padding: 14px 16px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .feature-badge:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(56, 189, 248, 0.3);
             transform: translateY(-2px);
         }
 
         .form-control {
-            background-color: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #ffffff;
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 12px 16px;
             font-size: 15px;
             transition: all 0.2s ease;
         }
         .form-control:focus {
-            background-color: rgba(15, 23, 42, 0.9);
+            background-color: rgba(15, 23, 42, 0.95);
             border-color: #38bdf8;
             color: #ffffff;
-            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
         }
         .form-control::placeholder {
             color: #64748b;
         }
 
         .input-group-text {
-            background-color: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #94a3b8;
-            border-radius: 12px;
+            border-radius: 10px;
         }
 
         .btn-gradient {
@@ -107,24 +117,36 @@
             border: none;
             color: #ffffff;
             font-weight: 600;
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 12px 24px;
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
         }
         .btn-gradient:hover {
             background: linear-gradient(135deg, #0369a1 0%, #4338ca 100%);
             color: #ffffff;
-            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.35);
             transform: translateY(-1px);
         }
 
-        .pro-pill {
-            background: linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
-            border: 1px solid rgba(234, 179, 8, 0.3);
+        .enterprise-badge {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.25);
             color: #fde047;
-            font-size: 0.75rem;
-            padding: 4px 10px;
-            border-radius: 20px;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .community-badge {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #4ade80;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 6px;
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -133,6 +155,7 @@
 </head>
 <body>
 
+    <div class="bg-grid"></div>
     <div class="bg-glow-1"></div>
     <div class="bg-glow-2"></div>
 
@@ -140,78 +163,77 @@
         <div class="login-card mx-auto">
             <div class="row g-0">
                 
-                <!-- Coluna Esquerda: Showcase / Open Source & Extras -->
-                <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-between border-end border-white border-opacity-10" style="background: rgba(15, 23, 42, 0.4);">
+                <!-- Coluna Esquerda: Institucional & Enterprise Showcase -->
+                <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-between border-end border-white border-opacity-10" style="background: rgba(15, 23, 42, 0.5);">
                     <div>
                         <div class="d-flex align-items-center gap-3 mb-4">
-                            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center bg-primary bg-opacity-20 text-info border border-info border-opacity-25" style="width:48px;height:48px;">
+                            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center bg-primary bg-opacity-20 text-info border border-info border-opacity-25" style="width:46px;height:46px;">
                                 <i class="bi bi-box-seam fs-3"></i>
                             </div>
                             <div>
-                                <h4 class="fw-bold mb-0 text-white">S.G.E</h4>
-                                <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 rounded-pill px-2 py-1 small">
-                                    <i class="bi bi-code-square me-1"></i>Open Source & Gratuito
+                                <h4 class="fw-bold mb-0 text-white tracking-tight">S.G.E</h4>
+                                <span class="community-badge d-inline-flex align-items-center gap-1 mt-1">
+                                    <i class="bi bi-code-square"></i> Community Edition (Open Source)
                                 </span>
                             </div>
                         </div>
 
-                        <h2 class="fw-extrabold mb-3 text-white">
+                        <h2 class="fw-extrabold mb-3 text-white" style="letter-spacing: -0.5px; line-height: 1.25;">
                             Gestão de Estoque <br>
-                            <span class="brand-gradient">Moderna e Inteligente</span>
+                            <span class="brand-gradient">Empresarial & Industrial</span>
                         </h2>
-                        <p class="text-slate-300 small mb-4" style="color: #94a3b8; line-height: 1.6;">
-                            O S.G.E é a solução definitiva e gratuita para controle de materiais, papéis, tecidos, tintas e aviamentos.
+                        <p class="small mb-4" style="color: #94a3b8; line-height: 1.6;">
+                            Plataforma open-source projetada para controle operacional de materiais, tecidos, tintas e insumos de produção.
                         </p>
 
                         <div class="d-flex flex-column gap-3 mb-4">
                             <div class="feature-badge d-flex align-items-start gap-3">
-                                <i class="bi bi-check-circle-fill text-info fs-5 mt-1"></i>
+                                <i class="bi bi-shield-check text-info fs-5 mt-1"></i>
                                 <div>
-                                    <h6 class="mb-0 fw-semibold text-white">100% Gratuito & Sem Limites</h6>
-                                    <small style="color: #94a3b8;">Cadastre quantos produtos, movimentações e ordens desejar sem pagar nada.</small>
+                                    <h6 class="mb-0 fw-semibold text-white">Autonomia & Código Aberto</h6>
+                                    <small style="color: #94a3b8;">Implante na sua própria infraestrutura (Self-Hosted) sem taxas de licença ou restrição de volume.</small>
                                 </div>
                             </div>
 
                             <div class="feature-badge d-flex align-items-start gap-3">
-                                <i class="bi bi-file-earmark-code-fill text-warning fs-5 mt-1"></i>
+                                <i class="bi bi-file-earmark-code text-warning fs-5 mt-1"></i>
                                 <div>
-                                    <h6 class="mb-0 fw-semibold text-white">Importação Automática NF-e</h6>
-                                    <small style="color: #94a3b8;">Importe dados de notas fiscais por upload XML ou link direto da SEFAZ.</small>
+                                    <h6 class="mb-0 fw-semibold text-white">Conciliação Fiscal de Entrada (NF-e)</h6>
+                                    <small style="color: #94a3b8;">Importação e pré-visualização automática de itens a partir do XML de Nota Fiscal Eletrônica.</small>
                                 </div>
                             </div>
 
                             <div class="feature-badge d-flex align-items-start gap-3">
-                                <div class="d-flex align-items-center justify-content-between w-100">
-                                    <div>
-                                        <h6 class="mb-0 fw-semibold text-white d-flex align-items-center gap-2">
-                                            Recursos Extras & Suporte <span class="pro-pill">PRO</span>
-                                        </h6>
-                                        <small style="color: #94a3b8;">Backup em nuvem, integração API/ERP e suporte dedicado para sua empresa.</small>
+                                <div class="w-100">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <h6 class="mb-0 fw-semibold text-white">Módulo Enterprise & SaaS Cloud</h6>
+                                        <span class="enterprise-badge">Enterprise</span>
                                     </div>
+                                    <small style="color: #94a3b8;">Servidores dedicados gerenciados, backups em tempo real, SLAs e integração por API REST com seu ERP.</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="pt-3 border-top border-white border-opacity-10 d-flex align-items-center justify-content-between text-muted small" style="color: #64748b !important;">
-                        <span>&copy; 2026 S.G.E · Finderbit</span>
-                        <a href="https://github.com/mrmateussiilva/sge" target="_blank" class="text-decoration-none text-slate-400 d-flex align-items-center gap-1" style="color: #94a3b8;">
-                            <i class="bi bi-github"></i> GitHub
+                        <span>&copy; 2026 S.G.E · Finderbit Enterprise</span>
+                        <a href="https://github.com/mrmateussiilva/sge" target="_blank" class="text-decoration-none d-flex align-items-center gap-1" style="color: #94a3b8;">
+                            <i class="bi bi-github"></i> Repositório Oficial
                         </a>
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Formulário de Login -->
+                <!-- Coluna Direita: Formulário de Autenticação -->
                 <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-center">
                     <div class="mb-4">
-                        <h3 class="fw-bold text-white mb-1">Acessar o Painel</h3>
-                        <p class="text-muted small">Informe suas credenciais para gerenciar seu estoque.</p>
+                        <h3 class="fw-bold text-white mb-1">Painel Administrativo</h3>
+                        <p class="text-muted small">Autentique-se para gerenciar insumos, fornecedores e movimentações.</p>
                     </div>
 
                     {% if form.errors %}
-                    <div class="alert alert-danger border-0 rounded-3 mb-4 py-2 px-3 small d-flex align-items-center gap-2" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3) !important;">
+                    <div class="alert alert-danger border-0 rounded-3 mb-4 py-2 px-3 small d-flex align-items-center gap-2" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.25) !important;">
                         <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-                        <div>Usuário ou senha incorretos. Por favor, tente novamente.</div>
+                        <div>Credenciais incorretas. Por favor, verifique usuário e senha.</div>
                     </div>
                     {% endif %}
 
@@ -222,20 +244,20 @@
                         {% endif %}
 
                         <div class="mb-3">
-                            <label class="form-label text-slate-200 small fw-medium" style="color: #cbd5e1;">Usuário</label>
+                            <label class="form-label small fw-medium" style="color: #cbd5e1;">Usuário Corporativo</label>
                             <div class="input-group">
                                 <span class="input-group-text border-end-0"><i class="bi bi-person"></i></span>
-                                <input type="text" name="username" class="form-control border-start-0" placeholder="Digite seu usuário" required autofocus id="id_username">
+                                <input type="text" name="username" class="form-control border-start-0" placeholder="Nome de usuário" required autofocus id="id_username">
                             </div>
                         </div>
 
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label text-slate-200 small fw-medium mb-0" style="color: #cbd5e1;">Senha</label>
+                                <label class="form-label small fw-medium mb-0" style="color: #cbd5e1;">Senha de Acesso</label>
                             </div>
                             <div class="input-group">
                                 <span class="input-group-text border-end-0"><i class="bi bi-lock"></i></span>
-                                <input type="password" name="password" id="id_password" class="form-control border-start-0 border-end-0" placeholder="Digite sua senha" required>
+                                <input type="password" name="password" id="id_password" class="form-control border-start-0 border-end-0" placeholder="Senha" required>
                                 <button class="btn btn-outline-secondary border border-white border-opacity-15 bg-transparent" type="button" id="togglePassword" style="color: #94a3b8;">
                                     <i class="bi bi-eye" id="togglePasswordIcon"></i>
                                 </button>
@@ -245,20 +267,20 @@
                         <div class="d-flex align-items-center justify-content-between mb-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="rememberMe" style="background-color: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.2);">
-                                <label class="form-check-label small text-slate-300" for="rememberMe" style="color: #94a3b8;">
-                                    Lembrar neste navegador
+                                <label class="form-check-label small" for="rememberMe" style="color: #94a3b8;">
+                                    Manter sessão ativa
                                 </label>
                             </div>
                         </div>
 
                         <button type="submit" class="btn btn-gradient w-100 mb-3 shadow-lg">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Entrar no Sistema
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Acessar Sistema
                         </button>
 
-                        <div class="p-3 rounded-3 mt-3 text-center" style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1);">
-                            <span class="small text-muted d-block mb-1" style="color: #94a3b8 !important;">Precisa de novos recursos ou suporte personalizado?</span>
-                            <a href="#" class="small text-info text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#modalPlanosPro">
-                                <i class="bi bi-star-fill me-1 text-warning"></i>Conheça as Soluções PRO & Cloud
+                        <div class="p-3 rounded-3 mt-3 text-center" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
+                            <span class="small d-block mb-1" style="color: #94a3b8 !important;">Necessita de infraestrutura gerenciada ou API dedicada?</span>
+                            <a href="#" class="small text-info text-decoration-none fw-semibold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalPlanosPro">
+                                <i class="bi bi-buildings-fill text-warning"></i> Conheça os Serviços S.G.E Enterprise
                             </a>
                         </div>
                     </form>
@@ -267,41 +289,54 @@
         </div>
     </div>
 
-    <!-- Modal Planos PRO & Extras -->
+    <!-- Modal Serviços Corporativos & Enterprise -->
     <div class="modal fade" id="modalPlanosPro" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content text-white border-0" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 20px;">
-                <div class="modal-header border-bottom border-white border-opacity-10">
+            <div class="modal-content text-white border-0" style="background: #111827; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 16px;">
+                <div class="modal-header border-bottom border-white border-opacity-10 py-3">
                     <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
-                        <i class="bi bi-rocket-takeoff text-warning"></i> S.G.E Pro & Serviços em Nuvem
+                        <i class="bi bi-building-gear text-info"></i> Soluções Corporativas S.G.E Enterprise
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <p class="text-slate-300 mb-4" style="color: #cbd5e1;">
-                        O <strong>S.G.E</strong> é 100% gratuito e open source para você hospedar no seu servidor. Se a sua empresa precisa de mais praticidade ou recursos avançados, oferecemos planos e serviços adicionais:
+                    <p class="mb-4" style="color: #cbd5e1; line-height: 1.6;">
+                        O <strong>S.G.E Community Edition</strong> é 100% gratuito e open-source para auto-hospedagem (Self-Hosted). Para indústrias e empresas que necessitam de alta disponibilidade, auditoria e suporte prioritário, oferecemos o ecossistema <strong>Enterprise</strong>:
                     </p>
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <div class="p-3 rounded-3 h-100 border border-white border-opacity-10 bg-black bg-opacity-20">
-                                <h6 class="fw-bold text-info"><i class="bi bi-cloud-check me-2"></i>S.G.E Cloud Gerenciado</h6>
-                                <p class="small text-muted mb-2" style="color: #94a3b8 !important;">Não quer se preocupar com VPS, Docker ou SSL? Nós hospedamos para você com backup diário automático.</p>
-                                <span class="badge bg-info bg-opacity-20 text-info">Sem manutenção de TI</span>
+                            <div class="p-3 rounded-3 h-100 border border-white border-opacity-10 bg-black bg-opacity-30">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold text-info mb-0"><i class="bi bi-cloud-check me-2"></i>Managed Cloud (SaaS)</h6>
+                                    <span class="enterprise-badge">Sem Manutenção</span>
+                                </div>
+                                <p class="small mb-0" style="color: #94a3b8 !important;">Hospedagem de alta disponibilidade com backups redundantes automáticos, suporte a SSL corporativo e zero necessidade de gestão de servidor.</p>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="p-3 rounded-3 h-100 border border-white border-opacity-10 bg-black bg-opacity-20">
-                                <h6 class="fw-bold text-warning"><i class="bi bi-puzzle me-2"></i>Integração API / ERP</h6>
-                                <p class="small text-muted mb-2" style="color: #94a3b8 !important;">Conecte o S.G.E diretamente à sua loja virtual, Bling, Tiny ou sistema de produção sob medida.</p>
-                                <span class="badge bg-warning bg-opacity-20 text-warning">Automação sob medida</span>
+                            <div class="p-3 rounded-3 h-100 border border-white border-opacity-10 bg-black bg-opacity-30">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold text-warning mb-0"><i class="bi bi-plug me-2"></i>Integração API & ERP</h6>
+                                    <span class="enterprise-badge">Automação</span>
+                                </div>
+                                <p class="small mb-0" style="color: #94a3b8 !important;">Conectores REST para integração contínua com ERPs (Bling, Tiny, SAP, Omie) e plataformas de e-commerce e ordens de corte.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="p-3 rounded-3 border border-white border-opacity-10 bg-black bg-opacity-30">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="fw-bold text-success mb-0"><i class="bi bi-headset me-2"></i>Suporte Dedicado & SLA Garantido</h6>
+                                    <span class="community-badge">Suporte VIP</span>
+                                </div>
+                                <p class="small mb-0" style="color: #94a3b8 !important;">Atendimento prioritário de engenharia para migração de dados, customização de regras de negócio e suporte em tempo real.</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top border-white border-opacity-10 justify-content-between">
-                    <span class="small text-muted" style="color: #64748b !important;">Fale com nosso time para mais detalhes.</span>
-                    <a href="https://finderbit.com.br" target="_blank" class="btn btn-outline-info btn-sm rounded-pill px-3">
-                        <i class="bi bi-globe me-1"></i>Visitar Finderbit
+                <div class="modal-footer border-top border-white border-opacity-10 justify-content-between py-3">
+                    <span class="small" style="color: #64748b !important;">Consulte as opções de licenciamento e serviços dedicados.</span>
+                    <a href="https://finderbit.com.br" target="_blank" class="btn btn-outline-info btn-sm rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-globe me-1"></i>Falar com Consultor Finderbit
                     </a>
                 </div>
             </div>
