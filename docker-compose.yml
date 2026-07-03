@@ -1,18 +1,13 @@
 services:
   sge:
     build: .
-    expose:
-      - "8000"        # acessível internamente na rede Docker, não exposto ao host
+    ports:
+      # Expõe apenas para o localhost (Caddy no host acessa, internet não)
+      - "127.0.0.1:8000:8000"
     env_file: .env
     volumes:
       - sqlite_data:/app/data
     restart: unless-stopped
-    networks:
-      - caddy_net
 
 volumes:
   sqlite_data:
-
-networks:
-  caddy_net:
-    external: true    # rede criada manualmente: docker network create caddy_net
