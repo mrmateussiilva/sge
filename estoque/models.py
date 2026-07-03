@@ -56,7 +56,21 @@ class Produto(models.Model):
         ('INCOLOR', 'Incolor/N/A'),
     ]
 
+    UNIDADE_MEDIDA_CHOICES = [
+        ('UN', 'Unidade (un)'),
+        ('M', 'Metros (m)'),
+        ('KG', 'Quilogramas (kg)'),
+        ('L', 'Litros (L)'),
+        ('RL', 'Rolo (rl)'),
+        ('CX', 'Caixa (cx)'),
+        ('PC', 'Peça (pc)'),
+        ('G', 'Gramas (g)'),
+        ('ML', 'Mililitros (ml)'),
+        ('OUTRO', 'Outro'),
+    ]
+
     tipo_produto = models.CharField(max_length=20, choices=TIPO_PRODUTO_CHOICES, default='OUTRO')
+    unidade_medida = models.CharField(max_length=10, choices=UNIDADE_MEDIDA_CHOICES, default='UN', verbose_name="Unidade de Medida")
     descricao = models.CharField(max_length=255, verbose_name="Descrição do Material")
     categoria = models.ForeignKey(
         'Categoria', on_delete=models.SET_NULL, null=True, blank=True,
@@ -102,9 +116,7 @@ class Produto(models.Model):
             return round(self.quantidade_base / self.litros_por_vidro, 2)
         return 0
 
-    @property
-    def unidade_medida(self):
-        return "Litros" if self.tipo_produto == 'TINTA' else "Metros"
+
 
 
 class Movimentacao(models.Model):

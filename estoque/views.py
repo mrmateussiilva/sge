@@ -92,6 +92,7 @@ def lista_produtos(request):
             'litros_por_vidro': float(p.litros_por_vidro) if p.litros_por_vidro else 0,
             'tipo_tinta': p.tipo_tinta,
             'cor_tinta': p.cor_tinta,
+            'unidade_medida': p.unidade_medida or 'UN',
         })
     return render(request, 'estoque/lista.html', {
         'produtos_json': json.dumps(produtos_data),
@@ -163,6 +164,7 @@ def cadastrar_produto(request):
             tipo_tinta=data.get('tipo_tinta', 'N/A'),
             cor_tinta=data.get('cor_tinta', 'INCOLOR'),
             litros_por_vidro=data.get('litros_por_vidro') or None,
+            unidade_medida=data.get('unidade_medida', 'UN'),
         )
         log_acao(request.user, 'CRIAR', f'Cadastrou produto {produto.descricao}', 'Produto', produto.id)
         return JsonResponse({'ok': True, 'id': produto.id})
@@ -190,6 +192,7 @@ def editar_produto(request, id):
         produto.tipo_tinta = data.get('tipo_tinta', 'N/A')
         produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
         produto.litros_por_vidro = data.get('litros_por_vidro') or None
+        produto.unidade_medida = data.get('unidade_medida', 'UN')
         preco_custo_mudou = old_preco_custo != produto.preco_custo
         preco_venda_mudou = old_preco_venda != produto.preco_venda
         produto._historico_ja_salvo = True
@@ -222,6 +225,7 @@ def editar_produto(request, id):
             'tipo_tinta': produto.tipo_tinta,
             'cor_tinta': produto.cor_tinta,
             'litros_por_vidro': float(produto.litros_por_vidro) if produto.litros_por_vidro else None,
+            'unidade_medida': produto.unidade_medida or 'UN',
         }),
     })
 
@@ -640,6 +644,7 @@ def confirmar_importacao_nfe(request):
                     Produto.objects.create(
                         descricao=item['descricao'],
                         tipo_produto=item.get('tipo_produto', 'OUTRO'),
+                        unidade_medida=item.get('unidade_medida', 'UN'),
                         quantidade_base=item['quantidade'],
                         preco_custo=item.get('preco_custo', 0),
                         fornecedor=fornecedor,

@@ -25,7 +25,9 @@
         <div class="d-flex align-items-center gap-3 mb-3">
             <h4 class="mb-0 fw-bold">{{ produto.descricao }}</h4>
             <span class="badge bg-primary rounded-pill">{{ produto.get_tipo_produto_display }}</span>
-            {% if produto.quantidade_base <= produto.estoque_minimo %}
+            {% if produto.quantidade_base <= 0 %}
+            <span class="badge bg-secondary rounded-pill"><i class="bi bi-slash-circle me-1"></i>Estoque Zerado</span>
+            {% elif produto.quantidade_base <= produto.estoque_minimo %}
             <span class="badge bg-danger rounded-pill"><i class="bi bi-exclamation-triangle me-1"></i>Estoque Baixo</span>
             {% else %}
             <span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>Estoque OK</span>
@@ -41,13 +43,13 @@
             <div class="col-md-3">
                 <div class="p-3 bg-light rounded-3">
                     <small class="text-muted d-block">Quantidade Atual</small>
-                    <span class="fw-medium fs-4">{{ produto.quantidade_base }} {{ produto.unidade_medida }}</span>
+                    <span class="fw-medium fs-4">{{ produto.quantidade_base }} {{ produto.get_unidade_medida_display }}</span>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="p-3 bg-light rounded-3">
                     <small class="text-muted d-block">Estoque Mínimo</small>
-                    <span class="fw-medium">{{ produto.estoque_minimo }} {{ produto.unidade_medida }}</span>
+                    <span class="fw-medium">{{ produto.estoque_minimo }} {{ produto.get_unidade_medida_display }}</span>
                 </div>
             </div>
             <div class="col-md-3">

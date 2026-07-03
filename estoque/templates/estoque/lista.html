@@ -88,7 +88,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
+                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
@@ -99,8 +99,9 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td>
-                                <strong :class="{ 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] m</strong>
-                                <span class="badge bg-danger ms-1" v-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
+                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -136,7 +137,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
+                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
@@ -147,8 +148,9 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td>
-                                <strong :class="{ 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] m</strong>
-                                <span class="badge bg-danger ms-1" v-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
+                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -185,7 +187,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
+                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td>
                                 <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
@@ -206,8 +208,9 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td>
-                                <strong :class="{ 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] L</strong>
-                                <span class="badge bg-danger ms-1" v-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
+                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -242,12 +245,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
+                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
-                                <strong :class="{ 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]]</strong> un.
-                                <span class="badge bg-danger ms-1" v-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
+                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -286,12 +290,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
+                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
                             <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
-                                <strong :class="{ 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]]</strong>
-                                <span class="badge bg-danger ms-1" v-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
+                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -388,8 +393,24 @@
             filtradosPorTipo(tipo) {
                 return this.produtosFiltrados.filter(p => p.tipo_produto === tipo);
             },
+            isEstoqueZerado(p) {
+                return p.quantidade <= 0;
+            },
             isEstoqueBaixo(p) {
-                return p.estoque_minimo > 0 && p.quantidade <= p.estoque_minimo;
+                return p.quantidade > 0 && p.estoque_minimo > 0 && p.quantidade <= p.estoque_minimo;
+            },
+            getUnidadeSymbol(p) {
+                const map = {
+                    'UN': 'un', 'M': 'm', 'KG': 'kg', 'L': 'L',
+                    'RL': 'rl', 'CX': 'cx', 'PC': 'pc', 'G': 'g',
+                    'ML': 'ml', 'OUTRO': ''
+                };
+                if (p.unidade_medida && map[p.unidade_medida] !== undefined) {
+                    return map[p.unidade_medida];
+                }
+                if (p.tipo_produto === 'TINTA') return 'L';
+                if (p.tipo_produto === 'TECIDO' || p.tipo_produto === 'PAPEL') return 'm';
+                return 'un';
             },
             corStyle(cor) {
                 const c = COR_COLORS[cor] || '#dee2e6';

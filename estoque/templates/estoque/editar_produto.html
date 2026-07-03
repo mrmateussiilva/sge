@@ -27,9 +27,24 @@
             <input ref="descricao" type="text" class="form-control form-control-lg" v-model="produto.descricao" placeholder="Ex: Papel Vinil Adesivo Branco" required>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label fw-medium small text-uppercase text-secondary">[[ produto.tipo_produto === 'TINTA' ? 'Qtd (Litros)' : 'Qtd (Metros)' ]]</label>
+          <div class="col-md-3">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Quantidade Base</label>
             <input type="text" inputmode="decimal" class="form-control" :value="produto.quantidade_base" @input="filterDecimal('quantidade_base', $event)" placeholder="0,00">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Unid. Medida</label>
+            <select class="form-select" v-model="produto.unidade_medida">
+              <option value="UN">Unidade (un)</option>
+              <option value="M">Metros (m)</option>
+              <option value="KG">Quilogramas (kg)</option>
+              <option value="L">Litros (L)</option>
+              <option value="RL">Rolo (rl)</option>
+              <option value="CX">Caixa (cx)</option>
+              <option value="PC">Peça (pc)</option>
+              <option value="G">Gramas (g)</option>
+              <option value="ML">Mililitros (ml)</option>
+              <option value="OUTRO">Outro</option>
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label fw-medium small text-uppercase text-secondary">Est. Mínimo</label>

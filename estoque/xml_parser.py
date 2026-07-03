@@ -22,14 +22,36 @@ def _findtext(element, path, default=''):
     return el.text.strip() if el is not None and el.text else default
 
 
+def _map_unidade_medida(unidade: str) -> str:
+    """Mapeia a unidade da NF-e para os códigos do modelo Produto."""
+    u = unidade.upper().strip()
+    if u in ('M', 'MT', 'METRO', 'METROS'):
+        return 'M'
+    if u in ('L', 'LT', 'LITRO', 'LITROS', 'GAL'):
+        return 'L'
+    if u in ('KG', 'KILO', 'QUILO', 'KILOGRAMA', 'TON'):
+        return 'KG'
+    if u in ('RL', 'ROLO', 'ROLOS'):
+        return 'RL'
+    if u in ('CX', 'CAIXA', 'CAIXAS'):
+        return 'CX'
+    if u in ('PC', 'PCA', 'PECA', 'PECAS'):
+        return 'PC'
+    if u in ('G', 'GR', 'GRAMA', 'GRAMAS'):
+        return 'G'
+    if u in ('ML', 'MILILITRO', 'MILILITROS'):
+        return 'ML'
+    return 'UN'
+
+
 def _tipo_por_unidade(unidade: str) -> str:
     """
     Infere o tipo de produto pelo código de unidade de medida da NF-e.
     """
     u = unidade.upper().strip()
-    if u in ('M', 'MT', 'METRO', 'METROS', 'ML'):
+    if u in ('M', 'MT', 'METRO', 'METROS'):
         return 'TECIDO'
-    if u in ('L', 'LT', 'LITRO', 'LITROS', 'ML', 'GAL'):
+    if u in ('L', 'LT', 'LITRO', 'LITROS', 'GAL'):
         return 'TINTA'
     if u in ('KG', 'G', 'GR', 'GRAMA', 'TON'):
         return 'AVIAMENTO'
@@ -131,6 +153,7 @@ def parse_nfe_xml(xml_content: str) -> dict:
             'quantidade': round(quantidade, 4),
             'preco_custo': round(preco_custo, 4),
             'unidade': unidade,
+            'unidade_medida': _map_unidade_medida(unidade),
             'tipo_produto_sugerido': _tipo_por_unidade(unidade),
             'ncm': ncm,
             'codigo_produto': codigo,
