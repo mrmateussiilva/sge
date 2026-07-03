@@ -1,28 +1,31 @@
 {% extends 'estoque/base.html' %}
-{% block title %}S.G.E - Produtos{% endblock %}
+{% block title %}S.G.E - Gestão de Produtos{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-    <h1 class="mb-0 fw-bold"><i class="bi bi-box me-2"></i>Produtos</h1>
+    <div>
+        <h1 class="mb-1 fw-bold"><i class="bi bi-box me-2 text-primary"></i>Produtos</h1>
+        <p class="text-muted small mb-0">Gerencie insumos, estoques mínimos, preços e fornecedores.</p>
+    </div>
     <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
-        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm flex-grow-1 flex-md-grow-0">
+        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm flex-grow-1 flex-md-grow-0 fw-medium">
             <i class="bi bi-plus-lg me-1"></i>Novo Produto
         </a>
-        <a href="{% url 'importar_nfe' %}" class="btn btn-outline-warning shadow-sm flex-grow-1 flex-md-grow-0">
+        <a href="{% url 'importar_nfe' %}" class="btn btn-outline-warning shadow-sm flex-grow-1 flex-md-grow-0 fw-medium">
             <i class="bi bi-file-earmark-code me-1"></i>Importar NF-e
         </a>
         <div class="dropdown flex-grow-1 flex-md-grow-0">
-            <button class="btn btn-outline-secondary dropdown-toggle w-100 shadow-sm" type="button" data-bs-toggle="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle w-100 shadow-sm fw-medium" type="button" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical me-1"></i>Mais
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
                 <li>
-                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#importarModal">
+                    <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#importarModal">
                         <i class="bi bi-upload me-2 text-primary"></i>Importar CSV
                     </button>
                 </li>
                 <li>
-                    <a href="{% url 'exportar_csv' %}" class="dropdown-item">
+                    <a href="{% url 'exportar_csv' %}" class="dropdown-item py-2">
                         <i class="bi bi-download me-2 text-success"></i>Exportar CSV
                     </a>
                 </li>
@@ -32,23 +35,108 @@
 </div>
 
 <div id="app">
-    <!-- Barra de pesquisa + contador -->
-    <div class="row g-2 mb-3 align-items-center">
-        <div class="col-12 col-md-5">
-            <div class="input-group shadow-sm">
-                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control border-start-0" placeholder="Buscar em todos os tipos..." v-model="searchQuery" id="inputBusca">
+    <!-- Barra de Filtros Avançados -->
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-body p-3 bg-light rounded-3">
+            <div class="row g-2 align-items-center">
+                <!-- Busca Textual -->
+                <div class="col-12 col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar por descrição ou fornecedor..." v-model="searchQuery" id="inputBusca">
+                        <button class="btn btn-outline-secondary bg-white border-start-0" type="button" v-if="searchQuery" @click="searchQuery = ''">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtro por Status do Estoque -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-funnel text-muted"></i></span>
+                        <select class="form-select" v-model="filtroEstoque">
+                            <option value="TODOS">Todos os Status</option>
+                            <option value="BAIXO">⚠️ Estoque Baixo</option>
+                            <option value="ZERADO">🚫 Estoque Zerado</option>
+                            <option value="OK">✅ Estoque OK</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filtro por Fornecedor -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-truck text-muted"></i></span>
+                        <select class="form-select" v-model="filtroFornecedor">
+                            <option value="TODOS">Todos Fornecedores</option>
+                            <option v-for="f in fornecedoresUnicos" :key="f" :value="f">[[ f ]]</option>
+                            <option value="SEM_FORNECEDOR">Sem Fornecedor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Limpar Filtros / Contador -->
+                <div class="col-12 col-md-2 text-md-end">
+                    <button class="btn btn-outline-danger btn-sm w-100 shadow-sm" v-if="temFiltrosAtivos" @click="limparFiltros">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar Filtros
+                    </button>
+                    <span class="text-muted small d-block" v-else>
+                        <i class="bi bi-box-seam me-1"></i>[[ totalFiltrado ]] / [[ produtos.length ]] itens
+                    </span>
+                </div>
             </div>
-        </div>
-        <div class="col-12 col-md-auto ms-md-auto text-md-end">
-            <span class="text-muted small">
-                <i class="bi bi-box-seam me-1"></i>
-                <strong>[[ totalFiltrado ]]</strong> de <strong>[[ produtos.length ]]</strong> produto(s)
-            </span>
         </div>
     </div>
 
-    <!-- Abas por tipo -->
+    <!-- Cards KPI de Resumo da Aba Ativa -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="p-3 bg-white rounded-3 shadow-sm border border-light d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                    <i class="bi bi-boxes fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block fw-medium">Total de Itens</small>
+                    <h5 class="mb-0 fw-bold">[[ resumoAbaAtiva.totalItens ]]</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 bg-white rounded-3 shadow-sm border border-light d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success p-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                    <i class="bi bi-currency-dollar fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block fw-medium">Valor Custo Total</small>
+                    <h5 class="mb-0 fw-bold">R$ [[ resumoAbaAtiva.valorCusto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) ]]</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 bg-white rounded-3 shadow-sm border border-light d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                    <i class="bi bi-exclamation-triangle fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block fw-medium">Estoque Baixo</small>
+                    <h5 class="mb-0 fw-bold" :class="resumoAbaAtiva.baixos > 0 ? 'text-danger' : ''">[[ resumoAbaAtiva.baixos ]]</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="p-3 bg-white rounded-3 shadow-sm border border-light d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-danger bg-opacity-10 text-danger p-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                    <i class="bi bi-slash-circle fs-4"></i>
+                </div>
+                <div>
+                    <small class="text-muted d-block fw-medium">Estoque Zerado</small>
+                    <h5 class="mb-0 fw-bold" :class="resumoAbaAtiva.zerados > 0 ? 'text-danger' : ''">[[ resumoAbaAtiva.zerados ]]</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Abas por tipo de insumo -->
     <div class="card shadow-sm border-0 rounded-3">
         <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
             <ul class="nav nav-tabs card-header-tabs" role="tablist">
@@ -63,8 +151,9 @@
                         [[ tab.label ]]
                         <span class="badge rounded-pill ms-1"
                             :class="abaAtiva === tab.key ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'"
-                            style="font-size: 0.7rem;"
+                            style="font-size: 0.75rem;"
                         >[[ filtradosPorTipo(tab.key).length ]]</span>
+                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="badge bg-danger rounded-circle p-1" title="Contém insumos com alerta de estoque"></span>
                     </button>
                 </li>
             </ul>
@@ -72,24 +161,36 @@
 
         <div class="card-body p-0">
 
-            <!-- PAPEL -->
-            <div v-show="abaAtiva === 'PAPEL'">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+            <!-- TABELA PAPEL -->
+            <div v-show="abaAtiva === 'PAPEL'" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light user-select-none">
                         <tr>
-                            <th class="ps-4">Descrição</th>
-                            <th>Fornecedor</th>
-                            <th>Metros/Rolo</th>
+                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
+                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
+                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('metros_por_rolo')">
+                                Metros/Rolo <i class="bi" :class="getSortIconNum('metros_por_rolo')"></i>
+                            </th>
                             <th>Rolos Est.</th>
-                            <th>Total Metros</th>
-                            <th>Preço Custo</th>
-                            <th>Preço Venda</th>
-                            <th class="pe-4">Ações</th>
+                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
+                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
+                                Preço Custo <i class="bi" :class="getSortIconNum('preco_custo')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_venda')">
+                                Preço Venda <i class="bi" :class="getSortIconNum('preco_venda')"></i>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td>
@@ -105,40 +206,52 @@
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4">
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light" title="Detalhes"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('PAPEL').length === 0">
-                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum papel encontrado.</td>
+                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum papel encontrado com os filtros aplicados.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- TECIDO -->
-            <div v-show="abaAtiva === 'TECIDO'">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+            <!-- TABELA TECIDO -->
+            <div v-show="abaAtiva === 'TECIDO'" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light user-select-none">
                         <tr>
-                            <th class="ps-4">Descrição</th>
-                            <th>Fornecedor</th>
-                            <th>Metros/Rolo</th>
+                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
+                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
+                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('metros_por_rolo')">
+                                Metros/Rolo <i class="bi" :class="getSortIconNum('metros_por_rolo')"></i>
+                            </th>
                             <th>Rolos Est.</th>
-                            <th>Total Metros</th>
-                            <th>Preço Custo</th>
-                            <th>Preço Venda</th>
-                            <th class="pe-4">Ações</th>
+                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
+                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
+                                Preço Custo <i class="bi" :class="getSortIconNum('preco_custo')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_venda')">
+                                Preço Venda <i class="bi" :class="getSortIconNum('preco_venda')"></i>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td>
@@ -154,41 +267,53 @@
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4">
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light" title="Detalhes"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('TECIDO').length === 0">
-                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum tecido encontrado.</td>
+                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum tecido encontrado com os filtros aplicados.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- TINTA -->
-            <div v-show="abaAtiva === 'TINTA'">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+            <!-- TABELA TINTA -->
+            <div v-show="abaAtiva === 'TINTA'" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light user-select-none">
                         <tr>
-                            <th class="ps-4">Descrição</th>
-                            <th>Tipo</th>
-                            <th>Cor</th>
+                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
+                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('tipo_tinta')">
+                                Tipo <i class="bi" :class="getSortIcon('tipo_tinta')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('cor_tinta')">
+                                Cor <i class="bi" :class="getSortIcon('cor_tinta')"></i>
+                            </th>
                             <th>L/Vidro</th>
                             <th>Vidros Est.</th>
-                            <th>Total Litros</th>
-                            <th>Preço Custo</th>
-                            <th>Preço Venda</th>
-                            <th class="pe-4">Ações</th>
+                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
+                                Total Litros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
+                                Preço Custo <i class="bi" :class="getSortIconNum('preco_custo')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_venda')">
+                                Preço Venda <i class="bi" :class="getSortIconNum('preco_venda')"></i>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
                             <td>
                                 <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
                                     [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
@@ -214,39 +339,51 @@
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4">
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light" title="Detalhes"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('TINTA').length === 0">
-                            <td colspan="9" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhuma tinta encontrada.</td>
+                            <td colspan="9" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhuma tinta encontrada com os filtros aplicados.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- AVIAMENTO -->
-            <div v-show="abaAtiva === 'AVIAMENTO'">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+            <!-- TABELA AVIAMENTO -->
+            <div v-show="abaAtiva === 'AVIAMENTO'" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light user-select-none">
                         <tr>
-                            <th class="ps-4">Descrição</th>
-                            <th>Fornecedor</th>
-                            <th>Quantidade</th>
-                            <th>Preço Custo</th>
-                            <th>Preço Venda</th>
-                            <th>Lucro/un.</th>
-                            <th class="pe-4">Ações</th>
+                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
+                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
+                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
+                                Quantidade <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
+                                Preço Custo <i class="bi" :class="getSortIconNum('preco_custo')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_venda')">
+                                Preço Venda <i class="bi" :class="getSortIconNum('preco_venda')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('lucro')">
+                                Lucro/un. <i class="bi" :class="getSortIconNum('lucro')"></i>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
@@ -255,43 +392,55 @@
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td :class="p.lucro >= 0 ? 'text-success' : 'text-danger'">
+                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'">
                                 R$ [[ p.lucro.toFixed(2) ]]
                                 <span class="badge bg-opacity-10 ms-1" :class="p.margem >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">[[ p.margem ]]%</span>
                             </td>
-                            <td class="pe-4">
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light" title="Detalhes"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('AVIAMENTO').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum aviamento encontrado.</td>
+                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum aviamento encontrado com os filtros aplicados.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <!-- OUTRO -->
-            <div v-show="abaAtiva === 'OUTRO'">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+            <!-- TABELA OUTRO -->
+            <div v-show="abaAtiva === 'OUTRO'" class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light user-select-none">
                         <tr>
-                            <th class="ps-4">Descrição</th>
-                            <th>Fornecedor</th>
-                            <th>Quantidade</th>
-                            <th>Preço Custo</th>
-                            <th>Preço Venda</th>
-                            <th>Lucro</th>
-                            <th class="pe-4">Ações</th>
+                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
+                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
+                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
+                                Quantidade <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
+                                Preço Custo <i class="bi" :class="getSortIconNum('preco_custo')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('preco_venda')">
+                                Preço Venda <i class="bi" :class="getSortIconNum('preco_venda')"></i>
+                            </th>
+                            <th class="cursor-pointer" @click="ordenarPor('lucro')">
+                                Lucro <i class="bi" :class="getSortIconNum('lucro')"></i>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium">[[ p.descricao ]]</a></td>
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
@@ -300,18 +449,18 @@
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td :class="p.lucro >= 0 ? 'text-success' : 'text-danger'">R$ [[ p.lucro.toFixed(2) ]]</td>
-                            <td class="pe-4">
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-success btn-sm shadow-sm" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-danger btn-sm shadow-sm" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning btn-sm shadow-sm" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light btn-sm shadow-sm" title="Detalhes"><i class="bi bi-eye"></i></a>
+                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'">R$ [[ p.lucro.toFixed(2) ]]</td>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group btn-group-sm shadow-sm">
+                                    <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-light" title="Detalhes"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('OUTRO').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum item encontrado.</td>
+                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum item encontrado com os filtros aplicados.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -323,7 +472,7 @@
 
 <!-- Modal Importar CSV -->
 <div class="modal fade" id="importarModal" tabindex="-1" aria-labelledby="importarModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title fw-bold" id="importarModalLabel"><i class="bi bi-filetype-csv me-2 text-primary"></i>Importar Produtos</h5>
@@ -371,6 +520,10 @@
             return {
                 produtos: {{ produtos_json|safe }},
                 searchQuery: '',
+                filtroEstoque: 'TODOS',
+                filtroFornecedor: 'TODOS',
+                ordemColuna: 'descricao',
+                ordemDirecao: 'asc',
                 abaAtiva: 'PAPEL',
                 tabs: [
                     { key: 'PAPEL',     label: 'Papel',      icon: 'bi bi-file-earmark-text' },
@@ -382,12 +535,81 @@
             };
         },
         computed: {
-            produtosFiltrados() {
-                const q = this.searchQuery.toLowerCase();
-                if (!q) return this.produtos;
-                return this.produtos.filter(p => p.descricao.toLowerCase().includes(q));
+            fornecedoresUnicos() {
+                const set = new Set();
+                this.produtos.forEach(p => {
+                    if (p.fornecedor) set.add(p.fornecedor);
+                });
+                return Array.from(set).sort();
             },
-            totalFiltrado() { return this.produtosFiltrados.length; },
+            temFiltrosAtivos() {
+                return this.searchQuery !== '' || this.filtroEstoque !== 'TODOS' || this.filtroFornecedor !== 'TODOS';
+            },
+            produtosFiltrados() {
+                let lista = this.produtos;
+
+                // 1. Busca textual (Descrição ou Fornecedor)
+                const q = this.searchQuery.toLowerCase().trim();
+                if (q) {
+                    lista = lista.filter(p => 
+                        p.descricao.toLowerCase().includes(q) || 
+                        (p.fornecedor && p.fornecedor.toLowerCase().includes(q))
+                    );
+                }
+
+                // 2. Filtro por Estoque
+                if (this.filtroEstoque === 'ZERADO') {
+                    lista = lista.filter(p => this.isEstoqueZerado(p));
+                } else if (this.filtroEstoque === 'BAIXO') {
+                    lista = lista.filter(p => this.isEstoqueBaixo(p));
+                } else if (this.filtroEstoque === 'OK') {
+                    lista = lista.filter(p => !this.isEstoqueZerado(p) && !this.isEstoqueBaixo(p));
+                }
+
+                // 3. Filtro por Fornecedor
+                if (this.filtroFornecedor !== 'TODOS') {
+                    if (this.filtroFornecedor === 'SEM_FORNECEDOR') {
+                        lista = lista.filter(p => !p.fornecedor);
+                    } else {
+                        lista = lista.filter(p => p.fornecedor === this.filtroFornecedor);
+                    }
+                }
+
+                // 4. Ordenação por Coluna
+                const campo = this.ordemColuna;
+                const dir = this.ordemDirecao === 'asc' ? 1 : -1;
+
+                lista = [...lista].sort((a, b) => {
+                    let valA = a[campo];
+                    let valB = b[campo];
+
+                    if (valA === null || valA === undefined) valA = '';
+                    if (valB === null || valB === undefined) valB = '';
+
+                    if (typeof valA === 'string') {
+                        return valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base' }) * dir;
+                    }
+                    return (valA - valB) * dir;
+                });
+
+                return lista;
+            },
+            totalFiltrado() { 
+                return this.produtosFiltrados.length; 
+            },
+            resumoAbaAtiva() {
+                const itens = this.produtosFiltrados.filter(p => p.tipo_produto === this.abaAtiva);
+                const valorCusto = itens.reduce((acc, p) => acc + (p.quantidade * p.preco_custo), 0);
+                const baixos = itens.filter(p => this.isEstoqueBaixo(p)).length;
+                const zerados = itens.filter(p => this.isEstoqueZerado(p)).length;
+
+                return {
+                    totalItens: itens.length,
+                    valorCusto: valorCusto,
+                    baixos: baixos,
+                    zerados: zerados,
+                };
+            }
         },
         methods: {
             filtradosPorTipo(tipo) {
@@ -398,6 +620,30 @@
             },
             isEstoqueBaixo(p) {
                 return p.quantidade > 0 && p.estoque_minimo > 0 && p.quantidade <= p.estoque_minimo;
+            },
+            temEstoqueCriticoNaAba(tipo) {
+                return this.produtos.some(p => p.tipo_produto === tipo && (this.isEstoqueZerado(p) || this.isEstoqueBaixo(p)));
+            },
+            limparFiltros() {
+                this.searchQuery = '';
+                this.filtroEstoque = 'TODOS';
+                this.filtroFornecedor = 'TODOS';
+            },
+            ordenarPor(campo) {
+                if (this.ordemColuna === campo) {
+                    this.ordemDirecao = this.ordemDirecao === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.ordemColuna = campo;
+                    this.ordemDirecao = 'asc';
+                }
+            },
+            getSortIcon(campo) {
+                if (this.ordemColuna !== campo) return 'bi-arrow-down-up opacity-25 ms-1';
+                return this.ordemDirecao === 'asc' ? 'bi-sort-alpha-down text-primary ms-1' : 'bi-sort-alpha-down-alt text-primary ms-1';
+            },
+            getSortIconNum(campo) {
+                if (this.ordemColuna !== campo) return 'bi-arrow-down-up opacity-25 ms-1';
+                return this.ordemDirecao === 'asc' ? 'bi-sort-numeric-down text-primary ms-1' : 'bi-sort-numeric-down-alt text-primary ms-1';
             },
             getUnidadeSymbol(p) {
                 const map = {

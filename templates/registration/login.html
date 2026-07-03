@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.G.E - Painel de Controle e Gestão de Estoque</title>
+    <title>S.G.E - Autenticação & Gestão de Estoque</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
         
         body {
             min-height: 100vh;
-            background-color: #0b0f19;
+            background-color: #080c14;
             color: #f8fafc;
             display: flex;
             align-items: center;
@@ -25,8 +25,8 @@
         .bg-grid {
             position: absolute;
             inset: 0;
-            background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-            background-size: 32px 32px;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+            background-size: 36px 36px;
             z-index: 0;
             pointer-events: none;
         }
@@ -36,10 +36,10 @@
             position: absolute;
             top: -15%;
             left: -10%;
-            width: 55vw;
-            height: 55vw;
-            background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-            filter: blur(100px);
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
+            filter: blur(120px);
             z-index: 0;
             pointer-events: none;
         }
@@ -47,50 +47,51 @@
             position: absolute;
             bottom: -15%;
             right: -10%;
-            width: 55vw;
-            height: 55vw;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
-            filter: blur(100px);
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            filter: blur(120px);
             z-index: 0;
             pointer-events: none;
         }
 
         .login-card {
             z-index: 1;
-            background: rgba(17, 24, 39, 0.75);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7);
             overflow: hidden;
             width: 100%;
-            max-width: 1040px;
+            max-width: 1060px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .brand-gradient {
-            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 60%, #a855f7 100%);
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .feature-badge {
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
             padding: 14px 16px;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .feature-badge:hover {
             background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(56, 189, 248, 0.3);
+            border-color: rgba(56, 189, 248, 0.35);
             transform: translateY(-2px);
         }
 
         .form-control {
-            background-color: rgba(15, 23, 42, 0.7);
+            background-color: rgba(15, 23, 42, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.12);
             color: #ffffff;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 12px 16px;
             font-size: 15px;
             transition: all 0.2s ease;
@@ -99,17 +100,17 @@
             background-color: rgba(15, 23, 42, 0.95);
             border-color: #38bdf8;
             color: #ffffff;
-            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
         }
         .form-control::placeholder {
             color: #64748b;
         }
 
         .input-group-text {
-            background-color: rgba(15, 23, 42, 0.7);
+            background-color: rgba(15, 23, 42, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.12);
             color: #94a3b8;
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         .btn-gradient {
@@ -117,20 +118,24 @@
             border: none;
             color: #ffffff;
             font-weight: 600;
-            border-radius: 10px;
-            padding: 12px 24px;
+            border-radius: 12px;
+            padding: 13px 24px;
+            font-size: 16px;
             transition: all 0.25s ease;
         }
         .btn-gradient:hover {
             background: linear-gradient(135deg, #0369a1 0%, #4338ca 100%);
             color: #ffffff;
-            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.35);
+            box-shadow: 0 12px 24px -6px rgba(79, 70, 229, 0.45);
             transform: translateY(-1px);
+        }
+        .btn-gradient:active {
+            transform: translateY(0);
         }
 
         .enterprise-badge {
-            background: rgba(234, 179, 8, 0.1);
-            border: 1px solid rgba(234, 179, 8, 0.25);
+            background: rgba(234, 179, 8, 0.12);
+            border: 1px solid rgba(234, 179, 8, 0.3);
             color: #fde047;
             font-size: 0.7rem;
             padding: 3px 8px;
@@ -141,8 +146,8 @@
         }
 
         .community-badge {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
             color: #4ade80;
             font-size: 0.7rem;
             padding: 3px 8px;
@@ -150,6 +155,13 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+        }
+
+        .kpi-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 12px;
         }
     </style>
 </head>
@@ -163,11 +175,11 @@
         <div class="login-card mx-auto">
             <div class="row g-0">
                 
-                <!-- Coluna Esquerda: Institucional & Enterprise Showcase -->
-                <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-between border-end border-white border-opacity-10" style="background: rgba(15, 23, 42, 0.5);">
+                <!-- Coluna Esquerda: Institucional & Hero Showcase -->
+                <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-between border-end border-white border-opacity-10" style="background: rgba(11, 15, 25, 0.55);">
                     <div>
                         <div class="d-flex align-items-center gap-3 mb-4">
-                            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center bg-primary bg-opacity-20 text-info border border-info border-opacity-25" style="width:46px;height:46px;">
+                            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center bg-primary bg-opacity-20 text-info border border-info border-opacity-25" style="width:48px;height:48px;">
                                 <i class="bi bi-box-seam fs-3"></i>
                             </div>
                             <div>
@@ -180,36 +192,58 @@
 
                         <h2 class="fw-extrabold mb-3 text-white" style="letter-spacing: -0.5px; line-height: 1.25;">
                             Gestão de Estoque <br>
-                            <span class="brand-gradient">Empresarial & Industrial</span>
+                            <span class="brand-gradient">Inteligente & Industrial</span>
                         </h2>
                         <p class="small mb-4" style="color: #94a3b8; line-height: 1.6;">
-                            Plataforma open-source projetada para controle operacional de materiais, tecidos, tintas e insumos de produção.
+                            Plataforma open-source projetada para controle operacional em tempo real de materiais, tecidos, tintas e insumos de produção.
                         </p>
+
+                        <!-- Indicadores KPI Rápidos -->
+                        <div class="row g-2 mb-4">
+                            <div class="col-4">
+                                <div class="kpi-chip text-center">
+                                    <span class="d-block fw-bold text-info fs-6">NF-e</span>
+                                    <small style="color: #94a3b8; font-size: 0.7rem;">XML Instantâneo</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="kpi-chip text-center">
+                                    <span class="d-block fw-bold text-success fs-6">100%</span>
+                                    <small style="color: #94a3b8; font-size: 0.7rem;">Self-Hosted</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="kpi-chip text-center">
+                                    <span class="d-block fw-bold text-warning fs-6">Multi-Un.</span>
+                                    <small style="color: #94a3b8; font-size: 0.7rem;">kg, m, L, un, rl</small>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="d-flex flex-column gap-3 mb-4">
                             <div class="feature-badge d-flex align-items-start gap-3">
                                 <i class="bi bi-shield-check text-info fs-5 mt-1"></i>
                                 <div>
                                     <h6 class="mb-0 fw-semibold text-white">Autonomia & Código Aberto</h6>
-                                    <small style="color: #94a3b8;">Implante na sua própria infraestrutura (Self-Hosted) sem taxas de licença ou restrição de volume.</small>
+                                    <small style="color: #94a3b8;">Implante na sua própria VPS sem taxas de licença ou limites de usuários.</small>
                                 </div>
                             </div>
 
                             <div class="feature-badge d-flex align-items-start gap-3">
                                 <i class="bi bi-file-earmark-code text-warning fs-5 mt-1"></i>
                                 <div>
-                                    <h6 class="mb-0 fw-semibold text-white">Conciliação Fiscal de Entrada (NF-e)</h6>
-                                    <small style="color: #94a3b8;">Importação e pré-visualização automática de itens a partir do XML de Nota Fiscal Eletrônica.</small>
+                                    <h6 class="mb-0 fw-semibold text-white">Importação Automática de NF-e</h6>
+                                    <small style="color: #94a3b8;">Carregue o XML por arquivo ou link direto com conciliação automática de itens e fornecedores.</small>
                                 </div>
                             </div>
 
                             <div class="feature-badge d-flex align-items-start gap-3">
                                 <div class="w-100">
                                     <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <h6 class="mb-0 fw-semibold text-white">Módulo Enterprise & SaaS Cloud</h6>
-                                        <span class="enterprise-badge">Enterprise</span>
+                                        <h6 class="mb-0 fw-semibold text-white">Ecossistema Enterprise</h6>
+                                        <span class="enterprise-badge">SaaS Cloud</span>
                                     </div>
-                                    <small style="color: #94a3b8;">Servidores dedicados gerenciados, backups em tempo real, SLAs e integração por API REST com seu ERP.</small>
+                                    <small style="color: #94a3b8;">Suporte dedicado, backups redundantes e integração por API REST com ERPs (Bling, Tiny, Omie).</small>
                                 </div>
                             </div>
                         </div>
@@ -218,7 +252,7 @@
                     <div class="pt-3 border-top border-white border-opacity-10 d-flex align-items-center justify-content-between text-muted small" style="color: #64748b !important;">
                         <span>&copy; 2026 S.G.E · Finderbit Enterprise</span>
                         <a href="https://github.com/mrmateussiilva/sge" target="_blank" class="text-decoration-none d-flex align-items-center gap-1" style="color: #94a3b8;">
-                            <i class="bi bi-github"></i> Repositório Oficial
+                            <i class="bi bi-github"></i> GitHub Oficial
                         </a>
                     </div>
                 </div>
@@ -226,8 +260,8 @@
                 <!-- Coluna Direita: Formulário de Autenticação -->
                 <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-center">
                     <div class="mb-4">
-                        <h3 class="fw-bold text-white mb-1">Painel Administrativo</h3>
-                        <p class="text-muted small">Autentique-se para gerenciar insumos, fornecedores e movimentações.</p>
+                        <h3 class="fw-bold text-white mb-1">Painel de Acesso</h3>
+                        <p class="text-muted small">Informe suas credenciais para entrar no sistema de gestão.</p>
                     </div>
 
                     {% if form.errors %}
@@ -237,7 +271,7 @@
                     </div>
                     {% endif %}
 
-                    <form method="post" action="{% url 'login' %}">
+                    <form method="post" action="{% url 'login' %}" id="loginForm">
                         {% csrf_token %}
                         {% if request.GET.next %}
                         <input type="hidden" name="next" value="{{ request.GET.next }}">
@@ -246,19 +280,20 @@
                         <div class="mb-3">
                             <label class="form-label small fw-medium" style="color: #cbd5e1;">Usuário Corporativo</label>
                             <div class="input-group">
-                                <span class="input-group-text border-end-0"><i class="bi bi-person"></i></span>
-                                <input type="text" name="username" class="form-control border-start-0" placeholder="Nome de usuário" required autofocus id="id_username">
+                                <span class="input-group-text border-end-0"><i class="bi bi-person text-info"></i></span>
+                                <input type="text" name="username" class="form-control border-start-0" placeholder="Digite seu usuário..." required autofocus id="id_username">
                             </div>
                         </div>
 
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label small fw-medium mb-0" style="color: #cbd5e1;">Senha de Acesso</label>
+                                <span id="capsWarning" class="badge bg-warning text-dark" style="display:none; font-size: 0.65rem;">⇪ Caps Lock Ativado</span>
                             </div>
                             <div class="input-group">
-                                <span class="input-group-text border-end-0"><i class="bi bi-lock"></i></span>
-                                <input type="password" name="password" id="id_password" class="form-control border-start-0 border-end-0" placeholder="Senha" required>
-                                <button class="btn btn-outline-secondary border border-white border-opacity-15 bg-transparent" type="button" id="togglePassword" style="color: #94a3b8;">
+                                <span class="input-group-text border-end-0"><i class="bi bi-lock text-info"></i></span>
+                                <input type="password" name="password" id="id_password" class="form-control border-start-0 border-end-0" placeholder="Digite sua senha..." required>
+                                <button class="btn btn-outline-secondary border border-white border-opacity-15 bg-transparent" type="button" id="togglePassword" style="color: #94a3b8;" title="Ver/ocultar senha">
                                     <i class="bi bi-eye" id="togglePasswordIcon"></i>
                                 </button>
                             </div>
@@ -268,17 +303,17 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="rememberMe" style="background-color: rgba(15, 23, 42, 0.6); border-color: rgba(255,255,255,0.2);">
                                 <label class="form-check-label small" for="rememberMe" style="color: #94a3b8;">
-                                    Manter sessão ativa
+                                    Lembrar meu usuário
                                 </label>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-gradient w-100 mb-3 shadow-lg">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Acessar Sistema
+                        <button type="submit" class="btn btn-gradient w-100 mb-3 shadow-lg" id="btnEntrar">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Entrar no Sistema
                         </button>
 
                         <div class="p-3 rounded-3 mt-3 text-center" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
-                            <span class="small d-block mb-1" style="color: #94a3b8 !important;">Necessita de infraestrutura gerenciada ou API dedicada?</span>
+                            <span class="small d-block mb-1" style="color: #94a3b8 !important;">Precisa de infraestrutura cloud ou suporte dedicado?</span>
                             <a href="#" class="small text-info text-decoration-none fw-semibold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalPlanosPro">
                                 <i class="bi bi-buildings-fill text-warning"></i> Conheça os Serviços S.G.E Enterprise
                             </a>
@@ -351,11 +386,29 @@
             const pwdIcon = document.getElementById('togglePasswordIcon');
             if (pwdInput.type === 'password') {
                 pwdInput.type = 'text';
-                pwdIcon.className = 'bi bi-eye-slash';
+                pwdIcon.className = 'bi bi-eye-slash text-info';
             } else {
                 pwdInput.type = 'password';
                 pwdIcon.className = 'bi bi-eye';
             }
+        });
+
+        // Caps Lock detection
+        const passwordInput = document.getElementById('id_password');
+        const capsWarning = document.getElementById('capsWarning');
+        passwordInput.addEventListener('keyup', function(event) {
+            if (event.getModifierState('CapsLock')) {
+                capsWarning.style.display = 'inline-block';
+            } else {
+                capsWarning.style.display = 'none';
+            }
+        });
+
+        // Form submit spinner
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('btnEntrar');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Autenticando...';
         });
     </script>
 </body>
