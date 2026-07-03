@@ -81,6 +81,7 @@ def lista_produtos(request):
             'id': p.id,
             'descricao': p.descricao,
             'quantidade': float(p.quantidade_base),
+            'estoque_minimo': float(p.estoque_minimo),
             'tipo_produto': p.tipo_produto,
             'fornecedor': p.fornecedor.nome if p.fornecedor else None,
             'preco_custo': float(p.preco_custo),
