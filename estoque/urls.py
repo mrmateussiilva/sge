@@ -25,4 +25,6 @@ urlpatterns = [
     path('relatorio/', views.relatorio_mensal, name='relatorio_mensal'),
     path('log/', views.log_acoes, name='log_acoes'),
     path('usuarios/', views.lista_usuarios, name='lista_usuarios'),
+    path('produtos/importar-nfe/', views.importar_nfe, name='importar_nfe'),
+    path('produtos/confirmar-nfe/', views.confirmar_importacao_nfe, name='confirmar_importacao_nfe'),
 ]

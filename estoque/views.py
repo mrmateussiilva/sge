@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from .log_utils import log_acao
 from .models import Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto
+from .xml_parser import fetch_xml_from_url, parse_nfe_xml
 
 
 @login_required
@@ -530,3 +531,130 @@ def importar_csv_produtos(request):
             return JsonResponse({'ok': False, 'erro': f'Erro ao processar arquivo: {str(e)}'}, status=400)
             
     return JsonResponse({'ok': False, 'erro': 'Método não permitido ou arquivo não enviado.'}, status=400)
+
+
+@login_required
+def importar_nfe(request):
+    """
+    Passo 1: Recebe o XML da NF-e (arquivo ou URL) e retorna os itens parseados
+    em JSON para o frontend exibir o preview editável.
+    GET  → renderiza a tela de importação
+    POST → processa o XML e retorna JSON com os itens
+    """
+    if request.method == 'GET':
+        return render(request, 'estoque/importar_nfe.html')
+
+    # POST: processar XML
+    xml_content = None
+    erro = None
+
+    try:
+        url = request.POST.get('url', '').strip()
+        arquivo = request.FILES.get('arquivo')
+
+        if url:
+            xml_content = fetch_xml_from_url(url)
+        elif arquivo:
+            if not arquivo.name.lower().endswith('.xml'):
+                return JsonResponse({'ok': False, 'erro': 'Por favor, envie um arquivo .xml válido.'}, status=400)
+            xml_content = arquivo.read().decode('utf-8', errors='replace')
+        else:
+            return JsonResponse({'ok': False, 'erro': 'Informe um arquivo XML ou uma URL.'}, status=400)
+
+        resultado = parse_nfe_xml(xml_content)
+
+        # Verifica quais produtos já existem (busca por descrição similar)
+        for item in resultado['itens']:
+            descricao_lower = item['descricao'].lower()
+            similares = Produto.objects.filter(
+                descricao__icontains=descricao_lower[:30]
+            ).values('id', 'descricao', 'quantidade_base')
+            item['similares'] = list(similares)
+
+        return JsonResponse({'ok': True, 'dados': resultado})
+
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'erro': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'erro': f'Erro inesperado ao processar XML: {str(e)}'}, status=500)
+
+
+@login_required
+def confirmar_importacao_nfe(request):
+    """
+    Passo 2: Recebe os itens confirmados/editados pelo usuário e cria os produtos.
+    Cada item pode ter:
+    - importar: bool (se false, pula este item)
+    - acao: 'criar' | 'atualizar' (se atualizar, soma quantidade ao produto existente)
+    - produto_existente_id: int (se acao=atualizar)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        fornecedor_nome = data.get('fornecedor_nome', '').strip()
+        itens = data.get('itens', [])
+
+        criados = 0
+        atualizados = 0
+        ignorados = 0
+
+        # Cria ou recupera o fornecedor
+        fornecedor = None
+        if fornecedor_nome:
+            fornecedor, _ = Fornecedor.objects.get_or_create(
+                nome__iexact=fornecedor_nome,
+                defaults={'nome': fornecedor_nome}
+            )
+
+        with transaction.atomic():
+            for item in itens:
+                if not item.get('importar', True):
+                    ignorados += 1
+                    continue
+
+                acao = item.get('acao', 'criar')
+                produto_existente_id = item.get('produto_existente_id')
+
+                if acao == 'atualizar' and produto_existente_id:
+                    # Atualiza o estoque do produto existente via Movimentacao
+                    try:
+                        produto = Produto.objects.get(pk=produto_existente_id)
+                        Movimentacao.objects.create(
+                            produto=produto,
+                            tipo='ENTRADA',
+                            quantidade=item['quantidade'],
+                            observacao=f'Importação NF-e: {data.get("numero_nf", "")}',
+                        )
+                        # Atualiza preço de custo se veio da nota
+                        if item.get('preco_custo', 0) > 0:
+                            produto.preco_custo = item['preco_custo']
+                            produto.save()
+                        atualizados += 1
+                    except Produto.DoesNotExist:
+                        pass
+                else:
+                    # Cria novo produto
+                    Produto.objects.create(
+                        descricao=item['descricao'],
+                        tipo_produto=item.get('tipo_produto', 'OUTRO'),
+                        quantidade_base=item['quantidade'],
+                        preco_custo=item.get('preco_custo', 0),
+                        fornecedor=fornecedor,
+                    )
+                    criados += 1
+
+        numero_nf = data.get('numero_nf', '')
+        descricao_log = f'Importou NF-e {numero_nf}: {criados} produtos criados, {atualizados} atualizados'
+        log_acao(request.user, 'CRIAR', descricao_log, 'Produto')
+
+        return JsonResponse({
+            'ok': True,
+            'criados': criados,
+            'atualizados': atualizados,
+            'ignorados': ignorados,
+        })
+
+    except Exception as e:
+        return JsonResponse({'ok': False, 'erro': f'Erro ao confirmar importação: {str(e)}'}, status=500)
