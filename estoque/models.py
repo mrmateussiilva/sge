@@ -3,13 +3,32 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 
-class Fornecedor(models.Model):
-    nome = models.CharField(max_length=200)
-    telefone = models.CharField(max_length=20, null=True, blank=True)
+class Categoria(models.Model):
+    nome = models.CharField(max_length=100, unique=True)
+    descricao = models.TextField(blank=True, default='')
+    cor = models.CharField(max_length=7, default='#6c757d', help_text='Cor em hex, ex: #ff5733')
+
+    class Meta:
+        ordering = ['nome']
+        verbose_name = 'Categoria'
+        verbose_name_plural = 'Categorias'
 
     def __str__(self):
         return self.nome
 
+
+class Fornecedor(models.Model):
+    nome = models.CharField(max_length=200)
+    cnpj = models.CharField(max_length=18, blank=True, default='', verbose_name='CNPJ')
+    email = models.EmailField(blank=True, default='')
+    telefone = models.CharField(max_length=20, null=True, blank=True)
+    observacao = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
 
 class Produto(models.Model):
     TIPO_PRODUTO_CHOICES = [
@@ -39,6 +58,10 @@ class Produto(models.Model):
 
     tipo_produto = models.CharField(max_length=20, choices=TIPO_PRODUTO_CHOICES, default='OUTRO')
     descricao = models.CharField(max_length=255, verbose_name="Descrição do Material")
+    categoria = models.ForeignKey(
+        'Categoria', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='produtos'
+    )
     fornecedor = models.ForeignKey(Fornecedor, on_delete=models.SET_NULL, null=True, blank=True)
 
     quantidade_base = models.DecimalField(

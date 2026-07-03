@@ -27,4 +27,14 @@ urlpatterns = [
     path('usuarios/', views.lista_usuarios, name='lista_usuarios'),
     path('produtos/importar-nfe/', views.importar_nfe, name='importar_nfe'),
     path('produtos/confirmar-nfe/', views.confirmar_importacao_nfe, name='confirmar_importacao_nfe'),
+    # Fornecedores
+    path('fornecedores/', views.lista_fornecedores, name='lista_fornecedores'),
+    path('fornecedores/novo/', views.salvar_fornecedor, name='criar_fornecedor'),
+    path('fornecedores/<int:id>/editar/', views.salvar_fornecedor, name='editar_fornecedor'),
+    path('fornecedores/<int:id>/excluir/', views.excluir_fornecedor, name='excluir_fornecedor'),
+    # Categorias
+    path('categorias/', views.lista_categorias, name='lista_categorias'),
+    path('categorias/nova/', views.salvar_categoria, name='criar_categoria'),
+    path('categorias/<int:id>/editar/', views.salvar_categoria, name='editar_categoria'),
+    path('categorias/<int:id>/excluir/', views.excluir_categoria, name='excluir_categoria'),
 ]

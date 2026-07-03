@@ -1,0 +1,202 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Categorias{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0 fw-bold"><i class="bi bi-tags me-2"></i>Categorias</h1>
+    <button class="btn btn-primary shadow-sm" @click="abrirModal()" id="btnNovaCategoria">
+        <i class="bi bi-plus-lg me-1"></i>Nova Categoria
+    </button>
+</div>
+
+<div id="app">
+    <!-- Busca -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-5">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control border-start-0" placeholder="Buscar categoria..." v-model="busca">
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid de cards -->
+    <div class="row g-3" v-if="filtradas.length > 0">
+        <div class="col-md-4 col-lg-3" v-for="c in filtradas" :key="c.id">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid !important;" :style="{ borderLeftColor: c.cor + ' !important' }">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="rounded-circle d-inline-block border" style="width:16px;height:16px;" :style="{ backgroundColor: c.cor }"></span>
+                        <h6 class="fw-bold mb-0">[[ c.nome ]]</h6>
+                    </div>
+                    <p class="text-muted small mb-2" v-if="c.descricao">[[ c.descricao ]]</p>
+                    <span class="badge bg-primary bg-opacity-10 text-primary small">[[ c.total_produtos ]] produto(s)</span>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-3">
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-warning btn-sm w-50" @click="abrirModal(c)">
+                            <i class="bi bi-pencil me-1"></i>Editar
+                        </button>
+                        <button class="btn btn-danger btn-sm w-50" @click="confirmarExcluir(c)">
+                            <i class="bi bi-trash me-1"></i>Excluir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado vazio -->
+    <div class="text-center py-5 text-muted" v-else>
+        <i class="bi bi-tags fs-1 d-block mb-3 opacity-50"></i>
+        <p class="fw-medium">Nenhuma categoria encontrada.</p>
+        <button class="btn btn-primary" @click="abrirModal()">
+            <i class="bi bi-plus-lg me-1"></i>Criar primeira categoria
+        </button>
+    </div>
+
+    <!-- Modal Criar/Editar -->
+    <div class="modal fade" id="modalCategoria" tabindex="-1" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="modalCategoriaLabel">
+                        <i class="bi bi-tags me-2 text-primary"></i>[[ editando ? 'Editar Categoria' : 'Nova Categoria' ]]
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-8">
+                            <label class="form-label fw-medium">Nome <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="form.nome" placeholder="Ex: Matéria-Prima" id="inputNomeCategoria">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label fw-medium">Cor</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="color" class="form-control form-control-color" v-model="form.cor" style="width:48px;height:38px;">
+                                <input type="text" class="form-control form-control-sm" v-model="form.cor" placeholder="#6c757d" maxlength="7">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Descrição</label>
+                            <textarea class="form-control" v-model="form.descricao" rows="2"
+                                placeholder="Descrição opcional da categoria..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Preview -->
+                    <div class="mt-3 p-3 rounded-3 border d-flex align-items-center gap-2">
+                        <span class="rounded-circle d-inline-block border" style="width:14px;height:14px;" :style="{ backgroundColor: form.cor }"></span>
+                        <span class="fw-medium">[[ form.nome || 'Preview da categoria' ]]</span>
+                        <span class="badge ms-auto" :style="{ backgroundColor: form.cor + '22', color: form.cor }">
+                            Categoria
+                        </span>
+                    </div>
+
+                    <div class="alert alert-danger mt-3 py-2 small" v-if="erro">
+                        <i class="bi bi-exclamation-triangle me-1"></i>[[ erro ]]
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary px-4" @click="salvar" :disabled="salvando">
+                        <span v-if="salvando" class="spinner-border spinner-border-sm me-2"></span>
+                        <i v-else class="bi bi-check-lg me-1"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const { createApp } = Vue;
+    const csrfToken = '{{ csrf_token }}';
+
+    createApp({
+        compilerOptions: { delimiters: ['[[', ']]'] },
+        data() {
+            return {
+                categorias: {{ categorias_json|safe }},
+                busca: '',
+                form: { id: null, nome: '', descricao: '', cor: '#6c757d' },
+                editando: false,
+                salvando: false,
+                erro: null,
+                modal: null,
+            };
+        },
+        computed: {
+            filtradas() {
+                const q = this.busca.toLowerCase();
+                if (!q) return this.categorias;
+                return this.categorias.filter(c =>
+                    c.nome.toLowerCase().includes(q) ||
+                    (c.descricao && c.descricao.toLowerCase().includes(q))
+                );
+            },
+        },
+        mounted() {
+            this.modal = new bootstrap.Modal(document.getElementById('modalCategoria'));
+        },
+        methods: {
+            abrirModal(c = null) {
+                this.erro = null;
+                if (c) {
+                    this.editando = true;
+                    this.form = { id: c.id, nome: c.nome, descricao: c.descricao, cor: c.cor };
+                } else {
+                    this.editando = false;
+                    this.form = { id: null, nome: '', descricao: '', cor: '#6c757d' };
+                }
+                this.modal.show();
+            },
+            async salvar() {
+                if (!this.form.nome.trim()) { this.erro = 'Nome é obrigatório.'; return; }
+                this.salvando = true; this.erro = null;
+                const url = this.editando
+                    ? `/categorias/${this.form.id}/editar/`
+                    : '/categorias/nova/';
+                try {
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify(this.form),
+                    });
+                    const data = await resp.json();
+                    if (!data.ok) { this.erro = data.erro; return; }
+                    if (this.editando) {
+                        const idx = this.categorias.findIndex(c => c.id === this.form.id);
+                        if (idx >= 0) Object.assign(this.categorias[idx], this.form);
+                    } else {
+                        this.categorias.push({ ...this.form, id: data.id, total_produtos: 0 });
+                    }
+                    this.modal.hide();
+                    showToast(this.editando ? 'Categoria atualizada!' : 'Categoria criada!');
+                } catch (e) {
+                    this.erro = 'Erro de conexão.';
+                } finally {
+                    this.salvando = false;
+                }
+            },
+            confirmarExcluir(c) {
+                if (!confirm(`Excluir a categoria "${c.nome}"?\nOs produtos vinculados ficarão sem categoria.`)) return;
+                fetch(`/categorias/${c.id}/excluir/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                }).then(r => r.json()).then(data => {
+                    if (data.ok) {
+                        this.categorias = this.categorias.filter(x => x.id !== c.id);
+                        showToast('Categoria excluída!');
+                    }
+                });
+            },
+        },
+    }).mount('#app');
+})();
+</script>
+{% endblock %}

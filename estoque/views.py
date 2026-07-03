@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from .log_utils import log_acao
-from .models import Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto
+from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto
 from .xml_parser import fetch_xml_from_url, parse_nfe_xml
 
 
@@ -658,3 +658,115 @@ def confirmar_importacao_nfe(request):
 
     except Exception as e:
         return JsonResponse({'ok': False, 'erro': f'Erro ao confirmar importação: {str(e)}'}, status=500)
+
+
+# ─────────────────────────────────────────────
+#  FORNECEDORES
+# ─────────────────────────────────────────────
+
+@login_required
+def lista_fornecedores(request):
+    qs = Fornecedor.objects.annotate(total_produtos=Count('produto')).order_by('nome')
+    fornecedores_data = [
+        {
+            'id': f.id, 'nome': f.nome, 'cnpj': f.cnpj,
+            'email': f.email, 'telefone': f.telefone or '',
+            'observacao': f.observacao, 'total_produtos': f.total_produtos,
+        }
+        for f in qs
+    ]
+    return render(request, 'estoque/fornecedores/lista.html', {
+        'fornecedores': qs,
+        'fornecedores_json': json.dumps(fornecedores_data),
+    })
+
+
+@login_required
+def salvar_fornecedor(request, id=None):
+    """Cria (id=None) ou edita (id=int) um fornecedor via JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    data = json.loads(request.body)
+    nome = data.get('nome', '').strip()
+    if not nome:
+        return JsonResponse({'ok': False, 'erro': 'Nome é obrigatório.'}, status=400)
+
+    if id:
+        fornecedor = get_object_or_404(Fornecedor, id=id)
+        acao = 'EDITAR'
+    else:
+        fornecedor = Fornecedor()
+        acao = 'CRIAR'
+
+    fornecedor.nome = nome
+    fornecedor.cnpj = data.get('cnpj', '').strip()
+    fornecedor.email = data.get('email', '').strip()
+    fornecedor.telefone = data.get('telefone', '').strip()
+    fornecedor.observacao = data.get('observacao', '').strip()
+    fornecedor.save()
+    log_acao(request.user, acao, f'{acao} fornecedor: {fornecedor.nome}', 'Fornecedor', fornecedor.id)
+    return JsonResponse({'ok': True, 'id': fornecedor.id})
+
+
+@login_required
+def excluir_fornecedor(request, id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    fornecedor = get_object_or_404(Fornecedor, id=id)
+    nome = fornecedor.nome
+    fornecedor.delete()
+    log_acao(request.user, 'EXCLUIR', f'Excluiu fornecedor: {nome}', 'Fornecedor', id)
+    return JsonResponse({'ok': True})
+
+
+# ─────────────────────────────────────────────
+#  CATEGORIAS
+# ─────────────────────────────────────────────
+
+@login_required
+def lista_categorias(request):
+    qs = Categoria.objects.annotate(total_produtos=Count('produtos')).order_by('nome')
+    categorias_data = [
+        {'id': c.id, 'nome': c.nome, 'descricao': c.descricao, 'cor': c.cor, 'total_produtos': c.total_produtos}
+        for c in qs
+    ]
+    return render(request, 'estoque/categorias/lista.html', {
+        'categorias': qs,
+        'categorias_json': json.dumps(categorias_data),
+    })
+
+
+@login_required
+def salvar_categoria(request, id=None):
+    """Cria (id=None) ou edita (id=int) uma categoria via JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    data = json.loads(request.body)
+    nome = data.get('nome', '').strip()
+    if not nome:
+        return JsonResponse({'ok': False, 'erro': 'Nome é obrigatório.'}, status=400)
+
+    if id:
+        categoria = get_object_or_404(Categoria, id=id)
+        acao = 'EDITAR'
+    else:
+        categoria = Categoria()
+        acao = 'CRIAR'
+
+    categoria.nome = nome
+    categoria.descricao = data.get('descricao', '').strip()
+    categoria.cor = data.get('cor', '#6c757d').strip()
+    categoria.save()
+    log_acao(request.user, acao, f'{acao} categoria: {categoria.nome}', 'Categoria', categoria.id)
+    return JsonResponse({'ok': True, 'id': categoria.id})
+
+
+@login_required
+def excluir_categoria(request, id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+    categoria = get_object_or_404(Categoria, id=id)
+    nome = categoria.nome
+    categoria.delete()
+    log_acao(request.user, 'EXCLUIR', f'Excluiu categoria: {nome}', 'Categoria', id)
+    return JsonResponse({'ok': True})
