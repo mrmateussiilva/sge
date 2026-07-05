@@ -195,23 +195,23 @@
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
-                            <td>
+                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
+                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
+                            <td data-label="Rolos Est.">
                                 <span class="badge bg-primary bg-opacity-10 text-primary" v-if="p.metros_por_rolo > 0">
                                     [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td>
+                            <td data-label="Total Metros">
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
                                 <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
-                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
-                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4 text-end">
+                            <td data-label="Preço Custo">R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td data-label="Preço Venda">R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
                                     <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
@@ -256,23 +256,23 @@
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
-                            <td>
+                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
+                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
+                            <td data-label="Rolos Est.">
                                 <span class="badge bg-success bg-opacity-10 text-success" v-if="p.metros_por_rolo > 0">
                                     [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td>
+                            <td data-label="Total Metros">
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
                                 <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
-                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
-                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4 text-end">
+                            <td data-label="Preço Custo">R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td data-label="Preço Venda">R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
                                     <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
@@ -318,33 +318,33 @@
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td>
+                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
+                            <td data-label="Tipo">
                                 <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
                                     [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
                                 </span>
                             </td>
-                            <td>
+                            <td data-label="Cor">
                                 <span class="d-flex align-items-center gap-2">
                                     <span class="rounded-circle d-inline-block border" style="width:13px;height:13px;" :style="corStyle(p.cor_tinta)"></span>
                                     [[ p.cor_tinta ]]
                                 </span>
                             </td>
-                            <td class="text-muted">[[ p.litros_por_vidro ? p.litros_por_vidro + ' L' : '—' ]]</td>
-                            <td>
+                            <td class="text-muted" data-label="L/Vidro">[[ p.litros_por_vidro ? p.litros_por_vidro + ' L' : '—' ]]</td>
+                            <td data-label="Vidros Est.">
                                 <span class="badge bg-info bg-opacity-10 text-info" v-if="p.litros_por_vidro > 0">
                                     [[ Math.floor(p.quantidade / p.litros_por_vidro) ]] vidros
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td>
+                            <td data-label="Total Litros">
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
                                 <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
-                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
-                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td class="pe-4 text-end">
+                            <td data-label="Preço Custo">R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td data-label="Preço Venda">R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
                                     <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
@@ -388,20 +388,20 @@
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td>
+                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
+                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td data-label="Quantidade">
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
                                 <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
-                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
-                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'">
+                            <td data-label="Preço Custo">R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td data-label="Preço Venda">R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'" data-label="Lucro/un.">
                                 R$ [[ p.lucro.toFixed(2) ]]
                                 <span class="badge bg-opacity-10 ms-1" :class="p.margem >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">[[ p.margem ]]%</span>
                             </td>
-                            <td class="pe-4 text-end">
+                            <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
                                     <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
@@ -445,17 +445,17 @@
                     </thead>
                     <tbody>
                         <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td>
+                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
+                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
+                            <td data-label="Quantidade">
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
                                 <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
-                            <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
-                            <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
-                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'">R$ [[ p.lucro.toFixed(2) ]]</td>
-                            <td class="pe-4 text-end">
+                            <td data-label="Preço Custo">R$ [[ p.preco_custo.toFixed(2) ]]</td>
+                            <td data-label="Preço Venda">R$ [[ p.preco_venda.toFixed(2) ]]</td>
+                            <td :class="p.lucro >= 0 ? 'text-success fw-semibold' : 'text-danger fw-semibold'" data-label="Lucro">R$ [[ p.lucro.toFixed(2) ]]</td>
+                            <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
                                     <button class="btn btn-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>

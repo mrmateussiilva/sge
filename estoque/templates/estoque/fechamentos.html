@@ -32,22 +32,22 @@
                 </thead>
                 <tbody>
                     <tr v-for="f in fechamentos" :key="f.id">
-                        <td class="ps-4">
+                        <td class="ps-4" data-label="Mês/Ano de Ref.">
                             <span class="badge bg-indigo bg-opacity-10 text-indigo fs-6 px-3 py-2 border border-indigo border-opacity-10">
                                 [[ f.referencia_mes_ano ]]
                             </span>
                         </td>
-                        <td>[[ f.data_fechamento ]]</td>
-                        <td>
+                        <td data-label="Data Realização">[[ f.data_fechamento ]]</td>
+                        <td data-label="Executado por">
                             <span class="text-secondary small"><i class="bi bi-user me-1"></i>[[ f.usuario ]]</span>
                         </td>
-                        <td>[[ f.total_itens ]] itens</td>
-                        <td class="fw-semibold text-primary">R$ [[ formatDinheiro(f.valor_total) ]]</td>
-                        <td>
+                        <td data-label="Qtd. Itens">[[ f.total_itens ]] itens</td>
+                        <td class="fw-semibold text-primary" data-label="Valor Total (Custo)">R$ [[ formatDinheiro(f.valor_total) ]]</td>
+                        <td data-label="Observação">
                             <span class="text-muted small" v-if="f.observacao">[[ f.observacao ]]</span>
                             <span class="text-muted small" v-else>—</span>
                         </td>
-                        <td class="pe-4 text-end">
+                        <td class="pe-4 text-end" data-label="Planilha XLSX">
                             <a :href="'/fechamentos/' + f.id + '/xlsx/'" class="btn btn-sm btn-outline-success">
                                 <i class="bi bi-file-earmark-excel me-1"></i>Baixar Excel
                             </a>
