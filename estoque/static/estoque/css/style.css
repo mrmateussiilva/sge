@@ -292,3 +292,42 @@ body {
 [data-bs-theme="dark"] .estoque-zerado .product-link {
     color: #475569 !important;
 }
+
+@media print {
+    .no-print,
+    #sidebar-wrapper,
+    .navbar,
+    #sidebar-backdrop,
+    .btn,
+    .dropdown,
+    form {
+        display: none !important;
+    }
+    #page-content-wrapper {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background-color: #ffffff !important;
+    }
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+    .card {
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        page-break-inside: avoid;
+    }
+    .table {
+        width: 100% !important;
+    }
+    .table th {
+        color: #000000 !important;
+        border-bottom: 2px solid #000000 !important;
+    }
+    .table td {
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+}

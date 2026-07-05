@@ -47,12 +47,10 @@
                     <tbody>
                         <tr v-for="(item, idx) in itens" :key="idx">
                             <td class="ps-4">
-                                <select v-model="item.produto_id" class="form-select form-select-sm" required>
-                                    <option value="">-- Selecione --</option>
-                                    {% for p in produtos %}
-                                    <option value="{{ p.id }}">{{ p.descricao }}</option>
-                                    {% endfor %}
-                                </select>
+                                <input type="text" class="form-control form-control-sm" placeholder="Pesquisar produto..." 
+                                    :value="getProductName(item.produto_id)" 
+                                    @input="onProductSearch(idx, $event)" 
+                                    list="produtos-datalist" required>
                             </td>
                             <td>
                                 <input type="text" inputmode="decimal" :value="formatInitialVal(item.quantidade)" @input="filterItemDecimal('quantidade', idx, $event)" class="form-control form-control-sm" style="max-width:120px;" required>
@@ -85,6 +83,12 @@
             </button>
             <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary shadow-sm">Cancelar</a>
         </div>
+
+        <datalist id="produtos-datalist">
+            {% for p in produtos %}
+            <option value="{{ p.descricao }}"></option>
+            {% endfor %}
+        </datalist>
     </form>
 </div>
 {% endblock %}
@@ -103,6 +107,21 @@
                 fornecedor_id: '',
                 observacao: '',
                 itens: [],
+                produtosMap: {
+                    {% for p in produtos %}
+                    "{{ p.descricao|escapejs }}": {{ p.id }},
+                    {% endfor %}
+                },
+                produtosNomesMap: {
+                    {% for p in produtos %}
+                    {{ p.id }}: "{{ p.descricao|escapejs }}",
+                    {% endfor %}
+                },
+                produtosPrecos: {
+                    {% for p in produtos %}
+                    {{ p.id }}: {{ p.preco_custo|default:0 }},
+                    {% endfor %}
+                }
             };
         },
         computed: {
@@ -111,6 +130,23 @@
             },
         },
         methods: {
+            getProductName(id) {
+                return this.produtosNomesMap[id] || '';
+            },
+            onProductSearch(idx, event) {
+                const val = event.target.value;
+                const id = this.produtosMap[val];
+                if (id !== undefined) {
+                    this.itens[idx].produto_id = id;
+                    // Auto-preenche o preço unitário com o preço de custo atual
+                    const preco = this.produtosPrecos[id];
+                    if (preco !== undefined) {
+                        this.itens[idx].preco_unitario = parseFloat(preco);
+                    }
+                } else {
+                    this.itens[idx].produto_id = '';
+                }
+            },
             formatInitialVal(val) {
                 if (val === null || val === undefined || val === '') return '';
                 let num = parseFloat(val);
@@ -145,7 +181,7 @@
                     body: JSON.stringify({
                         fornecedor_id: this.fornecedor_id,
                         observacao: this.observacao,
-                        itens: this.itens,
+                        itens: this.itens.filter(i => i.produto_id !== ''),
                     }),
                 }).then(function(r) { return r.json(); }).then(function(data) {
                     if (data.ok) {

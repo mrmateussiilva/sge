@@ -2,9 +2,22 @@
 {% block title %}S.G.E - Relatório{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 fw-bold"><i class="bi bi-file-earmark-bar-graph me-2"></i>Relatório de Movimentações</h1>
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
+    <h1 class="mb-0 fw-bold"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Relatório de Movimentações</h1>
+    <button onclick="window.print()" class="btn btn-outline-success shadow-sm btn-print-pdf no-print">
+        <i class="bi bi-file-pdf me-1"></i>Imprimir / Salvar PDF
+    </button>
+</div>
 
-<div class="card shadow-sm border-0 rounded-3 mb-4">
+<!-- Cabeçalho exclusivo para versão impressa -->
+<div class="print-header d-none d-print-block mb-4">
+    <h2 class="fw-bold"><i class="bi bi-box-seam me-2 text-primary"></i>S.G.E - Relatório de Movimentações</h2>
+    <p class="text-muted mb-1">Período selecionado: <strong>{{ data_inicio }}</strong> a <strong>{{ data_fim }}</strong></p>
+    <p class="small text-muted">Gerado em: {% now "d/m/Y H:i" %}</p>
+    <hr>
+</div>
+
+<div class="card shadow-sm border-0 rounded-3 mb-4 no-print">
     <div class="card-body p-4">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-4">
