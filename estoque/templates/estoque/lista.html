@@ -189,8 +189,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
+                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td>
@@ -250,8 +250,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
+                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td class="text-muted">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td>
@@ -312,8 +312,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
+                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td>
                                 <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
                                     [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
@@ -382,8 +382,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
+                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
@@ -439,8 +439,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'table-dark text-muted bg-dark bg-opacity-10': isEstoqueZerado(p), 'table-danger bg-danger bg-opacity-10': isEstoqueBaixo(p) }">
-                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium text-dark">[[ p.descricao ]]</a></td>
+                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
+                            <td class="ps-4"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>

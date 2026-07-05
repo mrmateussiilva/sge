@@ -259,3 +259,36 @@ body {
 .pulse-danger {
     animation: pulse 2s infinite;
 }
+
+/* Row states for products table */
+.estoque-zerado {
+    background-color: rgba(148, 163, 184, 0.06) !important;
+}
+[data-bs-theme="dark"] .estoque-zerado {
+    background-color: rgba(15, 23, 42, 0.45) !important;
+}
+.estoque-baixo {
+    background-color: rgba(239, 68, 68, 0.03) !important;
+}
+[data-bs-theme="dark"] .estoque-baixo {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Product links in tables */
+.product-link {
+    color: #1e293b;
+    transition: color 0.15s ease;
+}
+[data-bs-theme="dark"] .product-link {
+    color: #f1f5f9;
+}
+.product-link:hover {
+    color: #6366f1 !important;
+}
+.estoque-zerado .product-link {
+    color: #94a3b8 !important;
+    text-decoration: line-through !important;
+}
+[data-bs-theme="dark"] .estoque-zerado .product-link {
+    color: #475569 !important;
+}
