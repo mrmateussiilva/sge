@@ -11,8 +11,12 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from .log_utils import log_acao
-from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto
+from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto, FechamentoMensal, ItemFechamento
 from .xml_parser import fetch_xml_from_url, parse_nfe_xml
+
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 @login_required
@@ -817,3 +821,331 @@ def excluir_categoria(request, id):
     categoria.delete()
     log_acao(request.user, 'EXCLUIR', f'Excluiu categoria: {nome}', 'Categoria', id)
     return JsonResponse({'ok': True})
+
+
+@login_required
+def lista_fechamentos(request):
+    fechamentos = FechamentoMensal.objects.prefetch_related('itens').select_related('usuario').all()
+    fechamentos_json = []
+    for f in fechamentos:
+        total_itens = f.itens.count()
+        valor_total = sum(float(item.quantidade * item.preco_custo) for item in f.itens.all())
+        fechamentos_json.append({
+            'id': f.id,
+            'data_fechamento': f.data_fechamento.strftime('%d/%m/%Y %H:%M'),
+            'usuario': f.usuario.username if f.usuario else '-',
+            'referencia_mes_ano': f.referencia_mes_ano,
+            'observacao': f.observacao,
+            'total_itens': total_itens,
+            'valor_total': valor_total,
+        })
+    return render(request, 'estoque/fechamentos.html', {
+        'fechamentos_json': json.dumps(fechamentos_json),
+    })
+
+
+@login_required
+def realizar_fechamento(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
+    try:
+        data = json.loads(request.body)
+        referencia = data.get('referencia_mes_ano', '').strip()
+        observacao = data.get('observacao', '').strip()
+        if not referencia:
+            return JsonResponse({'ok': False, 'erro': 'Mês/Ano de referência é obrigatório.'}, status=400)
+            
+        if FechamentoMensal.objects.filter(referencia_mes_ano=referencia).exists():
+            return JsonResponse({'ok': False, 'erro': f'Já existe um fechamento realizado para o mês {referencia}.'}, status=400)
+            
+        with transaction.atomic():
+            fechamento = FechamentoMensal.objects.create(
+                usuario=request.user,
+                referencia_mes_ano=referencia,
+                observacao=observacao,
+            )
+            produtos = Produto.objects.all()
+            for p in produtos:
+                ItemFechamento.objects.create(
+                    fechamento=fechamento,
+                    produto=p,
+                    descricao=p.descricao,
+                    quantidade=p.quantidade_base,
+                    preco_custo=p.preco_custo,
+                    preco_venda=p.preco_venda,
+                )
+        log_acao(request.user, 'CRIAR', f'Realizou fechamento de estoque para o mês {referencia}', 'FechamentoMensal', fechamento.id)
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'erro': f'Erro ao realizar fechamento: {str(e)}'}, status=500)
+
+
+@login_required
+def exportar_fechamento_xlsx(request, id):
+    fechamento = get_object_or_404(FechamentoMensal, id=id)
+    itens = fechamento.itens.select_related('produto', 'produto__fornecedor').all().order_by('descricao')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Fechamento {fechamento.referencia_mes_ano.replace('/', '_')}"
+
+    font_title = Font(name='Segoe UI', size=16, bold=True, color='1E293B')
+    font_header = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
+    font_data = Font(name='Segoe UI', size=11, color='1E293B')
+    font_total = Font(name='Segoe UI', size=11, bold=True, color='1E293B')
+    
+    fill_header = PatternFill(start_color='4F46E5', end_color='4F46E5', fill_type='solid')
+    fill_total = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+    
+    border_thin = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    
+    ws.merge_cells('A1:I1')
+    ws['A1'] = f"S.G.E - Fechamento de Estoque ({fechamento.referencia_mes_ano})"
+    ws['A1'].font = font_title
+    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 40
+
+    ws.merge_cells('A2:I2')
+    ws['A2'] = f"Realizado em: {fechamento.data_fechamento.strftime('%d/%m/%Y %H:%M')} por {fechamento.usuario.username if fechamento.usuario else '-'}"
+    ws['A2'].font = Font(name='Segoe UI', size=10, italic=True)
+    ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[2].height = 20
+
+    headers = [
+        "Descrição do Material", "Tipo", "Fornecedor", 
+        "Unid.", "Quantidade", "Preço Custo", 
+        "Preço Venda", "Total Custo", "Total Venda"
+    ]
+    
+    ws.append([])
+    ws.row_dimensions[4].height = 28
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal='center' if col_num > 3 else 'left', vertical='center')
+        cell.border = border_thin
+
+    start_row = 5
+    for item in itens:
+        tipo = item.produto.get_tipo_produto_display() if item.produto else '-'
+        fornecedor = item.produto.fornecedor.nome if (item.produto and item.produto.fornecedor) else '-'
+        unidade = item.produto.get_unidade_medida_display() if item.produto else 'Unidade'
+        
+        row_data = [
+            item.descricao,
+            tipo,
+            fornecedor,
+            unidade,
+            float(item.quantidade),
+            float(item.preco_custo),
+            float(item.preco_venda),
+            f"=E{ws.max_row+1}*F{ws.max_row+1}",
+            f"=E{ws.max_row+1}*G{ws.max_row+1}",
+        ]
+        
+        ws.append(row_data)
+        current_row = ws.max_row
+        ws.row_dimensions[current_row].height = 20
+        
+        for col_idx in range(1, 10):
+            cell = ws.cell(row=current_row, column=col_idx)
+            cell.font = font_data
+            cell.border = border_thin
+            
+            if col_idx in (4, 5):
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            elif col_idx in (6, 7, 8, 9):
+                cell.alignment = Alignment(horizontal='right', vertical='center')
+            else:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+                
+            if col_idx in (6, 7, 8, 9):
+                cell.number_format = 'R$ #,##0.00'
+            elif col_idx == 5:
+                cell.number_format = '#,##0.00'
+
+    end_row = ws.max_row
+    ws.append([
+        "TOTAL GERAL", "", "", "", 
+        f"=SUM(E{start_row}:E{end_row})", "", "", 
+        f"=SUM(H{start_row}:H{end_row})", 
+        f"=SUM(I{start_row}:I{end_row})"
+    ])
+    
+    total_row = ws.max_row
+    ws.row_dimensions[total_row].height = 26
+    
+    for col_idx in range(1, 10):
+        cell = ws.cell(row=total_row, column=col_idx)
+        cell.font = font_total
+        cell.fill = fill_total
+        cell.border = border_thin
+        
+        if col_idx in (5, 8, 9):
+            cell.alignment = Alignment(horizontal='center' if col_idx == 5 else 'right', vertical='center')
+            if col_idx in (8, 9):
+                cell.number_format = 'R$ #,##0.00'
+            else:
+                cell.number_format = '#,##0.00'
+        else:
+            cell.alignment = Alignment(horizontal='left', vertical='center')
+
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        
+        for cell in col:
+            if cell.row > 2 and cell.value:
+                val_str = str(cell.value)
+                if val_str.startswith('='):
+                    val_str = "R$ 999.999,99"
+                max_len = max(max_len, len(val_str))
+                
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="fechamento_estoque_{fechamento.referencia_mes_ano.replace("/", "_")}.xlsx"'
+    wb.save(response)
+    return response
+
+
+@login_required
+def exportar_atual_xlsx(request):
+    produtos = Produto.objects.select_related('fornecedor').all().order_by('descricao')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Estoque Atual"
+
+    font_title = Font(name='Segoe UI', size=16, bold=True, color='1E293B')
+    font_header = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
+    font_data = Font(name='Segoe UI', size=11, color='1E293B')
+    font_total = Font(name='Segoe UI', size=11, bold=True, color='1E293B')
+    
+    fill_header = PatternFill(start_color='0D6EFD', end_color='0D6EFD', fill_type='solid')
+    fill_total = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+    
+    border_thin = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    
+    ws.merge_cells('A1:I1')
+    ws['A1'] = "S.G.E - Relatório de Posição de Estoque Atual"
+    ws['A1'].font = font_title
+    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 40
+
+    ws.merge_cells('A2:I2')
+    ws['A2'] = f"Gerado em: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+    ws['A2'].font = Font(name='Segoe UI', size=10, italic=True)
+    ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[2].height = 20
+
+    headers = [
+        "Descrição do Material", "Tipo", "Fornecedor", 
+        "Unid.", "Quantidade", "Preço Custo", 
+        "Preço Venda", "Total Custo", "Total Venda"
+    ]
+    
+    ws.append([])
+    ws.row_dimensions[4].height = 28
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.value = header
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal='center' if col_num > 3 else 'left', vertical='center')
+        cell.border = border_thin
+
+    start_row = 5
+    for p in produtos:
+        tipo = p.get_tipo_produto_display()
+        fornecedor = p.fornecedor.nome if p.fornecedor else '-'
+        unidade = p.get_unidade_medida_display()
+        
+        row_data = [
+            p.descricao,
+            tipo,
+            fornecedor,
+            unidade,
+            float(p.quantidade_base),
+            float(p.preco_custo),
+            float(p.preco_venda),
+            f"=E{ws.max_row+1}*F{ws.max_row+1}",
+            f"=E{ws.max_row+1}*G{ws.max_row+1}",
+        ]
+        
+        ws.append(row_data)
+        current_row = ws.max_row
+        ws.row_dimensions[current_row].height = 20
+        
+        for col_idx in range(1, 10):
+            cell = ws.cell(row=current_row, column=col_idx)
+            cell.font = font_data
+            cell.border = border_thin
+            
+            if col_idx in (4, 5):
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            elif col_idx in (6, 7, 8, 9):
+                cell.alignment = Alignment(horizontal='right', vertical='center')
+            else:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+                
+            if col_idx in (6, 7, 8, 9):
+                cell.number_format = 'R$ #,##0.00'
+            elif col_idx == 5:
+                cell.number_format = '#,##0.00'
+
+    end_row = ws.max_row
+    ws.append([
+        "TOTAL GERAL", "", "", "", 
+        f"=SUM(E{start_row}:E{end_row})", "", "", 
+        f"=SUM(H{start_row}:H{end_row})", 
+        f"=SUM(I{start_row}:I{end_row})"
+    ])
+    
+    total_row = ws.max_row
+    ws.row_dimensions[total_row].height = 26
+    
+    for col_idx in range(1, 10):
+        cell = ws.cell(row=total_row, column=col_idx)
+        cell.font = font_total
+        cell.fill = fill_total
+        cell.border = border_thin
+        
+        if col_idx in (5, 8, 9):
+            cell.alignment = Alignment(horizontal='center' if col_idx == 5 else 'right', vertical='center')
+            if col_idx in (8, 9):
+                cell.number_format = 'R$ #,##0.00'
+            else:
+                cell.number_format = '#,##0.00'
+        else:
+            cell.alignment = Alignment(horizontal='left', vertical='center')
+
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row > 2 and cell.value:
+                val_str = str(cell.value)
+                if val_str.startswith('='):
+                    val_str = "R$ 999.999,99"
+                max_len = max(max_len, len(val_str))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="relatorio_posicao_estoque_atual.xlsx"'
+    wb.save(response)
+    return response

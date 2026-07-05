@@ -222,3 +222,28 @@ class LogAcao(models.Model):
 
     def __str__(self):
         return f'[{self.data:%d/%m/%Y %H:%M}] {self.usuario} - {self.acao}: {self.descricao[:50]}'
+
+
+class FechamentoMensal(models.Model):
+    data_fechamento = models.DateTimeField(auto_now_add=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    referencia_mes_ano = models.CharField(max_length=7, unique=True, help_text='MM/AAAA, ex: 06/2026')
+    observacao = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-data_fechamento']
+
+    def __str__(self):
+        return f'Fechamento {self.referencia_mes_ano}'
+
+
+class ItemFechamento(models.Model):
+    fechamento = models.ForeignKey(FechamentoMensal, on_delete=models.CASCADE, related_name='itens')
+    produto = models.ForeignKey(Produto, on_delete=models.SET_NULL, null=True, blank=True)
+    descricao = models.CharField(max_length=255)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2)
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2)
+    preco_venda = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f'{self.descricao} ({self.quantidade})'
