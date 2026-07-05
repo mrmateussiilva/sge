@@ -153,7 +153,7 @@
                             :class="abaAtiva === tab.key ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'"
                             style="font-size: 0.75rem;"
                         >[[ filtradosPorTipo(tab.key).length ]]</span>
-                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="badge bg-danger rounded-circle p-1" title="Contém insumos com alerta de estoque"></span>
+                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="badge bg-danger pulse-danger rounded-circle p-1" title="Contém insumos com alerta de estoque" style="width: 8px; height: 8px; margin-left: 2px;"></span>
                     </button>
                 </li>
             </ul>
@@ -202,7 +202,7 @@
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -263,7 +263,7 @@
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -335,7 +335,7 @@
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -388,7 +388,7 @@
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>
@@ -445,7 +445,7 @@
                             <td>
                                 <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
                                 <span class="badge bg-secondary bg-opacity-75 text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                <span class="badge bg-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
                             </td>
                             <td>R$ [[ p.preco_custo.toFixed(2) ]]</td>
                             <td>R$ [[ p.preco_venda.toFixed(2) ]]</td>

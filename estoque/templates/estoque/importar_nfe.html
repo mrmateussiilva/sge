@@ -64,13 +64,16 @@
                         @dragover.prevent
                         @drop.prevent="onDrop">
                         <i class="bi bi-file-earmark-code fs-2 text-primary mb-2 d-block"></i>
-                        <p class="mb-1 fw-medium" v-if="!arquivoSelecionado">Clique ou arraste o arquivo XML aqui</p>
+                        <p class="mb-1 fw-medium" v-if="arquivosSelecionados.length === 0">Clique ou arraste um ou mais arquivos XML aqui</p>
                         <p class="mb-1 fw-medium text-success" v-else>
-                            <i class="bi bi-check-circle me-1"></i>[[ arquivoSelecionado.name ]]
+                            <i class="bi bi-check-circle me-1"></i>[[ arquivosSelecionados.length ]] arquivo(s) selecionado(s)
                         </p>
                         <p class="text-muted small mb-0">Apenas arquivos .xml de NF-e</p>
                     </div>
-                    <input type="file" ref="fileInput" accept=".xml" class="d-none" @change="onFileChange">
+                    <ul class="text-start mt-3 small text-muted px-3" v-if="arquivosSelecionados.length > 0" style="max-height: 120px; overflow-y: auto;">
+                        <li v-for="f in arquivosSelecionados" :key="f.name">[[ f.name ]]</li>
+                    </ul>
+                    <input type="file" ref="fileInput" accept=".xml" class="d-none" @change="onFileChange" multiple>
                 </div>
 
                 <!-- URL -->
@@ -164,8 +167,11 @@
                                 <input type="checkbox" class="form-check-input" v-model="item.importar">
                             </td>
                             <td>
-                                <input type="text" class="form-control form-control-sm border-0 bg-transparent px-0 fw-medium"
+                                <input type="text" class="form-control form-control-sm border-0 bg-transparent px-0 fw-medium mb-0 pb-0"
                                     v-model="item.descricao" style="min-width:180px;">
+                                <span class="text-muted d-block mt-0 pt-0" style="font-size: 0.72rem;">
+                                    <i class="bi bi-truck me-1"></i>[[ item.fornecedor_nome || 'Desconhecido' ]] | <i class="bi bi-file-earmark-text me-1"></i>NF: [[ item.numero_nf || 'S/N' ]]
+                                </span>
                             </td>
                             <td class="text-muted small">[[ item.unidade ]]</td>
                             <td>
@@ -291,7 +297,7 @@
             return {
                 passo: 1,
                 origemTipo: 'arquivo',
-                arquivoSelecionado: null,
+                arquivosSelecionados: [],
                 urlInput: '',
                 carregando: false,
                 erro: null,
@@ -313,13 +319,13 @@
         },
         methods: {
             onFileChange(e) {
-                this.arquivoSelecionado = e.target.files[0] || null;
+                this.arquivosSelecionados = Array.from(e.target.files) || [];
                 this.erro = null;
             },
             onDrop(e) {
-                const file = e.dataTransfer.files[0];
-                if (file && file.name.endsWith('.xml')) {
-                    this.arquivoSelecionado = file;
+                const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.xml'));
+                if (files.length > 0) {
+                    this.arquivosSelecionados = files;
                     this.erro = null;
                 } else {
                     this.erro = 'Apenas arquivos .xml são aceitos.';
@@ -328,8 +334,8 @@
             async analisarXml() {
                 this.erro = null;
 
-                if (this.origemTipo === 'arquivo' && !this.arquivoSelecionado) {
-                    this.erro = 'Selecione um arquivo XML.';
+                if (this.origemTipo === 'arquivo' && this.arquivosSelecionados.length === 0) {
+                    this.erro = 'Selecione pelo menos um arquivo XML.';
                     return;
                 }
                 if (this.origemTipo === 'url' && !this.urlInput.trim()) {
@@ -341,7 +347,9 @@
                 try {
                     const formData = new FormData();
                     if (this.origemTipo === 'arquivo') {
-                        formData.append('arquivo', this.arquivoSelecionado);
+                        this.arquivosSelecionados.forEach(file => {
+                            formData.append('arquivo', file);
+                        });
                     } else {
                         formData.append('url', this.urlInput.trim());
                     }
@@ -415,7 +423,7 @@
             reiniciar() {
                 this.passo = 1;
                 this.origemTipo = 'arquivo';
-                this.arquivoSelecionado = null;
+                this.arquivosSelecionados = [];
                 this.urlInput = '';
                 this.erro = null;
                 this.dados = { fornecedor: {}, numero_nf: '', itens: [] };

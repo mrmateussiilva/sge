@@ -541,40 +541,73 @@ def importar_csv_produtos(request):
 @login_required
 def importar_nfe(request):
     """
-    Passo 1: Recebe o XML da NF-e (arquivo ou URL) e retorna os itens parseados
+    Passo 1: Recebe os XMLs da NF-e (um ou mais arquivos, ou URL) e retorna os itens parseados
     em JSON para o frontend exibir o preview editável.
     GET  → renderiza a tela de importação
-    POST → processa o XML e retorna JSON com os itens
+    POST → processa os XMLs e retorna JSON com os itens
     """
     if request.method == 'GET':
         return render(request, 'estoque/importar_nfe.html')
 
     # POST: processar XML
-    xml_content = None
-    erro = None
-
     try:
         url = request.POST.get('url', '').strip()
-        arquivo = request.FILES.get('arquivo')
+        arquivos = request.FILES.getlist('arquivo')
+
+        itens_acumulados = []
+        fornecedores_detectados = set()
+        nfs_detectadas = set()
 
         if url:
             xml_content = fetch_xml_from_url(url)
-        elif arquivo:
-            if not arquivo.name.lower().endswith('.xml'):
-                return JsonResponse({'ok': False, 'erro': 'Por favor, envie um arquivo .xml válido.'}, status=400)
-            xml_content = arquivo.read().decode('utf-8', errors='replace')
-        else:
-            return JsonResponse({'ok': False, 'erro': 'Informe um arquivo XML ou uma URL.'}, status=400)
+            parsed = parse_nfe_xml(xml_content)
+            fornecedor_nome = parsed['fornecedor'].get('nome', '').strip()
+            numero_nf = parsed.get('numero_nf', '').strip()
+            if fornecedor_nome:
+                fornecedores_detectados.add(fornecedor_nome)
+            if numero_nf:
+                nfs_detectadas.add(numero_nf)
 
-        resultado = parse_nfe_xml(xml_content)
+            for item in parsed['itens']:
+                item['fornecedor_nome'] = fornecedor_nome
+                item['numero_nf'] = numero_nf
+                itens_acumulados.append(item)
+        elif arquivos:
+            for arquivo in arquivos:
+                if not arquivo.name.lower().endswith('.xml'):
+                    return JsonResponse({'ok': False, 'erro': f'O arquivo "{arquivo.name}" não é um XML válido.'}, status=400)
+                xml_content = arquivo.read().decode('utf-8', errors='replace')
+                parsed = parse_nfe_xml(xml_content)
+                fornecedor_nome = parsed['fornecedor'].get('nome', '').strip()
+                numero_nf = parsed.get('numero_nf', '').strip()
+                if fornecedor_nome:
+                    fornecedores_detectados.add(fornecedor_nome)
+                if numero_nf:
+                    nfs_detectadas.add(numero_nf)
+
+                for item in parsed['itens']:
+                    item['fornecedor_nome'] = fornecedor_nome
+                    item['numero_nf'] = numero_nf
+                    itens_acumulados.append(item)
+        else:
+            return JsonResponse({'ok': False, 'erro': 'Informe um ou mais arquivos XML ou uma URL.'}, status=400)
 
         # Verifica quais produtos já existem (busca por descrição similar)
-        for item in resultado['itens']:
+        for item in itens_acumulados:
             descricao_lower = item['descricao'].lower()
             similares = Produto.objects.filter(
                 descricao__icontains=descricao_lower[:30]
             ).values('id', 'descricao', 'quantidade_base')
             item['similares'] = list(similares)
+
+        # Prepara a resposta consolidada
+        resultado = {
+            'numero_nf': ', '.join(sorted(list(nfs_detectadas))),
+            'fornecedor': {
+                'nome': ', '.join(sorted(list(fornecedores_detectados))) if len(fornecedores_detectados) <= 2 else 'Múltiplos Fornecedores'
+            },
+            'itens': itens_acumulados
+        }
 
         return JsonResponse({'ok': True, 'dados': resultado})
 
@@ -592,26 +625,21 @@ def confirmar_importacao_nfe(request):
     - importar: bool (se false, pula este item)
     - acao: 'criar' | 'atualizar' (se atualizar, soma quantidade ao produto existente)
     - produto_existente_id: int (se acao=atualizar)
+    - fornecedor_nome: str (específico do item)
+    - numero_nf: str (específico do item)
     """
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
 
     try:
         data = json.loads(request.body)
-        fornecedor_nome = data.get('fornecedor_nome', '').strip()
+        global_fornecedor_nome = data.get('fornecedor_nome', '').strip()
         itens = data.get('itens', [])
 
         criados = 0
         atualizados = 0
         ignorados = 0
-
-        # Cria ou recupera o fornecedor
-        fornecedor = None
-        if fornecedor_nome:
-            fornecedor, _ = Fornecedor.objects.get_or_create(
-                nome__iexact=fornecedor_nome,
-                defaults={'nome': fornecedor_nome}
-            )
+        nfs_processadas = set()
 
         with transaction.atomic():
             for item in itens:
@@ -621,6 +649,19 @@ def confirmar_importacao_nfe(request):
 
                 acao = item.get('acao', 'criar')
                 produto_existente_id = item.get('produto_existente_id')
+                item_fornecedor_nome = item.get('fornecedor_nome', '').strip() or global_fornecedor_nome
+                item_numero_nf = item.get('numero_nf', '').strip() or data.get('numero_nf', '')
+                
+                if item_numero_nf:
+                    nfs_processadas.add(item_numero_nf)
+
+                # Cria ou recupera o fornecedor específico do item
+                item_fornecedor = None
+                if item_fornecedor_nome:
+                    item_fornecedor, _ = Fornecedor.objects.get_or_create(
+                        nome__iexact=item_fornecedor_nome,
+                        defaults={'nome': item_fornecedor_nome}
+                    )
 
                 if acao == 'atualizar' and produto_existente_id:
                     # Atualiza o estoque do produto existente via Movimentacao
@@ -630,9 +671,9 @@ def confirmar_importacao_nfe(request):
                             produto=produto,
                             tipo='ENTRADA',
                             quantidade=item['quantidade'],
-                            observacao=f'Importação NF-e: {data.get("numero_nf", "")}',
+                            observacao=f'Importação NF-e: {item_numero_nf}',
                         )
-                        # Atualiza preço de custo se veio da nota
+                        # Atualiza preço de custo se veio da nota e for maior que 0
                         if item.get('preco_custo', 0) > 0:
                             produto.preco_custo = item['preco_custo']
                             produto.save()
@@ -647,12 +688,12 @@ def confirmar_importacao_nfe(request):
                         unidade_medida=item.get('unidade_medida', 'UN'),
                         quantidade_base=item['quantidade'],
                         preco_custo=item.get('preco_custo', 0),
-                        fornecedor=fornecedor,
+                        fornecedor=item_fornecedor,
                     )
                     criados += 1
 
-        numero_nf = data.get('numero_nf', '')
-        descricao_log = f'Importou NF-e {numero_nf}: {criados} produtos criados, {atualizados} atualizados'
+        nfs_str = ', '.join(sorted(list(nfs_processadas)))
+        descricao_log = f'Importou itens da(s) NF-e ({nfs_str}): {criados} produtos criados, {atualizados} atualizados'
         log_acao(request.user, 'CRIAR', descricao_log, 'Produto')
 
         return JsonResponse({
