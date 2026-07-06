@@ -57,6 +57,13 @@
               <option v-for="f in fornecedores" :key="f.id" :value="f.id">[[ f.nome ]]</option>
             </select>
           </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium small text-uppercase text-secondary">Categoria</label>
+            <select class="form-select" v-model="produto.categoria_id">
+              <option value="">— Sem Categoria —</option>
+              <option v-for="c in categorias" :key="c.id" :value="c.id">[[ c.nome ]]</option>
+            </select>
+          </div>
 
           <div class="col-12 mt-1">
             <hr class="my-2">
@@ -180,10 +187,12 @@
     data() {
       return {
         fornecedores: {{ fornecedores|safe }},
+        categorias: {{ categorias|safe }},
         produto: {
           tipo_produto: dadosIniciais.tipo_produto || '',
           descricao: dadosIniciais.descricao || '',
           fornecedor_id: dadosIniciais.fornecedor_id || '',
+          categoria_id: dadosIniciais.categoria_id || '',
           quantidade_base: formatInitialVal(dadosIniciais.quantidade_base),
           preco_custo: formatInitialVal(dadosIniciais.preco_custo),
           preco_venda: formatInitialVal(dadosIniciais.preco_venda),

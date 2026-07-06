@@ -207,12 +207,15 @@ def cadastrar_produto(request):
             cor_tinta=data.get('cor_tinta', 'INCOLOR'),
             litros_por_vidro=data.get('litros_por_vidro') or None,
             unidade_medida=data.get('unidade_medida', 'UN'),
+            categoria_id=data.get('categoria_id') or None,
         )
         log_acao(request.user, 'CRIAR', f'Cadastrou produto {produto.descricao}', 'Produto', produto.id)
         return JsonResponse({'ok': True, 'id': produto.id})
     fornecedores = Fornecedor.objects.all().values('id', 'nome')
+    categorias = Categoria.objects.all().values('id', 'nome')
     return render(request, 'estoque/cadastrar_produto.html', {
         'fornecedores': list(fornecedores),
+        'categorias': list(categorias),
     })
 
 
@@ -235,6 +238,7 @@ def editar_produto(request, id):
         produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
         produto.litros_por_vidro = data.get('litros_por_vidro') or None
         produto.unidade_medida = data.get('unidade_medida', 'UN')
+        produto.categoria_id = data.get('categoria_id') or None
         preco_custo_mudou = old_preco_custo != produto.preco_custo
         preco_venda_mudou = old_preco_venda != produto.preco_venda
         produto._historico_ja_salvo = True
@@ -251,14 +255,17 @@ def editar_produto(request, id):
         log_acao(request.user, 'EDITAR', f'Editou produto {produto.descricao}', 'Produto', produto.id)
         return JsonResponse({'ok': True})
     fornecedores = Fornecedor.objects.all().values('id', 'nome')
+    categorias = Categoria.objects.all().values('id', 'nome')
     return render(request, 'estoque/editar_produto.html', {
         'produto': produto,
         'fornecedores': list(fornecedores),
+        'categorias': list(categorias),
         'produto_json': json.dumps({
             'id': produto.id,
             'tipo_produto': produto.tipo_produto,
             'descricao': produto.descricao,
             'fornecedor_id': produto.fornecedor_id or '',
+            'categoria_id': produto.categoria_id or '',
             'quantidade_base': float(produto.quantidade_base) if produto.quantidade_base else '',
             'preco_custo': float(produto.preco_custo) if produto.preco_custo else '',
             'preco_venda': float(produto.preco_venda) if produto.preco_venda else '',
