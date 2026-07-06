@@ -1149,3 +1149,26 @@ def exportar_atual_xlsx(request):
     response['Content-Disposition'] = 'attachment; filename="relatorio_posicao_estoque_atual.xlsx"'
     wb.save(response)
     return response
+
+
+@login_required
+def busca_rapida(request):
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'resultados': []})
+    
+    produtos = Produto.objects.filter(
+        Q(descricao__icontains=q) | Q(fornecedor__nome__icontains=q)
+    ).select_related('fornecedor')[:10]
+    
+    resultados = [
+        {
+            'id': p.id,
+            'descricao': p.descricao,
+            'tipo_produto': p.get_tipo_produto_display(),
+            'quantidade': float(p.quantidade_base),
+            'unidade': p.get_unidade_medida_display() or '',
+        }
+        for p in produtos
+    ]
+    return JsonResponse({'resultados': resultados})

@@ -41,9 +41,19 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
-                    <small class="text-muted d-block">Quantidade Atual</small>
-                    <span class="fw-medium fs-4">{{ produto.quantidade_base }} {{ produto.get_unidade_medida_display }}</span>
+                <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center h-100">
+                    <div>
+                        <small class="text-muted d-block">Quantidade Atual</small>
+                        <span class="fw-medium fs-4" id="detalhe-qtd-{{ produto.id }}">{{ produto.quantidade_base }}</span> <span class="fs-6 text-muted">{{ produto.get_unidade_medida_display }}</span>
+                    </div>
+                    <div class="d-flex flex-column gap-1">
+                        <button class="btn btn-sm btn-outline-success border-0 px-2" onclick="atualizaEstoqueRapido({{ produto.id }}, 1)" title="Adicionar 1">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger border-0 px-2" onclick="atualizaEstoqueRapido({{ produto.id }}, -1)" title="Remover 1">
+                            <i class="bi bi-dash-lg"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -247,6 +257,27 @@ function excluirMovimentacao(id) {
             }
         });
     });
+}
+
+function atualizaEstoqueRapido(id, variacao) {
+    fetch('/atualiza-estoque/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({id: id, variacao: variacao})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            document.getElementById('detalhe-qtd-' + id).innerText = data.nova_quantidade;
+            showToast('Estoque atualizado!');
+            setTimeout(() => window.location.reload(), 500); // recarrega para atualizar o histórico
+        } else {
+            showToast('Erro ao atualizar.', 'danger');
+        }
+    }).catch(() => showToast('Erro de conexão.', 'danger'));
 }
 </script>
 {% endblock %}

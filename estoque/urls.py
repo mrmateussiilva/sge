@@ -41,4 +41,5 @@ urlpatterns = [
     path('categorias/nova/', views.salvar_categoria, name='criar_categoria'),
     path('categorias/<int:id>/editar/', views.salvar_categoria, name='editar_categoria'),
     path('categorias/<int:id>/excluir/', views.excluir_categoria, name='excluir_categoria'),
+    path('busca-rapida/', views.busca_rapida, name='busca_rapida'),
 ]

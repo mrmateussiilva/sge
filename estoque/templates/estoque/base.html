@@ -164,7 +164,7 @@
         </div>
 
         <div id="page-content-wrapper">
-            <nav class="navbar navbar-light bg-white border-bottom px-3 py-2 shadow-sm">
+            <nav class="navbar navbar-light bg-white border-bottom px-3 py-2 shadow-sm position-relative">
                 <div class="d-flex align-items-center justify-content-between w-100">
                     <div class="d-flex align-items-center gap-2">
                         <button class="btn btn-light border-0 py-1 px-2" id="menu-toggle" aria-label="Menu">
@@ -174,6 +174,19 @@
                             <i class="bi bi-box-seam me-1"></i> S.G.E
                         </span>
                     </div>
+                    
+                    <!-- Busca Global -->
+                    <div class="d-none d-md-flex mx-3 position-relative flex-grow-1" style="max-width: 400px;">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control bg-light border-start-0" id="global-search-input" placeholder="Buscar produto... (Ctrl+K)" autocomplete="off">
+                            <span class="input-group-text bg-light text-muted small border-start-0 d-none d-lg-flex" style="font-size: 0.75rem;">Ctrl+K</span>
+                        </div>
+                        <div id="global-search-results" class="position-absolute w-100 mt-1 bg-white border rounded shadow-lg d-none" style="top: 100%; z-index: 1050; max-height: 400px; overflow-y: auto;">
+                            <!-- Resultados via JS -->
+                        </div>
+                    </div>
+                    
                     <div class="d-flex align-items-center gap-2">
                         {% if user.is_authenticated and estoque_baixo_count > 0 %}
                         <a href="{% url 'lista_produtos' %}" class="btn btn-sm btn-outline-danger d-lg-none position-relative py-1 px-2" title="Estoque baixo">
@@ -195,6 +208,81 @@
                 {% block scripts %}
                 {% endblock %}
             </main>
+
+            <!-- Bottom Navigation (Mobile) -->
+            <nav class="bottom-nav d-md-none bg-white border-top shadow-sm w-100 d-flex justify-content-around align-items-center pb-2 pt-2 position-fixed bottom-0 z-3" id="mobile-bottom-nav">
+                <a href="/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if request.path == '/' %}text-primary fw-bold{% endif %}">
+                    <i class="bi bi-grid-1x2-fill fs-5 mb-1"></i><span style="font-size: 0.65rem;">Início</span>
+                </a>
+                <a href="/produtos/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if '/produtos/' in request.path %}text-primary fw-bold{% endif %}">
+                    <i class="bi bi-box-seam fs-5 mb-1"></i><span style="font-size: 0.65rem;">Produtos</span>
+                </a>
+                <!-- FAB de Movimentação Centralizado na Bottom Nav -->
+                <button type="button" class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; margin-top: -30px; border: 3px solid #f8fafc;" onclick="openGlobalMoveModal()">
+                    <i class="bi bi-plus-lg fs-3"></i>
+                </button>
+                <a href="/ordens/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if '/ordens/' in request.path %}text-primary fw-bold{% endif %}">
+                    <i class="bi bi-cart fs-5 mb-1"></i><span style="font-size: 0.65rem;">Ordens</span>
+                </a>
+                <a href="#" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary" onclick="toggleSidebar(); return false;">
+                    <i class="bi bi-three-dots fs-5 mb-1"></i><span style="font-size: 0.65rem;">Mais</span>
+                </a>
+            </nav>
+
+            <!-- Floating Action Button (FAB) para Desktop -->
+            <button type="button" class="btn btn-primary rounded-circle shadow-lg d-none d-md-flex align-items-center justify-content-center position-fixed bottom-0 end-0 m-4 z-3 hover-lift" style="width: 56px; height: 56px;" onclick="openGlobalMoveModal()">
+                <i class="bi bi-plus-lg fs-3"></i>
+            </button>
+
+            <!-- Modal Movimentação Rápida Global -->
+            <div class="modal fade" id="globalMoveModal" tabindex="-1" aria-labelledby="globalMoveModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg rounded-3">
+                        <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold" id="globalMoveModalLabel">
+                                <i class="bi bi-arrow-left-right me-2 text-primary"></i>Movimentação Rápida
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="globalMoveForm">
+                            <div class="modal-body py-3">
+                                <input type="hidden" id="globalMoveProdutoId">
+                                <div class="mb-3 position-relative">
+                                    <label class="form-label fw-semibold text-secondary small">Produto</label>
+                                    <input type="text" class="form-control" id="globalMoveProdutoSearch" placeholder="Digite para buscar..." autocomplete="off">
+                                    <div id="globalMoveSearchResults" class="position-absolute w-100 mt-1 bg-white border rounded shadow-sm d-none" style="top: 100%; z-index: 1060; max-height: 200px; overflow-y: auto;">
+                                    </div>
+                                    <div id="globalMoveSelectedProduto" class="alert alert-secondary mt-2 py-2 px-3 mb-0 d-none d-flex align-items-center justify-content-between">
+                                        <span class="fw-medium text-truncate" id="globalMoveSelectedName"></span>
+                                        <button type="button" class="btn-close btn-sm" onclick="clearGlobalMoveProduto()"></button>
+                                    </div>
+                                </div>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold text-secondary small">Tipo</label>
+                                        <select class="form-select" id="globalMoveTipo" required>
+                                            <option value="ENTRADA">Entrada</option>
+                                            <option value="SAIDA">Saída</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold text-secondary small">Quantidade</label>
+                                        <input type="number" step="0.01" min="0.01" class="form-control" id="globalMoveQuantidade" required>
+                                    </div>
+                                </div>
+                                <div class="mb-1">
+                                    <label class="form-label fw-semibold text-secondary small">Observação</label>
+                                    <input type="text" class="form-control" id="globalMoveObservacao" placeholder="Opcional">
+                                </div>
+                            </div>
+                            <div class="modal-footer border-0 pt-0">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" id="globalMoveSubmitBtn">Registrar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
             <div id="loading-overlay">
                 <div class="text-center">
@@ -352,6 +440,191 @@
                 });
             }
         })();
+
+        // ----------------------------------------
+        // JS - Busca Global (Ctrl+K)
+        // ----------------------------------------
+        const searchInput = document.getElementById('global-search-input');
+        const searchResults = document.getElementById('global-search-results');
+        
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                if (searchInput) searchInput.focus();
+            }
+        });
+
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const q = e.target.value.trim();
+                if (q.length < 2) {
+                    searchResults.classList.add('d-none');
+                    return;
+                }
+                searchTimeout = setTimeout(() => {
+                    fetch(`/busca-rapida/?q=${encodeURIComponent(q)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            searchResults.innerHTML = '';
+                            if (data.resultados.length === 0) {
+                                searchResults.innerHTML = '<div class="p-3 text-muted text-center small">Nenhum produto encontrado.</div>';
+                            } else {
+                                const list = document.createElement('div');
+                                list.className = 'list-group list-group-flush';
+                                data.resultados.forEach(p => {
+                                    const a = document.createElement('a');
+                                    a.href = `/produto/${p.id}/`;
+                                    a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2';
+                                    a.innerHTML = `
+                                        <div>
+                                            <div class="fw-medium">${p.descricao}</div>
+                                            <div class="small text-muted">${p.tipo_produto} | Estoque: ${p.quantidade} ${p.unidade}</div>
+                                        </div>
+                                    `;
+                                    list.appendChild(a);
+                                });
+                                searchResults.appendChild(list);
+                            }
+                            searchResults.classList.remove('d-none');
+                        });
+                }, 300);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.add('d-none');
+                }
+            });
+            searchInput.addEventListener('focus', () => {
+                if (searchInput.value.trim().length >= 2) searchResults.classList.remove('d-none');
+            });
+        }
+
+        // ----------------------------------------
+        // JS - Modal Movimentação Rápida (FAB)
+        // ----------------------------------------
+        let globalMoveModal;
+        document.addEventListener('DOMContentLoaded', () => {
+            globalMoveModal = new bootstrap.Modal(document.getElementById('globalMoveModal'));
+        });
+
+        // Use global window functions for HTML onclick
+        window.openGlobalMoveModal = function(produtoId = null, produtoNome = null) {
+            const form = document.getElementById('globalMoveForm');
+            form.reset();
+            clearGlobalMoveProduto();
+            
+            if (produtoId && produtoNome) {
+                document.getElementById('globalMoveProdutoId').value = produtoId;
+                document.getElementById('globalMoveSelectedName').textContent = produtoNome;
+                document.getElementById('globalMoveProdutoSearch').classList.add('d-none');
+                document.getElementById('globalMoveSelectedProduto').classList.remove('d-none');
+            }
+            globalMoveModal.show();
+        };
+
+        window.clearGlobalMoveProduto = function() {
+            document.getElementById('globalMoveProdutoId').value = '';
+            document.getElementById('globalMoveProdutoSearch').value = '';
+            document.getElementById('globalMoveProdutoSearch').classList.remove('d-none');
+            document.getElementById('globalMoveSelectedProduto').classList.add('d-none');
+            document.getElementById('globalMoveSearchResults').classList.add('d-none');
+            document.getElementById('globalMoveProdutoSearch').focus();
+        };
+
+        const globalMoveSearch = document.getElementById('globalMoveProdutoSearch');
+        const globalMoveResults = document.getElementById('globalMoveSearchResults');
+        
+        if (globalMoveSearch) {
+            let gmSearchTimeout;
+            globalMoveSearch.addEventListener('input', (e) => {
+                clearTimeout(gmSearchTimeout);
+                const q = e.target.value.trim();
+                if (q.length < 2) {
+                    globalMoveResults.classList.add('d-none');
+                    return;
+                }
+                gmSearchTimeout = setTimeout(() => {
+                    fetch(`/busca-rapida/?q=${encodeURIComponent(q)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            globalMoveResults.innerHTML = '';
+                            if (data.resultados.length > 0) {
+                                const list = document.createElement('div');
+                                list.className = 'list-group list-group-flush';
+                                data.resultados.forEach(p => {
+                                    const btn = document.createElement('button');
+                                    btn.type = 'button';
+                                    btn.className = 'list-group-item list-group-item-action py-2 text-start';
+                                    btn.innerHTML = `<span class="fw-medium">${p.descricao}</span> <small class="text-muted ms-2">Estoque: ${p.quantidade}</small>`;
+                                    btn.onclick = () => {
+                                        document.getElementById('globalMoveProdutoId').value = p.id;
+                                        document.getElementById('globalMoveSelectedName').textContent = p.descricao;
+                                        globalMoveSearch.classList.add('d-none');
+                                        document.getElementById('globalMoveSelectedProduto').classList.remove('d-none');
+                                        globalMoveResults.classList.add('d-none');
+                                    };
+                                    list.appendChild(btn);
+                                });
+                                globalMoveResults.appendChild(list);
+                                globalMoveResults.classList.remove('d-none');
+                            } else {
+                                globalMoveResults.innerHTML = '<div class="p-2 text-muted small text-center">Não encontrado</div>';
+                                globalMoveResults.classList.remove('d-none');
+                            }
+                        });
+                }, 300);
+            });
+        }
+
+        document.getElementById('globalMoveForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const pid = document.getElementById('globalMoveProdutoId').value;
+            if (!pid) {
+                showToast('Selecione um produto para movimentar.', 'danger');
+                return;
+            }
+            const btn = document.getElementById('globalMoveSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Salvando...';
+
+            const payload = {
+                produto_id: pid,
+                tipo: document.getElementById('globalMoveTipo').value,
+                quantidade: parseFloat(document.getElementById('globalMoveQuantidade').value),
+                observacao: document.getElementById('globalMoveObservacao').value
+            };
+
+            const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+            const token = csrfTokenElement ? csrfTokenElement.value : '{{ csrf_token }}';
+
+            fetch('/movimentacao/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': token
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    showToast('Movimentação registrada com sucesso!');
+                    globalMoveModal.hide();
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast('Erro ao salvar.', 'danger');
+                }
+            })
+            .catch(() => showToast('Erro de rede.', 'danger'))
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = 'Registrar';
+            });
+        });
+
     </script>
 </body>
 </html>
