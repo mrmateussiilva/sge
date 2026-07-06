@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
@@ -31,25 +32,39 @@ def dashboard(request):
     estoque_baixo = Produto.objects.filter(
         quantidade_base__lte=F('estoque_minimo')
     ).select_related('fornecedor')
-    ultimas_movimentacoes = Movimentacao.objects.select_related('produto').order_by('-data')[:5]
+    ultimas_movimentacoes = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')[:5]
 
     hoje = timezone.now()
-    inicio_ano = hoje.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    meses = []
+    ano_atual = hoje.year
+    try:
+        ano_selecionado = int(request.GET.get('ano', ano_atual))
+    except ValueError:
+        ano_selecionado = ano_atual
+
+    # Obter anos que possuem movimentações para o seletor
+    anos_disponiveis = list(Movimentacao.objects.dates('data', 'year', order='DESC'))
+    anos = sorted(list(set([a.year for a in anos_disponiveis] + [ano_atual])), reverse=True)
+    
+    # Gerar dados mensais corretos para o ano selecionado
+    meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     entradas_meses = []
     saidas_meses = []
-    for i in range(12):
-        mes = inicio_ano + timedelta(days=30 * i)
-        label = mes.strftime('%b')
-        meses.append(label)
+    for m in range(1, 13):
         entradas = Movimentacao.objects.filter(
-            tipo='ENTRADA', data__year=mes.year, data__month=mes.month
+            tipo='ENTRADA', data__year=ano_selecionado, data__month=m
         ).count()
         saidas = Movimentacao.objects.filter(
-            tipo='SAIDA', data__year=mes.year, data__month=mes.month
+            tipo='SAIDA', data__year=ano_selecionado, data__month=m
         ).count()
         entradas_meses.append(entradas)
         saidas_meses.append(saidas)
+
+    if request.GET.get('ajax') == '1':
+        return JsonResponse({
+            'meses': meses_nomes,
+            'entradas': entradas_meses,
+            'saidas': saidas_meses,
+        })
 
     valor_por_tipo = Produto.objects.values('tipo_produto').annotate(
         total=Sum(F('quantidade_base') * F('preco_custo'))
@@ -58,19 +73,26 @@ def dashboard(request):
     tipo_labels = [tipo_choices.get(t['tipo_produto'], t['tipo_produto']) for t in valor_por_tipo]
     tipo_data = [float(t['total']) for t in valor_por_tipo]
 
+    # Lucro estimado e margem
+    lucro_estimado = valor_venda_total - valor_total
+    margem_estimada = (lucro_estimado / valor_total * 100) if valor_total > 0 else 0
+
     return render(request, 'estoque/dashboard.html', {
         'total_itens': total_itens,
         'valor_total': valor_total,
         'valor_venda_total': valor_venda_total,
-        'lucro_estimado': valor_venda_total - valor_total,
+        'lucro_estimado': lucro_estimado,
+        'margem_estimada': margem_estimada,
         'estoque_baixo': estoque_baixo,
         'ultimas_movimentacoes': ultimas_movimentacoes,
         'ultimos_logs': LogAcao.objects.select_related('usuario').all()[:5],
-        'chart_meses': json.dumps(meses),
+        'chart_meses': json.dumps(meses_nomes),
         'chart_entradas': json.dumps(entradas_meses),
         'chart_saidas': json.dumps(saidas_meses),
         'chart_tipo_labels': json.dumps(tipo_labels),
         'chart_tipo_data': json.dumps(tipo_data),
+        'anos_disponiveis': anos,
+        'ano_selecionado': ano_selecionado,
     })
 
 
@@ -108,9 +130,24 @@ def atualiza_estoque(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         produto = Produto.objects.get(id=data['id'])
-        produto.quantidade_base += data['variacao']
-        produto.save()
-        return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+        variacao = data['variacao']
+        if variacao == 0:
+            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+        tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
+        quantidade = abs(variacao)
+        try:
+            with transaction.atomic():
+                Movimentacao.objects.create(
+                    produto=produto,
+                    usuario=request.user,
+                    tipo=tipo,
+                    quantidade=quantidade,
+                    observacao='Ajuste rápido de estoque',
+                )
+            produto.refresh_from_db()
+            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+        except ValidationError as e:
+            return JsonResponse({'ok': False, 'erro': str(e)}, status=400)
     return JsonResponse({'ok': False}, status=405)
 
 
@@ -121,6 +158,7 @@ def registrar_movimentacao(request):
         produto = Produto.objects.get(id=data['produto_id'])
         Movimentacao.objects.create(
             produto=produto,
+            usuario=request.user,
             tipo=data['tipo'],
             quantidade=data['quantidade'],
             observacao=data.get('observacao', ''),
@@ -358,6 +396,7 @@ def receber_ordem(request, id):
             produto.save()
             Movimentacao.objects.create(
                 produto=produto,
+                usuario=request.user,
                 tipo='ENTRADA',
                 quantidade=item.quantidade,
                 observacao=f'Recebimento da Ordem #{ordem.id}',
@@ -673,6 +712,7 @@ def confirmar_importacao_nfe(request):
                         produto = Produto.objects.get(pk=produto_existente_id)
                         Movimentacao.objects.create(
                             produto=produto,
+                            usuario=request.user,
                             tipo='ENTRADA',
                             quantidade=item['quantidade'],
                             observacao=f'Importação NF-e: {item_numero_nf}',
