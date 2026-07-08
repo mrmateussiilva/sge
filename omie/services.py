@@ -145,8 +145,7 @@ def testar_conexao(config: OmieConfig) -> bool:
     endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
         "pagina": 1,
-        "registros_por_pagina": 1,
-        "apenas_importado_api": "N"
+        "registros_por_pagina": 1
     }
     try:
         omie_call(config, endpoint, "ListarNotaEnt", param)
@@ -163,8 +162,7 @@ def listar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None,
     endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
         "pagina": pagina,
-        "registros_por_pagina": registros_por_pagina,
-        "apenas_importado_api": "N"
+        "registros_por_pagina": registros_por_pagina
     }
 
     if data_inicial:
