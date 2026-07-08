@@ -183,16 +183,15 @@
                     {% endif %}
                 </div>
                 
-                <div class="card-body p-0">
-                    <div class="table-responsive">
                         <table class="table table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4" style="width: 50px;">Seq</th>
-                                    <th style="min-width: 250px;">Item na Nota / Vinculado</th>
-                                    <th>Un. Nota</th>
-                                    <th>Qtd Nota</th>
-                                    <th style="min-width: 130px;">Fator Conversão</th>
+                                    <th style="min-width: 250px;">Produto (Nota/Estoque)</th>
+                                    <th>NCM / CFOP</th>
+                                    <th>Qtd Nota / V. Unit</th>
+                                    <th>Total Item</th>
+                                    <th style="min-width: 110px;">Fator Conversão</th>
                                     <th>Qtd Estoque</th>
                                     <th class="pe-4 text-end">Ignorar?</th>
                                 </tr>
@@ -203,8 +202,8 @@
                                     <td class="ps-4 fw-semibold text-muted">{{ item.sequencia }}</td>
                                     <td>
                                         <div class="fw-semibold text-dark">{{ item.descricao }}</div>
-                                        <div class="text-muted small mt-0.5 mb-2">
-                                            Cód. Fornecedor: {{ item.codigo_produto_fornecedor|default:"—" }} | Cód. Omie: {{ item.codigo_produto_omie|default:"—" }}
+                                        <div class="text-muted small mt-0.5 mb-2" style="font-size: 0.72rem;">
+                                            Cód. Fornecedor: {{ item.codigo_produto_fornecedor|default:"—" }} | ID Omie: {{ item.codigo_omie_produto|default:item.codigo_produto_omie|default:"—" }}
                                         </div>
 
                                         <!-- Associações e Dropdowns -->
@@ -233,8 +232,17 @@
                                             {% endif %}
                                         {% endif %}
                                     </td>
-                                    <td class="text-muted font-monospace small">{{ item.unidade_nota }}</td>
-                                    <td class="fw-medium">{{ item.quantidade_nota|floatformat:2 }}</td>
+                                    <td>
+                                        <div class="text-dark small font-monospace">NCM: {{ item.ncm|default:"—" }}</div>
+                                        <div class="text-muted small font-monospace mt-0.5">CFOP: {{ item.cfop|default:"—" }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium text-dark">{{ item.quantidade_nota|floatformat:2 }} <span class="text-muted font-monospace small">{{ item.unidade_nota }}</span></div>
+                                        <div class="text-muted small mt-0.5">R$ {{ item.valor_unitario|floatformat:4 }}</div>
+                                    </td>
+                                    <td class="fw-semibold text-dark">
+                                        R$ {{ item.valor_total|floatformat:2 }}
+                                    </td>
                                     
                                     <!-- Fator de Conversão -->
                                     <td>
