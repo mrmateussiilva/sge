@@ -276,8 +276,24 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 pagina=pagina,
                 registros_por_pagina=50
             )
-        except Exception as e:
+        except OmieApiError as e:
+            err_str = str(e)
+            # Código 5113: "Não existem registros para a página" = resultado vazio, não é erro
+            if "5113" in err_str:
+                logger.info(f"Omie não retornou registros na página {pagina} (resultado vazio).")
+                break
+            # Erro na primeira página = falha crítica, propaga para o command
+            if pagina == 1:
+                raise
             msg = f"Falha ao listar notas da Omie na página {pagina}: {e}"
+            logger.error(msg)
+            resumo["erros"] += 1
+            resumo["erros_detalhes"].append(msg)
+            break
+        except Exception as e:
+            if pagina == 1:
+                raise
+            msg = f"Erro inesperado ao listar página {pagina}: {e}"
             logger.error(msg)
             resumo["erros"] += 1
             resumo["erros_detalhes"].append(msg)
