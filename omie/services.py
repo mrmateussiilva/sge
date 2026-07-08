@@ -158,17 +158,16 @@ def testar_conexao(config: OmieConfig) -> bool:
 def listar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None, pagina=1, registros_por_pagina=50) -> dict:
     """
     Consulta o endpoint de Notas de Entrada no Omie de forma paginada.
+
+    Nota: A API ListarNotaEnt não suporta filtros de data via parâmetro.
+    O intervalo data_inicial/data_final é utilizado apenas para filtragem local
+    após o recebimento dos registros.
     """
     endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
         "pagina": pagina,
         "registros_por_pagina": registros_por_pagina
     }
-
-    if data_inicial:
-        param["cFiltrarPorDataDe"] = formatar_data_para_omie(data_inicial)
-    if data_final:
-        param["cFiltrarPorDataAte"] = formatar_data_para_omie(data_final)
 
     return omie_call(config, endpoint, "ListarNotaEnt", param)
 
@@ -295,6 +294,14 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 
                 if not chave_nfe and not omie_codigo_nota:
                     continue
+
+                # Filtragem local por data de emissão (API não suporta filtro de data no servidor)
+                data_emissao = nota_dados.get("data_emissao")
+                if data_emissao:
+                    if data_inicial and data_emissao < data_inicial:
+                        continue
+                    if data_final and data_emissao > data_final:
+                        continue
 
                 # Busca fornecedor existente no banco local pelo CNPJ
                 fornecedor_obj = None
