@@ -1,0 +1,303 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Entrada de Materiais (Omie){% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="mb-0 fw-bold"><i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Entrada de Materiais (Omie)</h1>
+        <p class="text-muted small mb-0">Gerencie e aprove notas fiscais de entrada importadas do ERP Omie.</p>
+    </div>
+    
+    <!-- Botão de Sincronizar que abre Modal -->
+    <button type="button" class="btn btn-primary px-4 shadow-sm hover-lift" data-bs-toggle="modal" data-bs-target="#syncModal">
+        <i class="bi bi-arrow-repeat me-2"></i>Sincronizar Omie
+    </button>
+</div>
+
+<!-- Mensagens do Django -->
+{% if messages %}
+<div class="row">
+    <div class="col-12">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm border-0 mb-3" role="alert">
+            {{ message|safe }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- CARDS DE RESUMO (Wow Design) -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+            <div class="card-body p-4 d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-clock-history fs-3"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Notas Pendentes</span>
+                    <h3 class="fw-bold mb-0">
+                        {{ notas|dictsort:"status"|length }}  <!-- Mapeado após filtragem ou do total -->
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+            <div class="card-body p-4 d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-success bg-opacity-10 text-success p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-check2-circle fs-3"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Notas Importadas</span>
+                    <h3 class="fw-bold mb-0">
+                        {% regroup notas by status as status_list %}
+                        {% for s in status_list %}
+                            {% if s.grouper == 'IMPORTADA' %}{{ s.list|length }}{% endif %}
+                        {% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+            <div class="card-body p-4 d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-danger bg-opacity-10 text-danger p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-exclamation-octagon fs-3"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Notas com Erro</span>
+                    <h3 class="fw-bold mb-0">
+                        {% for s in status_list %}
+                            {% if s.grouper == 'ERRO' %}{{ s.list|length }}{% endif %}
+                        {% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
+            <div class="card-body p-4 d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-secondary bg-opacity-10 text-secondary p-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                    <i class="bi bi-eye-slash fs-3"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Notas Ignoradas</span>
+                    <h3 class="fw-bold mb-0">
+                        {% for s in status_list %}
+                            {% if s.grouper == 'IGNORADA' %}{{ s.list|length }}{% endif %}
+                        {% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTROS -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-body p-4">
+        <form method="get" action="{% url 'lista_notas_omie' %}" class="row g-3" id="filterForm">
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">Todos</option>
+                    <option value="PENDENTE" {% if status_filtro == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+                    <option value="IMPORTADA" {% if status_filtro == 'IMPORTADA' %}selected{% endif %}>Importada (Estoques Gerados)</option>
+                    <option value="IGNORADA" {% if status_filtro == 'IGNORADA' %}selected{% endif %}>Ignorada</option>
+                    <option value="ERRO" {% if status_filtro == 'ERRO' %}selected{% endif %}>Erro</option>
+                </select>
+            </div>
+            
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label fw-semibold text-secondary small">Fornecedor</label>
+                <input type="text" class="form-control" name="fornecedor" placeholder="Nome ou CNPJ" value="{{ fornecedor_filtro }}">
+            </div>
+            
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Número da Nota</label>
+                <input type="text" class="form-control" name="numero" placeholder="Ex: 1234" value="{{ numero_filtro }}">
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Data Emissão De</label>
+                <input type="date" class="form-control" name="data_de" value="{{ data_de }}">
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-2">
+                <label class="form-label fw-semibold text-secondary small">Até</label>
+                <input type="date" class="form-control" name="data_ate" value="{{ data_ate }}">
+            </div>
+            
+            <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                <a href="{% url 'lista_notas_omie' %}" class="btn btn-outline-secondary px-3"><i class="bi bi-eraser me-1"></i>Limpar</a>
+                <button type="submit" class="btn btn-secondary px-4"><i class="bi bi-filter me-1"></i>Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABELA DE NOTAS -->
+<div class="card border-0 shadow-sm rounded-3 bg-white">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Status</th>
+                        <th>Número / Série</th>
+                        <th>Fornecedor</th>
+                        <th>Data Emissão</th>
+                        <th>Valor Total</th>
+                        <th class="text-center">Itens</th>
+                        <th class="text-center">Estoque Gerado?</th>
+                        <th class="pe-4 text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nota in notas %}
+                    <tr>
+                        <td class="ps-4">
+                            {% if nota.status == 'PENDENTE' %}
+                                <span class="badge bg-warning bg-opacity-15 text-warning fw-medium py-1.5 px-2.5 rounded">
+                                    <i class="bi bi-hourglass-split me-1"></i>Pendente
+                                </span>
+                            {% elif nota.status == 'IMPORTADA' %}
+                                <span class="badge bg-success bg-opacity-15 text-success fw-medium py-1.5 px-2.5 rounded">
+                                    <i class="bi bi-check-circle me-1"></i>Importada
+                                </span>
+                            {% elif nota.status == 'IGNORADA' %}
+                                <span class="badge bg-secondary bg-opacity-15 text-secondary fw-medium py-1.5 px-2.5 rounded">
+                                    <i class="bi bi-eye-slash me-1"></i>Ignorada
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger bg-opacity-15 text-danger fw-medium py-1.5 px-2.5 rounded">
+                                    <i class="bi bi-exclamation-octagon me-1"></i>Erro
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold text-dark">{{ nota.numero_nf|default:"S/N" }}</span>
+                            <span class="text-muted small d-block">Série: {{ nota.serie|default:"—" }}</span>
+                        </td>
+                        <td>
+                            <span class="fw-medium text-dark d-block text-truncate" style="max-width: 250px;" title="{{ nota.fornecedor_nome }}">
+                                {{ nota.fornecedor_nome|default:"Fornecedor não identificado" }}
+                            </span>
+                            <span class="text-muted small">{{ nota.fornecedor_cnpj|default:"—" }}</span>
+                        </td>
+                        <td class="text-muted small">
+                            {{ nota.data_emissao|date:"d/m/Y"|default:"—" }}
+                        </td>
+                        <td class="fw-semibold text-dark">
+                            R$ {{ nota.valor_total|floatformat:2 }}
+                        </td>
+                        <td class="text-center text-muted small fw-medium">
+                            {{ nota.qtd_itens }}
+                        </td>
+                        <td class="text-center">
+                            {% if nota.status == 'IMPORTADA' %}
+                                <span class="text-success"><i class="bi bi-check-lg fs-5"></i></span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4 text-end">
+                            <div class="d-inline-flex gap-1.5">
+                                <a href="{% url 'detalhe_nota_omie' nota.id %}" class="btn btn-sm btn-outline-primary" title="Visualizar e vincular itens">
+                                    <i class="bi bi-eye"></i> Ver Nota
+                                </a>
+
+                                {% if nota.status == 'PENDENTE' or nota.status == 'ERRO' %}
+                                    <form action="{% url 'ignorar_nota_omie' nota.id %}" method="post" class="d-inline" onsubmit="return confirm('Deseja realmente ignorar esta nota? Ela não gerará entrada de estoque.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Ignorar nota">
+                                            <i class="bi bi-eye-slash"></i> Ignorar
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                {% if nota.status == 'IGNORADA' %}
+                                    <form action="{% url 'reativar_nota_omie' nota.id %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Reativar nota">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Reativar
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
+                            Nenhuma nota fiscal encontrada para os filtros selecionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE SINCRONIZAÇÃO -->
+<div class="modal fade" id="syncModal" tabindex="-1" aria-labelledby="syncModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="syncModalLabel">
+                    <i class="bi bi-cloud-arrow-down-fill me-2 text-primary"></i>Sincronizar Notas com Omie
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'sincronizar_omie' %}" method="post" id="syncForm">
+                {% csrf_token %}
+                <div class="modal-body py-3">
+                    <p class="text-muted small">
+                        Informe o período de alteração que deseja verificar no Omie. 
+                        As notas fiscais encontradas serão salvas no banco de dados local com status <strong>Pendente</strong>.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary small">Período de sincronização (dias para trás)</label>
+                        <select class="form-select" name="dias" id="syncDays">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="15">Últimos 15 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                            <option value="365">Último ano (365 dias)</option>
+                            <option value="1000">Tudo (1000 dias)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="syncSubmitBtn">
+                        <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Agora
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    document.getElementById('syncForm')?.addEventListener('submit', function() {
+        const btn = document.getElementById('syncSubmitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sincronizando...';
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -271,3 +271,102 @@ class OmieSincronizacaoTestCase(TestCase):
         self.assertEqual(item.quantidade_convertida, decimal.Decimal("6.00"))
         self.assertEqual(item.unidade_convertida, "L")
         self.assertEqual(item.status, "VINCULADO")
+
+
+class OmieViewsTestCase(TestCase):
+    def setUp(self):
+        from django.urls import reverse
+        self.reverse = reverse
+        self.user = User.objects.create_user(username="operador", password="password123")
+        self.client.login(username="operador", password="password123")
+
+        self.categoria = Categoria.objects.create(nome="Tecidos", cor="#ff0000")
+        self.fornecedor = Fornecedor.objects.create(nome="Distribuidora de Tecidos", cnpj="22333444000199")
+        self.produto = Produto.objects.create(
+            tipo_produto="TECIDO",
+            unidade_medida="M",
+            descricao="Linho Cru",
+            categoria=self.categoria,
+            fornecedor=self.fornecedor,
+            quantidade_base=0,
+            preco_custo=10.0,
+            preco_venda=20.0
+        )
+        self.nota = OmieNotaEntrada.objects.create(
+            numero_nf="8877",
+            serie="1",
+            fornecedor_nome="Distribuidora de Tecidos",
+            fornecedor_cnpj="22333444000199",
+            fornecedor=self.fornecedor,
+            valor_total=150.00,
+            status="PENDENTE"
+        )
+        self.item = OmieNotaEntradaItem.objects.create(
+            nota=self.nota,
+            sequencia=1,
+            descricao="Linho Tecido",
+            unidade_nota="RL",
+            quantidade_nota=1.5,
+            valor_unitario=100.0,
+            valor_total=150.0,
+            status="PENDENTE"
+        )
+
+    def test_lista_notas_omie_view(self):
+        url = self.reverse('lista_notas_omie')
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "8877")
+        self.assertContains(resp, "Distribuidora de Tecidos")
+
+    def test_detalhe_nota_omie_view(self):
+        url = self.reverse('detalhe_nota_omie', args=[self.nota.id])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Linho Tecido")
+
+    def test_salvar_vinculos_omie_view(self):
+        url = self.reverse('salvar_vinculos_omie', args=[self.nota.id])
+        data = {
+            f'produto_{self.item.id}': self.produto.id,
+            f'fator_{self.item.id}': '10.0',
+            f'status_{self.item.id}': 'VINCULADO'
+        }
+        resp = self.client.post(url, data)
+        self.assertEqual(resp.status_code, 302) # Redirects
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.produto, self.produto)
+        self.assertEqual(self.item.quantidade_convertida, decimal.Decimal('15.00'))
+        self.assertEqual(self.item.status, 'VINCULADO')
+
+    def test_aprovar_nota_omie_view(self):
+        # Primeiro vincula
+        self.item.produto = self.produto
+        self.item.quantidade_convertida = decimal.Decimal('15.00')
+        self.item.unidade_convertida = 'M'
+        self.item.status = 'VINCULADO'
+        self.item.save()
+
+        url = self.reverse('aprovar_nota_omie', args=[self.nota.id])
+        resp = self.client.post(url)
+        self.assertEqual(resp.status_code, 302)
+        
+        self.nota.refresh_from_db()
+        self.assertEqual(self.nota.status, 'IMPORTADA')
+        
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, decimal.Decimal('15.00'))
+
+    def test_ignorar_e_reativar_nota_omie_view(self):
+        url_ignorar = self.reverse('ignorar_nota_omie', args=[self.nota.id])
+        resp = self.client.post(url_ignorar)
+        self.assertEqual(resp.status_code, 302)
+        self.nota.refresh_from_db()
+        self.assertEqual(self.nota.status, 'IGNORADA')
+
+        url_reativar = self.reverse('reativar_nota_omie', args=[self.nota.id])
+        resp = self.client.post(url_reativar)
+        self.assertEqual(resp.status_code, 302)
+        self.nota.refresh_from_db()
+        self.assertEqual(self.nota.status, 'PENDENTE')
+
