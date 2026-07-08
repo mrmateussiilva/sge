@@ -197,30 +197,69 @@ def normalizar_cnpj(cnpj: str) -> str:
 
 def normalizar_nota_entrada(raw: dict) -> dict:
     """
-    Normaliza a estrutura do JSON bruto de uma nota fiscal retornada pela Omie
-    para nosso dicionário de campos interno de forma segura usando get.
-    """
-    cabec = raw.get("cabecalho", {})
-    fornecedor = raw.get("fornecedor", {})
-    
-    # Datas
-    d_emissao = parse_data_da_omie(cabec.get("dDtEmissao"))
-    d_entrada = parse_data_da_omie(cabec.get("dDtEntrada") or cabec.get("dDtReg"))
+    Normaliza a estrutura do JSON bruto de uma nota retornada pelo ListarNotaEnt da Omie.
 
-    # CNPJ
-    cnpj = normalizar_cnpj(fornecedor.get("cCNPJ") or fornecedor.get("cCNPJCPF") or "")
+    A Omie retorna a chave 'cabec' (não 'cabecalho') com os campos:
+      - nCodNotaEnt: código interno Omie
+      - cNumeroNotaEnt: número da nota
+      - dPrevisao: data da nota (formato dd/mm/aaaa)
+      - nCodCli: código interno do fornecedor/cliente (sem CNPJ direto)
+    """
+    # Suporta tanto 'cabec' (real) quanto 'cabecalho' (testes/mock)
+    cabec = raw.get("cabec") or raw.get("cabecalho") or {}
+    fornecedor = raw.get("fornecedor") or {}
+
+    # Datas — campo real é dPrevisao; mocks podem usar dDtEmissao
+    d_emissao = (
+        parse_data_da_omie(cabec.get("dDtEmissao"))
+        or parse_data_da_omie(cabec.get("dPrevisao"))
+    )
+    d_entrada = (
+        parse_data_da_omie(cabec.get("dDtEntrada"))
+        or parse_data_da_omie(cabec.get("dDtReg"))
+        or d_emissao
+    )
+
+    # CNPJ — presente em mocks; na API real vem como nCodCli (código)
+    cnpj = normalizar_cnpj(
+        fornecedor.get("cCNPJ")
+        or fornecedor.get("cCNPJCPF")
+        or ""
+    )
+
+    # Código interno Omie — campo real é nCodNotaEnt; mocks usam nIdReceb
+    omie_codigo = str(
+        cabec.get("nCodNotaEnt")
+        or cabec.get("nIdReceb")
+        or ""
+    )
+
+    # Número da nota — campo real é cNumeroNotaEnt; mocks usam nNumNota
+    numero_nf = str(
+        cabec.get("cNumeroNotaEnt")
+        or cabec.get("nNumNota")
+        or ""
+    )
+
+    # Código do cliente/fornecedor Omie (para lookup futuro)
+    cod_cli = str(cabec.get("nCodCli") or "")
 
     return {
-        "omie_codigo_nota": str(cabec.get("nIdReceb") or ""),
+        "omie_codigo_nota": omie_codigo,
         "omie_codigo_integracao": str(cabec.get("cCodInt") or ""),
         "chave_nfe": str(cabec.get("cChaveNFe") or "").strip().replace(" ", ""),
-        "numero_nf": str(cabec.get("nNumNota") or ""),
-        "serie": str(cabec.get("cSerieNota") or ""),
+        "numero_nf": numero_nf,
+        "serie": str(cabec.get("cSerieNota") or cabec.get("cSerie") or ""),
         "fornecedor_nome": str(fornecedor.get("cNome") or "").strip(),
         "fornecedor_cnpj": cnpj,
+        "omie_cod_cliente": cod_cli,
         "data_emissao": d_emissao,
         "data_entrada": d_entrada,
-        "valor_total": decimal.Decimal(str(cabec.get("nValNota") or cabec.get("nValTotal") or 0.0)),
+        "valor_total": decimal.Decimal(str(
+            cabec.get("nValNota")
+            or cabec.get("nValTotal")
+            or 0.0
+        )),
     }
 
 
@@ -299,21 +338,24 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
             resumo["erros_detalhes"].append(msg)
             break
 
-        # Tenta ler paginação (Omie usa nTotPaginas)
+        # Tenta ler paginação — Omie usa nTotalPaginas na resposta real
         try:
             total_de_paginas = int(
-                resposta.get("nTotPaginas") or
-                resposta.get("total_de_paginas") or
-                1
+                resposta.get("nTotalPaginas")
+                or resposta.get("nTotPaginas")
+                or resposta.get("total_de_paginas")
+                or 1
             )
         except (ValueError, TypeError):
             total_de_paginas = 1
 
+        # Chave real da Omie é 'notas'; mocks usam 'nota_fiscal_entrada_completa'
         notas_list = (
-            resposta.get("nota_fiscal_entrada_completa") or
-            resposta.get("notas_cadastro") or
-            resposta.get("dados_cadastro") or
-            []
+            resposta.get("notas")
+            or resposta.get("nota_fiscal_entrada_completa")
+            or resposta.get("notas_cadastro")
+            or resposta.get("dados_cadastro")
+            or []
         )
         if not isinstance(notas_list, list):
             notas_list = [notas_list]
