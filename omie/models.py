@@ -64,6 +64,9 @@ class OmieNotaEntrada(models.Model):
     data_emissao = models.DateField(null=True, blank=True, verbose_name="Data de Emissão")
     data_entrada = models.DateField(null=True, blank=True, verbose_name="Data de Entrada")
     valor_total = models.DecimalField(max_digits=14, decimal_places=2, default=0.00, verbose_name="Valor Total")
+    valor_mercadorias = models.DecimalField(max_digits=14, decimal_places=2, default=0.00, verbose_name="Valor Mercadorias")
+
+    codigo_omie_fornecedor = models.CharField(max_length=100, null=True, blank=True, verbose_name="Código Fornecedor Omie")
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDENTE', db_index=True)
     raw_json = models.JSONField(default=dict, blank=True, verbose_name="JSON Bruto")
@@ -115,6 +118,11 @@ class OmieNotaEntradaItem(models.Model):
 
     codigo_produto_omie = models.CharField(max_length=100, blank=True, verbose_name="Cód. Produto Omie")
     codigo_produto_fornecedor = models.CharField(max_length=100, blank=True, verbose_name="Cód. Prod. Fornecedor")
+    
+    codigo_omie_item = models.CharField(max_length=100, blank=True, verbose_name="Código Item Omie")
+    codigo_omie_produto = models.CharField(max_length=100, blank=True, verbose_name="Código Produto Omie")
+    codigo_local_estoque_omie = models.CharField(max_length=100, blank=True, verbose_name="Cód. Local Estoque Omie")
+
     descricao = models.TextField(verbose_name="Descrição do Item")
     ncm = models.CharField(max_length=20, blank=True, verbose_name="NCM")
     cfop = models.CharField(max_length=20, blank=True, verbose_name="CFOP")

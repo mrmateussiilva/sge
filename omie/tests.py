@@ -218,17 +218,20 @@ class OmieSincronizacaoTestCase(TestCase):
     @patch("omie.services.listar_notas_entrada")
     def test_sincronizar_notas_entrada_mapeia_automaticamente(self, mock_listar):
         mock_response = {
-            "nTotPaginas": 1,
-            "nota_fiscal_entrada_completa": [
+            "nTotalPaginas": 1,
+            "notas": [
                 {
-                    "cabecalho": {
-                        "nIdReceb": 1122,
+                    "cabec": {
+                        "nCodNotaEnt": 1122,
                         "cChaveNFe": "35191100000000000000550010000009999000009999",
-                        "nNumNota": "9999",
+                        "cNumeroNotaEnt": "9999",
                         "cSerieNota": "1",
-                        "dDtEmissao": "01/07/2026",
-                        "dDtEntrada": "02/07/2026",
-                        "nValNota": 100.0
+                        "dPrevisao": "01/07/2026",
+                        "nCodCli": 456
+                    },
+                    "totais": {
+                        "nTotalNotaEnt": 100.0,
+                        "nMercadorias": 100.0
                     },
                     "fornecedor": {
                         "cNome": "Fornecedor Parcial",
@@ -236,18 +239,17 @@ class OmieSincronizacaoTestCase(TestCase):
                     },
                     "produtos": [
                         {
-                            "prod_det": {
-                                "nSequencia": 1,
-                                "nIdProd": "PR-999",
-                                "cCodProdFor": "FR-999",
-                                "cDescricao": "Tinta Azul Omie",
-                                "cNCM": "32151100",
-                                "cCFOP": "1102",
-                                "cUnidade": "VD",
-                                "nQtde": 3.0,
-                                "nValUnit": 33.33,
-                                "nValTotal": 100.0
-                            }
+                            "nSequencia": 1,
+                            "nCodProd": "PR-999",
+                            "cCodProdFor": "FR-999",
+                            "cDescricao": "Tinta Azul Omie",
+                            "cNCM": "32151100",
+                            "cCFOP": "1102",
+                            "cUnidade": "VD",
+                            "nQtde": 3.0,
+                            "nValUnit": 33.3333,
+                            "nCodIt": 789,
+                            "codigo_local_estoque": "EST-1"
                         }
                     ]
                 }

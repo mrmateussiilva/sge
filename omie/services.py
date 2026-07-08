@@ -198,18 +198,12 @@ def normalizar_cnpj(cnpj: str) -> str:
 def normalizar_nota_entrada(raw: dict) -> dict:
     """
     Normaliza a estrutura do JSON bruto de uma nota retornada pelo ListarNotaEnt da Omie.
-
-    A Omie retorna a chave 'cabec' (não 'cabecalho') com os campos:
-      - nCodNotaEnt: código interno Omie
-      - cNumeroNotaEnt: número da nota
-      - dPrevisao: data da nota (formato dd/mm/aaaa)
-      - nCodCli: código interno do fornecedor/cliente (sem CNPJ direto)
     """
-    # Suporta tanto 'cabec' (real) quanto 'cabecalho' (testes/mock)
     cabec = raw.get("cabec") or raw.get("cabecalho") or {}
+    totais = raw.get("totais") or {}
     fornecedor = raw.get("fornecedor") or {}
 
-    # Datas — campo real é dPrevisao; mocks podem usar dDtEmissao
+    # Datas — campo real é dPrevisao ou dDtEmissao
     d_emissao = (
         parse_data_da_omie(cabec.get("dDtEmissao"))
         or parse_data_da_omie(cabec.get("dPrevisao"))
@@ -220,7 +214,7 @@ def normalizar_nota_entrada(raw: dict) -> dict:
         or d_emissao
     )
 
-    # CNPJ — presente em mocks; na API real vem como nCodCli (código)
+    # CNPJ
     cnpj = normalizar_cnpj(
         fornecedor.get("cCNPJ")
         or fornecedor.get("cCNPJCPF")
@@ -231,22 +225,39 @@ def normalizar_nota_entrada(raw: dict) -> dict:
     chave_nfe_raw = str(cabec.get("cChaveNFe") or "").strip().replace(" ", "")
     chave_nfe = chave_nfe_raw if chave_nfe_raw else None
 
-    # Código interno Omie — campo real é nCodNotaEnt; mocks usam nIdReceb
+    # Código interno Omie
     omie_codigo = str(
         cabec.get("nCodNotaEnt")
         or cabec.get("nIdReceb")
         or ""
     )
 
-    # Número da nota — campo real é cNumeroNotaEnt; mocks usam nNumNota
+    # Número da nota
     numero_nf = str(
         cabec.get("cNumeroNotaEnt")
         or cabec.get("nNumNota")
         or ""
     )
 
-    # Código do cliente/fornecedor Omie (para lookup futuro)
+    # Código do cliente/fornecedor Omie
     cod_cli = str(cabec.get("nCodCli") or "")
+
+    # Fornecedor Nome
+    fornecedor_nome = str(fornecedor.get("cNome") or "").strip()
+    if not fornecedor_nome:
+        fornecedor_nome = f"Fornecedor não resolvido (Código Omie: {cod_cli})"
+
+    # Valores
+    valor_total = decimal.Decimal(str(
+        totais.get("nTotalNotaEnt")
+        or cabec.get("nValNota")
+        or cabec.get("nValTotal")
+        or 0.0
+    ))
+    valor_mercadorias = decimal.Decimal(str(
+        totais.get("nMercadorias")
+        or 0.0
+    ))
 
     return {
         "omie_codigo_nota": omie_codigo,
@@ -254,39 +265,46 @@ def normalizar_nota_entrada(raw: dict) -> dict:
         "chave_nfe": chave_nfe,
         "numero_nf": numero_nf,
         "serie": str(cabec.get("cSerieNota") or cabec.get("cSerie") or ""),
-        "fornecedor_nome": str(fornecedor.get("cNome") or "").strip(),
+        "fornecedor_nome": fornecedor_nome,
         "fornecedor_cnpj": cnpj,
+        "codigo_omie_fornecedor": cod_cli,
         "omie_cod_cliente": cod_cli,
         "data_emissao": d_emissao,
         "data_entrada": d_entrada,
-        "valor_total": decimal.Decimal(str(
-            cabec.get("nValNota")
-            or cabec.get("nValTotal")
-            or 0.0
-        )),
+        "valor_total": valor_total,
+        "valor_mercadorias": valor_mercadorias,
     }
 
 
 def normalizar_item_nota(raw_item: dict) -> dict:
     """
     Normaliza a estrutura do JSON de produto/item da Omie para nosso dicionário.
-    A Omie geralmente retorna os produtos em um formato como {"prod_det": {...}}.
+    A Omie retorna os itens na lista de produtos. Podem vir encapsulados em prod_det
+    ou diretamente na raiz do dicionário.
     """
-    prod_det = raw_item.get("prod_det", {})
+    item = raw_item.get("prod_det") if "prod_det" in raw_item else raw_item
     
     # Tratando valores decimais
-    qtd = decimal.Decimal(str(prod_det.get("nQtde") or 0.0))
-    val_unit = decimal.Decimal(str(prod_det.get("nValUnit") or 0.0))
-    val_tot = decimal.Decimal(str(prod_det.get("nValTotal") or 0.0))
+    qtd = decimal.Decimal(str(item.get("nQtde") or 0.0))
+    val_unit = decimal.Decimal(str(item.get("nValUnit") or 0.0))
+    val_tot = qtd * val_unit
+
+    # Chaves
+    codigo_omie_item = str(item.get("nCodIt") or "")
+    codigo_omie_produto = str(item.get("nCodProd") or item.get("nIdProd") or item.get("cCodProd") or "")
+    codigo_local_estoque = str(item.get("codigo_local_estoque") or "")
 
     return {
-        "sequencia": int(prod_det.get("nSequencia") or 1),
-        "codigo_produto_omie": str(prod_det.get("nIdProd") or prod_det.get("cCodProd") or ""),
-        "codigo_produto_fornecedor": str(prod_det.get("cCodProdFor") or prod_det.get("cCodProdFornecedor") or ""),
-        "descricao": str(prod_det.get("cDescricao") or "").strip(),
-        "ncm": str(prod_det.get("cNCM") or "").strip(),
-        "cfop": str(prod_det.get("cCFOP") or "").strip(),
-        "unidade_nota": str(prod_det.get("cUnidade") or "").strip().upper(),
+        "sequencia": int(item.get("nSequencia") or 1),
+        "codigo_omie_item": codigo_omie_item,
+        "codigo_omie_produto": codigo_omie_produto,
+        "codigo_local_estoque_omie": codigo_local_estoque,
+        "codigo_produto_omie": codigo_omie_produto,
+        "codigo_produto_fornecedor": str(item.get("cCodProdFor") or item.get("cCodProdFornecedor") or ""),
+        "descricao": str(item.get("cDescricao") or "").strip(),
+        "ncm": str(item.get("cNCM") or "").strip(),
+        "cfop": str(item.get("cCFOP") or "").strip(),
+        "unidade_nota": str(item.get("cUnidade") or "").strip().upper(),
         "quantidade_nota": qtd,
         "valor_unitario": val_unit,
         "valor_total": val_tot,
@@ -419,6 +437,8 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 nota_obj.data_emissao = nota_dados["data_emissao"]
                 nota_obj.data_entrada = nota_dados["data_entrada"]
                 nota_obj.valor_total = nota_dados["valor_total"]
+                nota_obj.valor_mercadorias = nota_dados["valor_mercadorias"]
+                nota_obj.codigo_omie_fornecedor = nota_dados["codigo_omie_fornecedor"]
                 nota_obj.raw_json = raw_nota
                 
                 # Reseta erro caso estivesse com erro
@@ -459,6 +479,9 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                     # Atualiza os dados brutos e da nota
                     item_obj.codigo_produto_omie = item_dados["codigo_produto_omie"]
                     item_obj.codigo_produto_fornecedor = item_dados["codigo_produto_fornecedor"]
+                    item_obj.codigo_omie_item = item_dados["codigo_omie_item"]
+                    item_obj.codigo_omie_produto = item_dados["codigo_omie_produto"]
+                    item_obj.codigo_local_estoque_omie = item_dados["codigo_local_estoque_omie"]
                     item_obj.descricao = item_dados["descricao"]
                     item_obj.ncm = item_dados["ncm"]
                     item_obj.cfop = item_dados["cfop"]
@@ -481,11 +504,12 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                     # Busca mapping por CNPJ fornecedor + dados do produto
                     mapping = None
                     if cnpj_normalizado:
-                        # 1. Por codigo_produto_omie
-                        if item_obj.codigo_produto_omie:
+                        # 1. Por codigo_omie_produto ou codigo_produto_omie
+                        cod_prod = item_obj.codigo_omie_produto or item_obj.codigo_produto_omie
+                        if cod_prod:
                             mapping = OmieProdutoMapping.objects.filter(
                                 fornecedor_cnpj=cnpj_normalizado,
-                                codigo_produto_omie=item_obj.codigo_produto_omie,
+                                codigo_produto_omie=cod_prod,
                                 ativo=True
                             ).first()
                         
