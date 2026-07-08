@@ -1,5 +1,5 @@
 import decimal
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from unittest.mock import patch
 
@@ -14,6 +14,7 @@ from omie.services import (
 User = get_user_model()
 
 
+@override_settings(DEBUG=True)
 class OmieCryptoTestCase(TestCase):
     def test_encrypt_decrypt_secret(self):
         secret = "minha_chave_super_secreta_123"
@@ -182,6 +183,7 @@ class OmieAprovacaoTestCase(TestCase):
             aprovar_nota_entrada(self.nota, self.user)
 
 
+@override_settings(DEBUG=True)
 class OmieSincronizacaoTestCase(TestCase):
     def setUp(self):
         self.categoria = Categoria.objects.create(nome="Categoria B", cor="#aaaaaa")
@@ -216,7 +218,7 @@ class OmieSincronizacaoTestCase(TestCase):
     @patch("omie.services.listar_notas_entrada")
     def test_sincronizar_notas_entrada_mapeia_automaticamente(self, mock_listar):
         mock_response = {
-            "total_de_paginas": 1,
+            "nTotPaginas": 1,
             "nota_fiscal_entrada_completa": [
                 {
                     "cabecalho": {

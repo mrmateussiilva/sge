@@ -100,13 +100,12 @@ def omie_call(config: OmieConfig, endpoint: str, call: str, param: dict) -> dict
             except json.JSONDecodeError as e:
                 raise OmieApiError(f"Resposta da API Omie não é um JSON válido: {e}")
 
-            # Verifica erros retornados pela API Omie no formato RPC
+            # Verifica erros retornados pela API Omie no formato RPC/SOAP
             if isinstance(res_json, dict):
-                # Verifica erros retornados pela API Omie no formato RPC
                 faultcode = res_json.get("faultcode")
                 faultstring = res_json.get("faultstring")
                 if faultcode is not None or faultstring is not None:
-                    raise OmieApiError(f"Erro retornado pela API Omie (faultcode: {faultcode}): {faultstring}")
+                    raise OmieApiError(f"Erro da Omie: {faultstring} (Código: {faultcode})")
             
             return res_json
 
@@ -142,34 +141,51 @@ def testar_conexao(config: OmieConfig) -> bool:
     Testa se as credenciais configuradas estão corretas.
     Faz uma chamada de teste no ListarNotaEnt pedindo apenas 1 registro.
     """
-    endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
         "nPagina": 1,
-        "nQtdeRegistrosPagina": 1
+        "nRegistrosPorPagina": 1,
+        "cExibirDetalhes": "S",
+        "cOrdenarPor": "CODIGO",
     }
     try:
-        omie_call(config, endpoint, "ListarNotaEnt", param)
+        omie_call(config, "https://app.omie.com.br/api/v1/produtos/notaentrada/", "ListarNotaEnt", param)
         return True
     except Exception as e:
         logger.warning(f"Teste de conexão com a Omie falhou: {e}")
         raise OmieApiError(f"Falha de Conexão: {e}")
 
 
-def listar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None, pagina=1, registros_por_pagina=50) -> dict:
+def listar_notas_entrada(
+    config: OmieConfig,
+    data_inicial=None,
+    data_final=None,
+    pagina=1,
+    registros_por_pagina=50,
+) -> dict:
     """
     Consulta o endpoint de Notas de Entrada no Omie de forma paginada.
 
-    Nota: A API ListarNotaEnt não suporta filtros de data via parâmetro.
-    O intervalo data_inicial/data_final é utilizado apenas para filtragem local
-    após o recebimento dos registros.
+    Filtro de data: usa dtAltDe/dtAltAte (data de alteração) no formato dd/mm/aaaa,
+    conforme suportado pelo endpoint ListarNotaEnt da Omie.
     """
-    endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
         "nPagina": pagina,
-        "nQtdeRegistrosPagina": registros_por_pagina
+        "nRegistrosPorPagina": registros_por_pagina,
+        "cExibirDetalhes": "S",
+        "cOrdenarPor": "CODIGO",
     }
 
-    return omie_call(config, endpoint, "ListarNotaEnt", param)
+    if data_inicial:
+        param["dtAltDe"] = data_inicial.strftime("%d/%m/%Y")
+    if data_final:
+        param["dtAltAte"] = data_final.strftime("%d/%m/%Y")
+
+    return omie_call(
+        config=config,
+        endpoint="https://app.omie.com.br/api/v1/produtos/notaentrada/",
+        call="ListarNotaEnt",
+        param=param,
+    )
 
 
 def normalizar_cnpj(cnpj: str) -> str:
@@ -303,14 +319,6 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 
                 if not chave_nfe and not omie_codigo_nota:
                     continue
-
-                # Filtragem local por data de emissão (API não suporta filtro de data no servidor)
-                data_emissao = nota_dados.get("data_emissao")
-                if data_emissao:
-                    if data_inicial and data_emissao < data_inicial:
-                        continue
-                    if data_final and data_emissao > data_final:
-                        continue
 
                 # Busca fornecedor existente no banco local pelo CNPJ
                 fornecedor_obj = None
