@@ -227,6 +227,10 @@ def normalizar_nota_entrada(raw: dict) -> dict:
         or ""
     )
 
+    # Chave NFe — se vazia, salva como None para evitar erros de restrição UNIQUE no banco
+    chave_nfe_raw = str(cabec.get("cChaveNFe") or "").strip().replace(" ", "")
+    chave_nfe = chave_nfe_raw if chave_nfe_raw else None
+
     # Código interno Omie — campo real é nCodNotaEnt; mocks usam nIdReceb
     omie_codigo = str(
         cabec.get("nCodNotaEnt")
@@ -247,7 +251,7 @@ def normalizar_nota_entrada(raw: dict) -> dict:
     return {
         "omie_codigo_nota": omie_codigo,
         "omie_codigo_integracao": str(cabec.get("cCodInt") or ""),
-        "chave_nfe": str(cabec.get("cChaveNFe") or "").strip().replace(" ", ""),
+        "chave_nfe": chave_nfe,
         "numero_nf": numero_nf,
         "serie": str(cabec.get("cSerieNota") or cabec.get("cSerie") or ""),
         "fornecedor_nome": str(fornecedor.get("cNome") or "").strip(),
@@ -401,12 +405,11 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
 
                 is_new = nota_obj is None
                 if is_new:
-                    nota_obj = OmieNotaEntrada(
-                        chave_nfe=chave_nfe,
-                        omie_codigo_nota=omie_codigo_nota
-                    )
+                    nota_obj = OmieNotaEntrada()
 
                 # Atualiza campos
+                nota_obj.chave_nfe = chave_nfe
+                nota_obj.omie_codigo_nota = omie_codigo_nota
                 nota_obj.omie_codigo_integracao = nota_dados["omie_codigo_integracao"]
                 nota_obj.numero_nf = nota_dados["numero_nf"]
                 nota_obj.serie = nota_dados["serie"]
