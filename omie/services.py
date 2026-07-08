@@ -144,8 +144,8 @@ def testar_conexao(config: OmieConfig) -> bool:
     """
     endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
-        "pagina": 1,
-        "registros_por_pagina": 1
+        "nPagina": 1,
+        "nRegPorPagina": 1
     }
     try:
         omie_call(config, endpoint, "ListarNotaEnt", param)
@@ -165,8 +165,8 @@ def listar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None,
     """
     endpoint = "https://app.omie.com.br/api/v1/produtos/notaentrada/"
     param = {
-        "pagina": pagina,
-        "registros_por_pagina": registros_por_pagina
+        "nPagina": pagina,
+        "nRegPorPagina": registros_por_pagina
     }
 
     return omie_call(config, endpoint, "ListarNotaEnt", param)
@@ -267,13 +267,22 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
             resumo["erros_detalhes"].append(msg)
             break
 
-        # Tenta ler paginação
+        # Tenta ler paginação (Omie usa nTotPaginas)
         try:
-            total_de_paginas = int(resposta.get("total_de_paginas") or 1)
+            total_de_paginas = int(
+                resposta.get("nTotPaginas") or
+                resposta.get("total_de_paginas") or
+                1
+            )
         except (ValueError, TypeError):
             total_de_paginas = 1
 
-        notas_list = resposta.get("nota_fiscal_entrada_completa") or resposta.get("dados_cadastro") or []
+        notas_list = (
+            resposta.get("nota_fiscal_entrada_completa") or
+            resposta.get("notas_cadastro") or
+            resposta.get("dados_cadastro") or
+            []
+        )
         if not isinstance(notas_list, list):
             notas_list = [notas_list]
 
