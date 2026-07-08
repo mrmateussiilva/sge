@@ -102,6 +102,7 @@ def omie_call(config: OmieConfig, endpoint: str, call: str, param: dict) -> dict
 
             # Verifica erros retornados pela API Omie no formato RPC
             if isinstance(res_json, dict):
+                # Verifica erros retornados pela API Omie no formato RPC
                 faultcode = res_json.get("faultcode")
                 faultstring = res_json.get("faultstring")
                 if faultcode is not None or faultstring is not None:
@@ -111,15 +112,20 @@ def omie_call(config: OmieConfig, endpoint: str, call: str, param: dict) -> dict
 
     except urllib.error.HTTPError as e:
         # Tenta ler o corpo do erro HTTP, pois a Omie costuma retornar erros formatados em JSON no status 500
+        err_data = ""
         try:
             err_data = e.read().decode('utf-8', errors='replace')
             err_json = json.loads(err_data)
             faultcode = err_json.get("faultcode")
             faultstring = err_json.get("faultstring")
             if faultcode or faultstring:
-                raise OmieApiError(f"Erro HTTP {e.code} da Omie: {faultstring} (Código: {faultcode})")
-        except Exception:
-            pass
+                raise OmieApiError(f"Erro da Omie: {faultstring} (Código: {faultcode})")
+        except json.JSONDecodeError:
+            if err_data:
+                raise OmieApiError(f"Erro de servidor da Omie (HTTP {e.code}): {err_data[:300]}")
+        except Exception as ex:
+            if isinstance(ex, OmieApiError):
+                raise ex
         raise OmieApiError(f"Erro de conexão HTTP ao Omie: Código {e.code} - {e.reason}")
     except urllib.error.URLError as e:
         raise OmieApiError(f"Erro de conexão com o Omie: {e.reason}")
@@ -140,7 +146,7 @@ def testar_conexao(config: OmieConfig) -> bool:
     param = {
         "pagina": 1,
         "registros_por_pagina": 1,
-        "apenas_importadas_api": "N"
+        "apenas_importado_api": "N"
     }
     try:
         omie_call(config, endpoint, "ListarNotaEnt", param)
@@ -158,13 +164,13 @@ def listar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None,
     param = {
         "pagina": pagina,
         "registros_por_pagina": registros_por_pagina,
-        "apenas_importadas_api": "N"
+        "apenas_importado_api": "N"
     }
 
     if data_inicial:
-        param["filtrar_por_data_de"] = formatar_data_para_omie(data_inicial)
+        param["cFiltrarPorDataDe"] = formatar_data_para_omie(data_inicial)
     if data_final:
-        param["filtrar_por_data_ate"] = formatar_data_para_omie(data_final)
+        param["cFiltrarPorDataAte"] = formatar_data_para_omie(data_final)
 
     return omie_call(config, endpoint, "ListarNotaEnt", param)
 
