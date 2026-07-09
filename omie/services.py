@@ -836,7 +836,6 @@ def consultar_recebimento_omie(config: OmieConfig, chave_nfe: str = None, id_rec
 
 
 def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_progress=None):
-    from django.db.models import F
     config = OmieConfig.objects.filter(ativo=True).first()
     if not config:
         return {"status": "error", "mensagem": "Nenhuma configuração Omie ativa."}
@@ -855,16 +854,22 @@ def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_prog
                 update_progress(f"Erro na api: {str(e)}")
             break
 
-        # A chave de listagem geralmente é 'recebimentos' ou baseada no retorno
-        recebimentos = resp.get("recebimentoNFe", resp.get("recebimentos", []))
+        # Tenta todas as chaves possíveis retornadas pela API
+        recebimentos = (
+            resp.get("recebimentos")
+            or resp.get("listaRecebimentos")
+            or resp.get("nfeRecebidas")
+            or resp.get("notas")
+            or []
+        )
         if not recebimentos:
             break
 
         for raw in recebimentos:
             cabec = raw.get("cabec", {})
-            modelo = cabec.get("cModeloNFe", "")
-            
-            # Filtro explícito para apenas modelo 55
+            modelo = str(cabec.get("cModeloNFe", "")).strip()
+
+            # Filtro explícito: apenas NF-e de produto (modelo 55). CT-e/frete (57) é ignorado.
             if modelo != "55":
                 continue
 
@@ -881,17 +886,26 @@ def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_prog
                     detalhado = raw
 
                 with transaction.atomic():
-                    numero = cabec.get("cNumero", "")
-                    serie = cabec.get("cSerie", "")
-                    cnpj_forn = cabec.get("cCNPJFornecedor", "")
-                    nome_forn = cabec.get("cNomeFornecedor", "")
+                    # --- Campos do cabeçalho (nomenclatura correta da API) ---
+                    numero = cabec.get("cNumeroNFe", "")
+                    serie = cabec.get("cSerieNFe", "")
                     etapa = cabec.get("cEtapa", "")
+                    cnpj_forn = cabec.get("cCNPJ_CPF", "")
+                    nome_forn = cabec.get("cRazaoSocial") or cabec.get("cNome", "")
 
-                    data_emissao = parse_data_da_omie(cabec.get("dEmissao"))
-                    data_registro = parse_data_da_omie(cabec.get("dRegistro"))
+                    data_emissao = parse_data_da_omie(cabec.get("dEmissaoNFe"))
+                    # data_registro vem em infoAdicionais, não em cabec
+                    info_adic = detalhado.get("infoAdicionais", raw.get("infoAdicionais", {}))
+                    data_registro = parse_data_da_omie(info_adic.get("dRegistro"))
 
+                    # Valor total vem em cabec.nValorNFe (na listagem) ou totais na consulta
                     totais = detalhado.get("totais", {})
-                    valor_total = decimal.Decimal(str(totais.get("nValorTotalNFe", 0.0)))
+                    valor_total_raw = (
+                        totais.get("vTotalNFe")
+                        or cabec.get("nValorNFe")
+                        or 0
+                    )
+                    valor_total = decimal.Decimal(str(valor_total_raw))
 
                     receb_obj, created = OmieRecebimentoNFe.objects.update_or_create(
                         chave_nfe=chave_nfe,
@@ -928,25 +942,39 @@ def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_prog
 
                     for idx, item_raw in enumerate(itens_recebimento):
                         cabec_item = item_raw.get("itensCabec", {})
-                        
-                        id_item_omie = cabec_item.get("nIdItemReceb", 0)
+                        ajustes = item_raw.get("itensAjustes", {})
+
+                        # IDs: campo correto é nIdItem (ou nIdItPedido como fallback)
+                        id_item_omie = cabec_item.get("nIdItem") or cabec_item.get("nIdItPedido") or 0
                         id_prod = cabec_item.get("nIdProduto", 0)
                         cod_prod = cabec_item.get("cCodigoProduto", "")
                         desc = cabec_item.get("cDescricaoProduto", "")
                         ncm = cabec_item.get("cNCM", "")
-                        cfop_nfe = cabec_item.get("cCFOPNFe", "")
-                        cfop_entrada = cabec_item.get("cCFOPEntrada", "")
 
-                        unid = cabec_item.get("cUnidade", "")
-                        qtd = decimal.Decimal(str(cabec_item.get("nQuantidade", 0.0)))
-                        vunit = decimal.Decimal(str(cabec_item.get("nValorUnitario", 0.0)))
-                        vtotal = decimal.Decimal(str(cabec_item.get("nValorTotal", 0.0)))
+                        # CFOP: NF-e vem de itensCabec.cCFOP, entrada vem de itensAjustes.cCFOPEntrada
+                        cfop_nfe = cabec_item.get("cCFOP", "")
+                        cfop_entrada = ajustes.get("cCFOPEntrada", "")
+
+                        # Unidade: preferencia para ajustes (unidade de entrada), fallback unidade da NF-e
+                        unid = ajustes.get("cUnidade") or cabec_item.get("cUnidadeNfe", "")
+
+                        # Quantidades: ajustes.nQtdeRecebida é a quantidade real de entrada; fallback para NF-e
+                        qtd_raw = ajustes.get("nQtdeRecebida") or cabec_item.get("nQtdeNFe", 0)
+                        qtd = decimal.Decimal(str(qtd_raw))
+
+                        # Valores: campos corretos da API
+                        vunit = decimal.Decimal(str(cabec_item.get("nPrecoUnit", 0)))
+                        vtotal_raw = cabec_item.get("vTotalItem")
+                        if vtotal_raw in (None, ""):
+                            vtotal = qtd * vunit
+                        else:
+                            vtotal = decimal.Decimal(str(vtotal_raw))
 
                         item_obj, i_created = OmieRecebimentoItem.objects.update_or_create(
                             recebimento=receb_obj,
                             id_item_omie=id_item_omie,
                             defaults={
-                                "sequencia": idx + 1,
+                                "sequencia": cabec_item.get("nSequencia") or idx + 1,
                                 "id_produto_omie": id_prod,
                                 "codigo_produto": cod_prod,
                                 "descricao": desc,
@@ -966,7 +994,7 @@ def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_prog
                                 fornecedor_cnpj=cnpj_forn,
                                 codigo_produto_omie=str(id_prod)
                             ).first()
-                            
+
                             if mapping and mapping.produto:
                                 item_obj.produto = mapping.produto
                                 item_obj.quantidade_convertida = item_obj.quantidade_entrada * mapping.fator_conversao_para_base
@@ -977,6 +1005,7 @@ def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_prog
                 resultados["erros"] += 1
                 logger.exception(f"Erro ao processar recebimento {chave_nfe}")
                 OmieRecebimentoNFe.objects.filter(chave_nfe=chave_nfe).update(erro=str(e), status="ERRO")
+
 
         if pagina >= resp.get("nTotalPaginas", 1):
             break
