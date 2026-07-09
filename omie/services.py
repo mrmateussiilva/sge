@@ -276,32 +276,52 @@ def normalizar_nota_entrada(raw: dict) -> dict:
     }
 
 
-def normalizar_item_nota(raw_item: dict) -> dict:
+def normalizar_item_nota(raw_item: dict, indice: int = 1) -> dict:
     """
     Normaliza a estrutura do JSON de produto/item da Omie para nosso dicionário.
-    A Omie retorna os itens na lista de produtos. Podem vir encapsulados em prod_det
-    ou diretamente na raiz do dicionário.
+    A Omie retorna os itens na lista de produtos, diretamente na raiz do dict.
+    Também suporta o formato legado encapsulado em 'prod_det'.
+    
+    :param raw_item: Dicionário do item bruto do Omie.
+    :param indice: Índice incremental do item na lista (1-based), usado como
+                   sequência de fallback quando nSequencia está ausente ou é 0.
     """
     item = raw_item.get("prod_det") if "prod_det" in raw_item else raw_item
-    
+
     # Tratando valores decimais
     qtd = decimal.Decimal(str(item.get("nQtde") or 0.0))
     val_unit = decimal.Decimal(str(item.get("nValUnit") or 0.0))
     val_tot = qtd * val_unit
 
-    # Chaves
+    # Chaves de identificação do item/produto na Omie
     codigo_omie_item = str(item.get("nCodIt") or "")
     codigo_omie_produto = str(item.get("nCodProd") or item.get("nIdProd") or item.get("cCodProd") or "")
     codigo_local_estoque = str(item.get("codigo_local_estoque") or "")
 
+    # Sequência: prefere nSequencia do JSON, usa índice incremental como fallback
+    seq_raw = item.get("nSequencia")
+    try:
+        seq = int(seq_raw) if seq_raw else 0
+    except (ValueError, TypeError):
+        seq = 0
+    sequencia = seq if seq > 0 else indice
+
+    # Descrição: fallback quando a Omie não retorna o nome do produto
+    descricao_raw = str(item.get("cDescricao") or "").strip()
+    if not descricao_raw:
+        if codigo_omie_produto:
+            descricao_raw = f"Produto não resolvido (Cód. Omie: {codigo_omie_produto})"
+        else:
+            descricao_raw = f"Produto não resolvido (Item {sequencia})"
+
     return {
-        "sequencia": int(item.get("nSequencia") or 1),
+        "sequencia": sequencia,
         "codigo_omie_item": codigo_omie_item,
         "codigo_omie_produto": codigo_omie_produto,
         "codigo_local_estoque_omie": codigo_local_estoque,
         "codigo_produto_omie": codigo_omie_produto,
         "codigo_produto_fornecedor": str(item.get("cCodProdFor") or item.get("cCodProdFornecedor") or ""),
-        "descricao": str(item.get("cDescricao") or "").strip(),
+        "descricao": descricao_raw,
         "ncm": str(item.get("cNCM") or "").strip(),
         "cfop": str(item.get("cCFOP") or "").strip(),
         "unidade_nota": str(item.get("cUnidade") or "").strip().upper(),
@@ -461,11 +481,11 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 itens_id_existentes = set(nota_obj.itens.values_list('id', flat=True))
                 itens_processados = []
 
-                for raw_prod in raw_produtos:
+                for idx, raw_prod in enumerate(raw_produtos, start=1):
                     if not raw_prod:
                         continue
-                    
-                    item_dados = normalizar_item_nota(raw_prod)
+
+                    item_dados = normalizar_item_nota(raw_prod, indice=idx)
                     seq = item_dados["sequencia"]
                     
                     # Localiza item existente na nota pelo sequencial
