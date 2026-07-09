@@ -816,8 +816,7 @@ def listar_recebimentos_omie(config: OmieConfig, pagina: int = 1, registros_por_
     call = "ListarRecebimentos"
     param = {
         "pagina": pagina,
-        "registros_por_pagina": registros_por_pagina,
-        "apenas_importado_api": "N"
+        "registros_por_pagina": registros_por_pagina
     }
     return omie_call(config, endpoint, call, param)
 
