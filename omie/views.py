@@ -53,6 +53,8 @@ def lista_notas_omie(request):
     for nota in qs:
         # Conta quantidade de itens na nota
         nota.qtd_itens = nota.itens.count()
+        # Conta quantidade de itens vinculados a produtos no estoque (exclui ignorados se desejar, mas o correto é produto associado)
+        nota.qtd_itens_vinculados = nota.itens.filter(produto__isnull=False).count()
         # Calcula se todos os itens não ignorados estão vinculados a produtos
         nota.pode_ser_aprovada = nota.pode_aprovar()
 

@@ -200,8 +200,19 @@
                         <td class="fw-semibold text-dark">
                             R$ {{ nota.valor_total|floatformat:2 }}
                         </td>
-                        <td class="text-center text-muted small fw-medium">
-                            {{ nota.qtd_itens }}
+                        <td class="text-center">
+                            {% if nota.status == 'IMPORTADA' %}
+                                <span class="badge bg-success bg-opacity-10 text-success fw-medium py-1 px-2 rounded">
+                                    {{ nota.qtd_itens }} de {{ nota.qtd_itens }}
+                                </span>
+                            {% elif nota.pode_ser_aprovada %}
+                                <span class="badge bg-info bg-opacity-10 text-info fw-medium py-1 px-2 rounded">
+                                    {{ nota.qtd_itens_vinculados }} de {{ nota.qtd_itens }}
+                                </span>
+                            {% else %}
+                                <span class="fw-semibold text-dark">{{ nota.qtd_itens_vinculados }}</span>
+                                <span class="text-muted">/ {{ nota.qtd_itens }}</span>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             {% if nota.status == 'IMPORTADA' %}
@@ -215,6 +226,15 @@
                                 <a href="{% url 'detalhe_nota_omie' nota.id %}" class="btn btn-sm btn-outline-primary" title="Visualizar e vincular itens">
                                     <i class="bi bi-eye"></i> Ver Nota
                                 </a>
+
+                                {% if nota.pode_ser_aprovada %}
+                                    <form action="{% url 'aprovar_nota_omie' nota.id %}" method="post" class="d-inline" onsubmit="return confirm('Deseja realmente aprovar esta nota? Isso gerará a entrada dos materiais correspondentes no estoque.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Aprovar nota e gerar entrada de estoque">
+                                            <i class="bi bi-check-circle"></i> Aprovar
+                                        </button>
+                                    </form>
+                                {% endif %}
 
                                 {% if nota.status == 'PENDENTE' or nota.status == 'ERRO' %}
                                     <form action="{% url 'ignorar_nota_omie' nota.id %}" method="post" class="d-inline" onsubmit="return confirm('Deseja realmente ignorar esta nota? Ela não gerará entrada de estoque.');">

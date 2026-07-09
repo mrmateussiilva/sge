@@ -331,6 +331,103 @@ def normalizar_item_nota(raw_item: dict, indice: int = 1) -> dict:
     }
 
 
+def obter_fornecedor_omie(config: OmieConfig, codigo_cliente_omie: str, cache: dict) -> dict:
+    """
+    Obtém informações do fornecedor no Omie pelo código interno da Omie.
+    Utiliza cache em memória ou consulta registros existentes no banco local antes de chamar a API.
+    """
+    if not codigo_cliente_omie:
+        return {}
+
+    # 1. Tenta cache em memória
+    if codigo_cliente_omie in cache:
+        return cache[codigo_cliente_omie]
+
+    # 2. Tenta buscar no banco de dados local
+    nota_existente = OmieNotaEntrada.objects.filter(
+        codigo_omie_fornecedor=codigo_cliente_omie
+    ).exclude(fornecedor_nome__startswith="Fornecedor não resolvido").first()
+    
+    if nota_existente and nota_existente.fornecedor_nome and nota_existente.fornecedor_cnpj:
+        dados = {
+            "razao_social": nota_existente.fornecedor_nome,
+            "cnpj_cpf": nota_existente.fornecedor_cnpj,
+            "email": ""
+        }
+        cache[codigo_cliente_omie] = dados
+        return dados
+
+    # 3. Chama API ConsultarCliente
+    try:
+        res = omie_call(
+            config,
+            endpoint="https://app.omie.com.br/api/v1/geral/clientes/",
+            call="ConsultarCliente",
+            param={"codigo_cliente_omie": int(codigo_cliente_omie)}
+        )
+        if res:
+            dados = {
+                "razao_social": res.get("razao_social") or "",
+                "nome_fantasia": res.get("nome_fantasia") or "",
+                "cnpj_cpf": res.get("cnpj_cpf") or "",
+                "email": res.get("email") or ""
+            }
+            cache[codigo_cliente_omie] = dados
+            return dados
+    except Exception as e:
+        logger.warning(f"Erro ao consultar cliente {codigo_cliente_omie} na Omie: {e}")
+    
+    return {}
+
+
+def obter_produto_omie(config: OmieConfig, codigo_produto_omie: str, cache: dict) -> dict:
+    """
+    Obtém informações do produto no Omie pelo código interno do produto.
+    Utiliza cache em memória ou consulta registros existentes no banco local antes de chamar a API.
+    """
+    if not codigo_produto_omie:
+        return {}
+
+    # 1. Tenta cache em memória
+    if codigo_produto_omie in cache:
+        return cache[codigo_produto_omie]
+
+    # 2. Tenta buscar no banco de dados local
+    item_existente = OmieNotaEntradaItem.objects.filter(
+        codigo_omie_produto=codigo_produto_omie
+    ).exclude(descricao__startswith="Produto não resolvido").first()
+
+    if item_existente and item_existente.descricao:
+        dados = {
+            "descricao": item_existente.descricao,
+            "unidade": item_existente.unidade_nota,
+            "ncm": item_existente.ncm
+        }
+        cache[codigo_produto_omie] = dados
+        return dados
+
+    # 3. Chama API ConsultarProduto
+    try:
+        res = omie_call(
+            config,
+            endpoint="https://app.omie.com.br/api/v1/geral/produtos/",
+            call="ConsultarProduto",
+            param={"codigo_produto": int(codigo_produto_omie)}
+        )
+        if res:
+            dados = {
+                "descricao": res.get("descricao") or "",
+                "unidade": res.get("unidade") or "",
+                "ncm": res.get("ncm") or ""
+            }
+            cache[codigo_produto_omie] = dados
+            return dados
+    except Exception as e:
+        logger.warning(f"Erro ao consultar produto {codigo_produto_omie} na Omie: {e}")
+
+    return {}
+
+
 def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=None, usuario=None) -> dict:
     """
     Executa a sincronização com a Omie e atualiza as notas de entrada locais.
@@ -347,6 +444,8 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
 
     pagina = 1
     total_de_paginas = 1
+    cache_fornecedores = {}
+    cache_produtos = {}
 
     while pagina <= total_de_paginas:
         try:
@@ -420,9 +519,19 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 if not chave_nfe and not omie_codigo_nota:
                     continue
 
+                # Enriquecimento do fornecedor
+                cod_cli = nota_dados.get("codigo_omie_fornecedor")
+                fornecedor_nome = nota_dados.get("fornecedor_nome")
+                cnpj_normalizado = nota_dados.get("fornecedor_cnpj")
+
+                if cod_cli and (not cnpj_normalizado or "Fornecedor não resolvido" in fornecedor_nome):
+                    fornecedor_dados = obter_fornecedor_omie(config, cod_cli, cache_fornecedores)
+                    if fornecedor_dados:
+                        fornecedor_nome = fornecedor_dados.get("razao_social") or fornecedor_dados.get("nome_fantasia") or fornecedor_nome
+                        cnpj_normalizado = normalizar_cnpj(fornecedor_dados.get("cnpj_cpf") or "")
+
                 # Busca fornecedor existente no banco local pelo CNPJ
                 fornecedor_obj = None
-                cnpj_normalizado = nota_dados["fornecedor_cnpj"]
                 if cnpj_normalizado:
                     # Busca fornecedores tentando casar CNPJ numérico puro
                     for f in Fornecedor.objects.all():
@@ -451,14 +560,14 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                 nota_obj.omie_codigo_integracao = nota_dados["omie_codigo_integracao"]
                 nota_obj.numero_nf = nota_dados["numero_nf"]
                 nota_obj.serie = nota_dados["serie"]
-                nota_obj.fornecedor_nome = nota_dados["fornecedor_nome"]
+                nota_obj.fornecedor_nome = fornecedor_nome
                 nota_obj.fornecedor_cnpj = cnpj_normalizado
                 nota_obj.fornecedor = fornecedor_obj
                 nota_obj.data_emissao = nota_dados["data_emissao"]
                 nota_obj.data_entrada = nota_dados["data_entrada"]
                 nota_obj.valor_total = nota_dados["valor_total"]
                 nota_obj.valor_mercadorias = nota_dados["valor_mercadorias"]
-                nota_obj.codigo_omie_fornecedor = nota_dados["codigo_omie_fornecedor"]
+                nota_obj.codigo_omie_fornecedor = cod_cli
                 nota_obj.raw_json = raw_nota
                 
                 # Reseta erro caso estivesse com erro
@@ -502,10 +611,24 @@ def sincronizar_notas_entrada(config: OmieConfig, data_inicial=None, data_final=
                     item_obj.codigo_omie_item = item_dados["codigo_omie_item"]
                     item_obj.codigo_omie_produto = item_dados["codigo_omie_produto"]
                     item_obj.codigo_local_estoque_omie = item_dados["codigo_local_estoque_omie"]
-                    item_obj.descricao = item_dados["descricao"]
-                    item_obj.ncm = item_dados["ncm"]
+                    
+                    # Enriquecimento do produto
+                    cod_prod = item_dados["codigo_omie_produto"]
+                    descricao = item_dados["descricao"]
+                    ncm = item_dados["ncm"]
+                    unidade_nota = item_dados["unidade_nota"]
+
+                    if cod_prod and (not ncm or "Produto não resolvido" in descricao):
+                        prod_dados = obter_produto_omie(config, cod_prod, cache_produtos)
+                        if prod_dados:
+                            descricao = prod_dados.get("descricao") or descricao
+                            ncm = prod_dados.get("ncm") or ncm
+                            unidade_nota = (prod_dados.get("unidade") or unidade_nota).upper()
+
+                    item_obj.descricao = descricao
+                    item_obj.ncm = ncm
                     item_obj.cfop = item_dados["cfop"]
-                    item_obj.unidade_nota = item_dados["unidade_nota"]
+                    item_obj.unidade_nota = unidade_nota
                     item_obj.quantidade_nota = item_dados["quantidade_nota"]
                     item_obj.valor_unitario = item_dados["valor_unitario"]
                     item_obj.valor_total = item_dados["valor_total"]

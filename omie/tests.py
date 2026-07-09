@@ -274,6 +274,80 @@ class OmieSincronizacaoTestCase(TestCase):
         self.assertEqual(item.unidade_convertida, "L")
         self.assertEqual(item.status, "VINCULADO")
 
+    @patch("omie.services.omie_call")
+    def test_sincronizar_notas_entrada_enriquece_dados_via_api(self, mock_omie_call):
+        # Configura as chamadas simuladas de API da Omie para retornar códigos
+        # na listagem e resolver os detalhes via ConsultarCliente / ConsultarProduto.
+        def side_effect(config, endpoint, call, param):
+            if call == "ListarNotaEnt":
+                return {
+                    "nTotalPaginas": 1,
+                    "notas": [
+                        {
+                            "cabec": {
+                                "nCodNotaEnt": 5566,
+                                "cChaveNFe": "35191100000000000000550010000008888000008888",
+                                "cNumeroNotaEnt": "8888",
+                                "cSerieNota": "1",
+                                "dPrevisao": "05/07/2026",
+                                "nCodCli": 456
+                            },
+                            "totais": {
+                                "nTotalNotaEnt": 500.0,
+                                "nMercadorias": 500.0
+                            },
+                            "produtos": [
+                                {
+                                    "nSequencia": 1,
+                                    "nCodProd": 9999,
+                                    "cCodProdFor": "FR-888",
+                                    "nQtde": 5.0,
+                                    "nValUnit": 100.0,
+                                    "nCodIt": 789,
+                                    "codigo_local_estoque": "EST-1"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            elif call == "ConsultarCliente":
+                self.assertEqual(param.get("codigo_cliente_omie"), 456)
+                return {
+                    "codigo_cliente_omie": 456,
+                    "razao_social": "Fornecedor Parcial",
+                    "nome_fantasia": "Fantasia Parcial",
+                    "cnpj_cpf": "11.222.333/0001-44",
+                    "email": "forn@parcial.com"
+                }
+            elif call == "ConsultarProduto":
+                self.assertEqual(param.get("codigo_produto"), 9999)
+                return {
+                    "codigo_produto": 9999,
+                    "descricao": "Tinta Sublimática Azul",
+                    "unidade": "L",
+                    "ncm": "32151100"
+                }
+            return {}
+
+        mock_omie_call.side_effect = side_effect
+
+        # Executa sync
+        resumo = sincronizar_notas_entrada(self.config)
+        self.assertEqual(resumo["criadas"], 1)
+        self.assertEqual(resumo["erros"], 0)
+
+        # Verifica nota salva enriquecida
+        nota = OmieNotaEntrada.objects.get(numero_nf="8888")
+        self.assertEqual(nota.fornecedor_nome, "Fornecedor Parcial")
+        self.assertEqual(nota.fornecedor_cnpj, "11222333000144")
+        self.assertEqual(nota.fornecedor, self.fornecedor)
+
+        # Verifica item salvo enriquecido
+        item = nota.itens.get(sequencia=1)
+        self.assertEqual(item.descricao, "Tinta Sublimática Azul")
+        self.assertEqual(item.unidade_nota, "L")
+        self.assertEqual(item.ncm, "32151100")
+
 
 class OmieViewsTestCase(TestCase):
     def setUp(self):
