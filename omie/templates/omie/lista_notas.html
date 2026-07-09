@@ -5,7 +5,7 @@
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
     <div>
         <h1 class="mb-0 fw-bold"><i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Entrada de Materiais (Omie)</h1>
-        <p class="text-muted small mb-0">Gerencie e aprove notas fiscais de entrada importadas do ERP Omie.</p>
+        <p class="text-muted small mb-0">Gerencie e aprove recebimentos NF-e importadas do ERP Omie.</p>
     </div>
     
     <!-- Botão de Sincronizar que abre Modal -->
@@ -37,7 +37,7 @@
                     <i class="bi bi-clock-history fs-3"></i>
                 </div>
                 <div>
-                    <span class="text-muted small d-block">Notas Pendentes</span>
+                    <span class="text-muted small d-block">Recebimentos Pendentes</span>
                     <h3 class="fw-bold mb-0">
                         {{ notas|dictsort:"status"|length }}  <!-- Mapeado após filtragem ou do total -->
                     </h3>
@@ -53,7 +53,7 @@
                     <i class="bi bi-check2-circle fs-3"></i>
                 </div>
                 <div>
-                    <span class="text-muted small d-block">Notas Importadas</span>
+                    <span class="text-muted small d-block">Recebimentos Importados</span>
                     <h3 class="fw-bold mb-0">
                         {% regroup notas by status as status_list %}
                         {% for s in status_list %}
@@ -72,7 +72,7 @@
                     <i class="bi bi-exclamation-octagon fs-3"></i>
                 </div>
                 <div>
-                    <span class="text-muted small d-block">Notas com Erro</span>
+                    <span class="text-muted small d-block">Recebimentos com Erro</span>
                     <h3 class="fw-bold mb-0">
                         {% for s in status_list %}
                             {% if s.grouper == 'ERRO' %}{{ s.list|length }}{% endif %}
@@ -90,7 +90,7 @@
                     <i class="bi bi-eye-slash fs-3"></i>
                 </div>
                 <div>
-                    <span class="text-muted small d-block">Notas Ignoradas</span>
+                    <span class="text-muted small d-block">Recebimentos Ignorados</span>
                     <h3 class="fw-bold mb-0">
                         {% for s in status_list %}
                             {% if s.grouper == 'IGNORADA' %}{{ s.list|length }}{% endif %}
@@ -276,7 +276,7 @@
         <div class="modal-content border-0 shadow-lg rounded-3">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold" id="syncModalLabel">
-                    <i class="bi bi-cloud-arrow-down-fill me-2 text-primary"></i>Sincronizar Notas com Omie
+                    <i class="bi bi-cloud-arrow-down-fill me-2 text-primary"></i>Sincronizar Recebimentos com Omie
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>

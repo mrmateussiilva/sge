@@ -9,25 +9,23 @@ from django.http import JsonResponse
 
 from estoque.models import Produto, Movimentacao
 from estoque.log_utils import log_acao
-from .models import OmieConfig, OmieNotaEntrada, OmieNotaEntradaItem, OmieProdutoMapping
-from .services import sincronizar_notas_entrada, aprovar_nota_entrada, OmieApiError, normalizar_cnpj
+from .models import OmieConfig, OmieRecebimentoNFe, OmieRecebimentoItem, OmieProdutoMapping
+from .services import sincronizar_recebimentos_omie, aprovar_recebimento_nfe, OmieApiError, normalizar_cnpj
 
 
 @login_required
 def lista_notas_omie(request):
     """
-    Lista as notas de entrada importadas do Omie com filtros.
+    Lista os recebimentos NF-e importados do Omie com filtros.
     """
-    # Filtros
     status_filtro = request.GET.get('status', '').strip()
     fornecedor_filtro = request.GET.get('fornecedor', '').strip()
     numero_filtro = request.GET.get('numero', '').strip()
     data_de = request.GET.get('data_de', '').strip()
     data_ate = request.GET.get('data_ate', '').strip()
 
-    qs = OmieNotaEntrada.objects.select_related('fornecedor').prefetch_related('itens').all()
+    qs = OmieRecebimentoNFe.objects.select_related('fornecedor').prefetch_related('itens').all()
 
-    # Aplicação de filtros
     if status_filtro:
         qs = qs.filter(status=status_filtro)
     
@@ -49,13 +47,9 @@ def lista_notas_omie(request):
         except (ValueError, ValidationError):
             pass
 
-    # Mapeando contagem de itens por nota
     for nota in qs:
-        # Conta quantidade de itens na nota
         nota.qtd_itens = nota.itens.count()
-        # Conta quantidade de itens vinculados a produtos no estoque (exclui ignorados se desejar, mas o correto é produto associado)
         nota.qtd_itens_vinculados = nota.itens.filter(produto__isnull=False).count()
-        # Calcula se todos os itens não ignorados estão vinculados a produtos
         nota.pode_ser_aprovada = nota.pode_aprovar()
 
     config_ativa = OmieConfig.objects.filter(ativo=True).first()
@@ -85,44 +79,34 @@ def sincronizar_omie(request):
         messages.error(request, "Nenhuma configuração ativa do Omie cadastrada no sistema.")
         return redirect('lista_notas_omie')
 
-    dias_str = request.POST.get('dias', '30')
+    dias_str = request.POST.get('dias', '365')
     try:
         dias = int(dias_str)
     except ValueError:
-        dias = 30
-
-    hoje = timezone.now().date()
-    data_inicial = hoje - timezone.timedelta(days=dias)
-    data_final = hoje
+        dias = 365
 
     try:
-        resumo = sincronizar_notas_entrada(
-            config=config,
-            data_inicial=data_inicial,
-            data_final=data_final,
-            usuario=request.user
+        resumo = sincronizar_recebimentos_omie(
+            dias=dias,
+            registros_por_pagina=50
         )
         
         if resumo.get('erros', 0) > 0:
-            erros_lista = "<br>".join(resumo['erros_detalhes'][:5])
             messages.warning(
                 request,
                 f"Sincronização executada com avisos!<br>"
-                f"Notas criadas: {resumo['criadas']}<br>"
-                f"Notas atualizadas: {resumo['atualizadas']}<br>"
-                f"Notas com erros: {resumo['erros']}<br>"
-                f"<strong>Alguns erros:</strong><br>{erros_lista}"
+                f"Recebimentos criados: {resumo.get('criadas', 0)}<br>"
+                f"Recebimentos atualizados: {resumo.get('atualizadas', 0)}<br>"
+                f"Recebimentos com erros: {resumo.get('erros', 0)}"
             )
         else:
             messages.success(
                 request,
                 f"Sincronização concluída com sucesso!<br>"
-                f"Notas novas encontradas: {resumo['criadas']}<br>"
-                f"Notas atualizadas: {resumo['atualizadas']}"
+                f"Recebimentos criados: {resumo.get('criadas', 0)}<br>"
+                f"Recebimentos atualizados: {resumo.get('atualizadas', 0)}"
             )
 
-    except OmieApiError as e:
-        messages.error(request, f"Erro retornado pela API da Omie: {e}")
     except Exception as e:
         messages.error(request, f"Erro inesperado durante a sincronização: {e}")
 
@@ -132,21 +116,19 @@ def sincronizar_omie(request):
 @login_required
 def detalhe_nota_omie(request, id):
     """
-    Exibe os detalhes de uma nota fiscal do Omie e seus itens.
+    Exibe os detalhes de um recebimento NF-e do Omie e seus itens.
     Permite fazer a vinculação manual dos itens a produtos do estoque.
     """
-    nota = get_object_or_404(OmieNotaEntrada, id=id)
+    nota = get_object_or_404(OmieRecebimentoNFe, id=id)
     itens = nota.itens.all().order_by('sequencia')
     produtos = Produto.objects.all().order_by('descricao')
 
-    # Para cada item, se não tiver quantidade_convertida, calculamos com fator=1.0 por conveniência visual na tela
     for item in itens:
         if item.quantidade_convertida is None:
-            item.quantidade_convertida = item.quantidade_nota
+            item.quantidade_convertida = item.quantidade_entrada
         
-        # Fator de conversão atual
-        if item.quantidade_nota > 0:
-            item.fator_atual = round(item.quantidade_convertida / item.quantidade_nota, 6)
+        if item.quantidade_entrada > 0:
+            item.fator_atual = round(item.quantidade_convertida / item.quantidade_entrada, 6)
         else:
             item.fator_atual = 1.000000
 
@@ -160,33 +142,30 @@ def detalhe_nota_omie(request, id):
 @login_required
 def salvar_vinculos_omie(request, id):
     """
-    Salva os vínculos de produtos e fatores de conversão dos itens da nota.
+    Salva os vínculos de produtos e fatores de conversão dos itens do recebimento.
     """
     if request.method != 'POST':
         messages.error(request, "Método não permitido.")
         return redirect('detalhe_nota_omie', id=id)
 
-    nota = get_object_or_404(OmieNotaEntrada, id=id)
+    nota = get_object_or_404(OmieRecebimentoNFe, id=id)
     
     if nota.status in ['IMPORTADA', 'APROVADA']:
-        messages.error(request, "Esta nota já foi importada no estoque e não pode ter seus vínculos alterados.")
+        messages.error(request, "Este recebimento já foi importado no estoque e não pode ter seus vínculos alterados.")
         return redirect('detalhe_nota_omie', id=id)
 
     try:
         with transaction.atomic():
             for item in nota.itens.all():
-                # Lendo os dados enviados para cada item pelo ID
                 prod_id_str = request.POST.get(f'produto_{item.id}', '').strip()
                 fator_str = request.POST.get(f'fator_{item.id}', '1.0').strip()
                 status_str = request.POST.get(f'status_{item.id}', 'PENDENTE').strip()
 
-                # Fator de conversão
                 try:
                     fator = decimal.Decimal(fator_str.replace(',', '.'))
                 except (ValueError, TypeError, decimal.InvalidOperation):
                     fator = decimal.Decimal('1.000000')
 
-                # Verifica se o item foi marcado como ignorado
                 if status_str == 'IGNORADO':
                     item.status = 'IGNORADO'
                     item.produto = None
@@ -196,13 +175,13 @@ def salvar_vinculos_omie(request, id):
                     if prod_id_str:
                         produto = Produto.objects.get(pk=prod_id_str)
                         item.produto = produto
-                        item.quantidade_convertida = item.quantidade_nota * fator
+                        item.quantidade_convertida = item.quantidade_entrada * fator
                         item.unidade_convertida = produto.unidade_medida
                         item.status = 'VINCULADO'
                     else:
                         item.produto = None
-                        item.quantidade_convertida = item.quantidade_nota
-                        item.unidade_convertida = item.unidade_nota
+                        item.quantidade_convertida = item.quantidade_entrada
+                        item.unidade_convertida = item.unidade_entrada
                         item.status = 'PENDENTE'
                 
                 item.save()
@@ -217,28 +196,28 @@ def salvar_vinculos_omie(request, id):
 @login_required
 def aprovar_nota_omie(request, id):
     """
-    Aprova a nota de entrada gerando a movimentação de estoque.
+    Aprova o recebimento gerando a movimentação de estoque.
     """
     if request.method != 'POST':
         messages.error(request, "Método não permitido.")
         return redirect('detalhe_nota_omie', id=id)
 
-    nota = get_object_or_404(OmieNotaEntrada, id=id)
+    nota = get_object_or_404(OmieRecebimentoNFe, id=id)
 
     if not nota.pode_aprovar():
-        messages.error(request, "A nota não pode ser aprovada. Certifique-se de vincular todos os itens não ignorados a produtos.")
+        messages.error(request, "O recebimento não pode ser aprovado. Certifique-se de vincular todos os itens não ignorados a produtos.")
         return redirect('detalhe_nota_omie', id=id)
 
     try:
-        res = aprovar_nota_entrada(nota, request.user)
+        res = aprovar_recebimento_nfe(nota, request.user)
         if res.get('sucesso'):
-            messages.success(request, f"Nota fiscal importada com sucesso! {res['itens_importados']} item(ns) adicionados ao estoque.")
+            messages.success(request, f"Recebimento importado com sucesso! {res.get('movimentacoes_geradas', 0)} item(ns) adicionados ao estoque.")
         else:
-            messages.error(request, "Falha na aprovação da nota fiscal.")
+            messages.error(request, "Falha na aprovação do recebimento.")
     except ValidationError as e:
         messages.error(request, f"Erro de validação: {e.message if hasattr(e, 'message') else str(e)}")
     except Exception as e:
-        messages.error(request, f"Erro ao aprovar nota fiscal: {e}")
+        messages.error(request, f"Erro ao aprovar recebimento: {e}")
 
     return redirect('detalhe_nota_omie', id=id)
 
@@ -246,15 +225,15 @@ def aprovar_nota_omie(request, id):
 @login_required
 def ignorar_nota_omie(request, id):
     """
-    Muda o status da nota fiscal para IGNORADA.
+    Muda o status do recebimento para IGNORADA.
     """
     if request.method != 'POST':
         messages.error(request, "Método não permitido.")
         return redirect('lista_notas_omie')
 
-    nota = get_object_or_404(OmieNotaEntrada, id=id)
+    nota = get_object_or_404(OmieRecebimentoNFe, id=id)
     if nota.status in ['IMPORTADA', 'APROVADA']:
-        messages.error(request, "Notas importadas não podem ser ignoradas.")
+        messages.error(request, "Recebimentos importados não podem ser ignorados.")
         return redirect('lista_notas_omie')
 
     nota.status = 'IGNORADA'
@@ -262,26 +241,26 @@ def ignorar_nota_omie(request, id):
     
     log_acao(
         request.user, 'CANCELAR',
-        f"Nota fiscal Omie #{nota.numero_nf} marcada como ignorada.",
-        'OmieNotaEntrada', nota.id
+        f"Recebimento Omie #{nota.numero_nf} marcado como ignorado.",
+        'OmieRecebimentoNFe', nota.id
     )
     
-    messages.success(request, f"Nota fiscal #{nota.numero_nf} foi ignorada.")
+    messages.success(request, f"Recebimento #{nota.numero_nf} foi ignorado.")
     return redirect('lista_notas_omie')
 
 
 @login_required
 def reativar_nota_omie(request, id):
     """
-    Reativa uma nota marcada como IGNORADA ou ERRO para PENDENTE.
+    Reativa um recebimento marcado como IGNORADA ou ERRO para PENDENTE.
     """
     if request.method != 'POST':
         messages.error(request, "Método não permitido.")
         return redirect('lista_notas_omie')
 
-    nota = get_object_or_404(OmieNotaEntrada, id=id)
+    nota = get_object_or_404(OmieRecebimentoNFe, id=id)
     if nota.status not in ['IGNORADA', 'ERRO']:
-        messages.error(request, "Somente notas ignoradas ou com erro podem ser reativadas.")
+        messages.error(request, "Somente recebimentos ignorados ou com erro podem ser reativados.")
         return redirect('lista_notas_omie')
 
     nota.status = 'PENDENTE'
@@ -289,9 +268,9 @@ def reativar_nota_omie(request, id):
     
     log_acao(
         request.user, 'EDITAR',
-        f"Nota fiscal Omie #{nota.numero_nf} reativada para pendente.",
-        'OmieNotaEntrada', nota.id
+        f"Recebimento Omie #{nota.numero_nf} reativado para pendente.",
+        'OmieRecebimentoNFe', nota.id
     )
     
-    messages.success(request, f"Nota fiscal #{nota.numero_nf} foi reativada.")
+    messages.success(request, f"Recebimento #{nota.numero_nf} foi reativado.")
     return redirect('detalhe_nota_omie', id=id)

@@ -203,7 +203,7 @@
                                     <td>
                                         <div class="fw-semibold text-dark">{{ item.descricao }}</div>
                                         <div class="text-muted small mt-0.5 mb-2" style="font-size: 0.72rem;">
-                                            Cód. Fornecedor: {{ item.codigo_produto_fornecedor|default:"—" }} | ID Omie: {{ item.codigo_omie_produto|default:item.codigo_produto_omie|default:"—" }}
+                                            Cód. Fornecedor: {{ item.codigo_produto|default:"—" }} | ID Omie: {{ item.id_produto_omie|default:"—" }}
                                         </div>
 
                                         <!-- Associações e Dropdowns -->
@@ -237,7 +237,7 @@
                                         <div class="text-muted small font-monospace mt-0.5">CFOP: {{ item.cfop|default:"—" }}</div>
                                     </td>
                                     <td>
-                                        <div class="fw-medium text-dark">{{ item.quantidade_nota|floatformat:2 }} <span class="text-muted font-monospace small">{{ item.unidade_nota }}</span></div>
+                                        <div class="fw-medium text-dark">{{ item.quantidade_entrada|floatformat:2 }} <span class="text-muted font-monospace small">{{ item.unidade_entrada }}</span></div>
                                         <div class="text-muted small mt-0.5">R$ {{ item.valor_unitario|floatformat:4 }}</div>
                                     </td>
                                     <td class="fw-semibold text-dark">
@@ -250,7 +250,7 @@
                                             <input type="number" step="0.000001" min="0.000001" class="form-control form-control-sm text-center input-fator" 
                                                 name="fator_{{ item.id }}" id="fator-{{ item.id }}" 
                                                 value="{{ item.fator_atual|floatformat:6 }}" 
-                                                oninput="recalcularQtdEstoque({{ item.id }}, {{ item.quantidade_nota|stringformat:'.6f' }})">
+                                                oninput="recalcularQtdEstoque({{ item.id }}, {{ item.quantidade_entrada|stringformat:'.6f' }})">
                                         {% else %}
                                             <span class="text-muted small">{{ item.fator_atual|floatformat:6 }}</span>
                                         {% endif %}
@@ -259,8 +259,8 @@
                                     <!-- Qtd Estoque Convertida -->
                                     <td>
                                         <div class="fw-bold text-dark">
-                                            <span id="qtd-est-{{ item.id }}">{{ item.quantidade_convertida|default:item.quantidade_nota|floatformat:2 }}</span>
-                                            <span class="text-muted small fw-normal font-monospace" id="un-est-{{ item.id }}">{{ item.unidade_convertida|default:item.unidade_nota }}</span>
+                                            <span id="qtd-est-{{ item.id }}">{{ item.quantidade_convertida|default:item.quantidade_entrada|floatformat:2 }}</span>
+                                            <span class="text-muted small fw-normal font-monospace" id="un-est-{{ item.id }}">{{ item.unidade_convertida|default:item.unidade_entrada }}</span>
                                         </div>
                                     </td>
 

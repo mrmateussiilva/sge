@@ -9,8 +9,12 @@ from django.core.exceptions import ValidationError
 
 from estoque.models import Fornecedor, Produto, Movimentacao
 from estoque.log_utils import log_acao
-from omie.models import OmieConfig, OmieNotaEntrada, OmieNotaEntradaItem, OmieProdutoMapping
-
+from omie.models import (
+    OmieConfig, 
+    OmieNotaEntrada, OmieNotaEntradaItem, 
+    OmieRecebimentoNFe, OmieRecebimentoItem,
+    OmieProdutoMapping
+)
 logger = logging.getLogger(__name__)
 
 
@@ -805,3 +809,254 @@ def aprovar_nota_entrada(nota: OmieNotaEntrada, usuario) -> dict:
             "sucesso": True,
             "itens_importados": len(movimentacoes_criadas)
         }
+
+
+def listar_recebimentos_omie(config: OmieConfig, pagina: int = 1, registros_por_pagina: int = 50) -> dict:
+    endpoint = "https://app.omie.com.br/api/v1/produtos/recebimentonfe/"
+    call = "ListarRecebimentos"
+    param = {
+        "pagina": pagina,
+        "registros_por_pagina": registros_por_pagina,
+        "apenas_importado_api": "N"
+    }
+    return omie_call(config, endpoint, call, param)
+
+
+def consultar_recebimento_omie(config: OmieConfig, chave_nfe: str = None, id_recebimento: int = None) -> dict:
+    endpoint = "https://app.omie.com.br/api/v1/produtos/recebimentonfe/"
+    call = "ConsultarRecebimento"
+    param = {}
+    if id_recebimento:
+        param["nIdReceb"] = id_recebimento
+    elif chave_nfe:
+        param["cChaveNFe"] = chave_nfe
+    else:
+        raise ValueError("É necessário informar chave_nfe ou id_recebimento para consultar o recebimento.")
+    
+    return omie_call(config, endpoint, call, param)
+
+
+def sincronizar_recebimentos_omie(dias=365, registros_por_pagina=50, update_progress=None):
+    from django.db.models import F
+    config = OmieConfig.objects.filter(ativo=True).first()
+    if not config:
+        return {"status": "error", "mensagem": "Nenhuma configuração Omie ativa."}
+
+    resultados = {"criadas": 0, "atualizadas": 0, "erros": 0}
+    pagina = 1
+
+    while True:
+        try:
+            resp = listar_recebimentos_omie(config, pagina=pagina, registros_por_pagina=registros_por_pagina)
+            if update_progress:
+                update_progress(f"Página {pagina} importada...")
+        except OmieApiError as e:
+            resultados["erros"] += 1
+            if update_progress:
+                update_progress(f"Erro na api: {str(e)}")
+            break
+
+        # A chave de listagem geralmente é 'recebimentos' ou baseada no retorno
+        recebimentos = resp.get("recebimentoNFe", resp.get("recebimentos", []))
+        if not recebimentos:
+            break
+
+        for raw in recebimentos:
+            cabec = raw.get("cabec", {})
+            modelo = cabec.get("cModeloNFe", "")
+            
+            # Filtro explícito para apenas modelo 55
+            if modelo != "55":
+                continue
+
+            chave_nfe = cabec.get("cChaveNFe", "")
+            id_receb = cabec.get("nIdReceb", 0)
+
+            if not chave_nfe:
+                continue
+
+            try:
+                try:
+                    detalhado = consultar_recebimento_omie(config, id_recebimento=id_receb)
+                except OmieApiError:
+                    detalhado = raw
+
+                with transaction.atomic():
+                    numero = cabec.get("cNumero", "")
+                    serie = cabec.get("cSerie", "")
+                    cnpj_forn = cabec.get("cCNPJFornecedor", "")
+                    nome_forn = cabec.get("cNomeFornecedor", "")
+                    etapa = cabec.get("cEtapa", "")
+
+                    data_emissao = parse_data_da_omie(cabec.get("dEmissao"))
+                    data_registro = parse_data_da_omie(cabec.get("dRegistro"))
+
+                    totais = detalhado.get("totais", {})
+                    valor_total = decimal.Decimal(str(totais.get("nValorTotalNFe", 0.0)))
+
+                    receb_obj, created = OmieRecebimentoNFe.objects.update_or_create(
+                        chave_nfe=chave_nfe,
+                        defaults={
+                            "id_recebimento_omie": id_receb,
+                            "modelo": modelo,
+                            "numero_nf": numero,
+                            "serie": serie,
+                            "etapa": etapa,
+                            "fornecedor_nome": nome_forn,
+                            "fornecedor_cnpj": cnpj_forn,
+                            "data_emissao": data_emissao,
+                            "data_registro": data_registro,
+                            "valor_total": valor_total,
+                            "raw_header": raw,
+                            "raw_detalhado": detalhado,
+                            "erro": ""
+                        }
+                    )
+
+                    if created and cnpj_forn:
+                        fornecedor_db = Fornecedor.objects.filter(cnpj=cnpj_forn).first()
+                        if fornecedor_db:
+                            receb_obj.fornecedor = fornecedor_db
+                            receb_obj.save(update_fields=['fornecedor'])
+
+                    if created:
+                        resultados["criadas"] += 1
+                    else:
+                        resultados["atualizadas"] += 1
+
+                    itens_recebimento = detalhado.get("itensRecebimento", [])
+                    OmieRecebimentoItem.objects.filter(recebimento=receb_obj, status='PENDENTE').delete()
+
+                    for idx, item_raw in enumerate(itens_recebimento):
+                        cabec_item = item_raw.get("itensCabec", {})
+                        
+                        id_item_omie = cabec_item.get("nIdItemReceb", 0)
+                        id_prod = cabec_item.get("nIdProduto", 0)
+                        cod_prod = cabec_item.get("cCodigoProduto", "")
+                        desc = cabec_item.get("cDescricaoProduto", "")
+                        ncm = cabec_item.get("cNCM", "")
+                        cfop_nfe = cabec_item.get("cCFOPNFe", "")
+                        cfop_entrada = cabec_item.get("cCFOPEntrada", "")
+
+                        unid = cabec_item.get("cUnidade", "")
+                        qtd = decimal.Decimal(str(cabec_item.get("nQuantidade", 0.0)))
+                        vunit = decimal.Decimal(str(cabec_item.get("nValorUnitario", 0.0)))
+                        vtotal = decimal.Decimal(str(cabec_item.get("nValorTotal", 0.0)))
+
+                        item_obj, i_created = OmieRecebimentoItem.objects.update_or_create(
+                            recebimento=receb_obj,
+                            id_item_omie=id_item_omie,
+                            defaults={
+                                "sequencia": idx + 1,
+                                "id_produto_omie": id_prod,
+                                "codigo_produto": cod_prod,
+                                "descricao": desc,
+                                "ncm": ncm,
+                                "cfop_nfe": cfop_nfe,
+                                "cfop_entrada": cfop_entrada,
+                                "unidade_entrada": unid,
+                                "quantidade_entrada": qtd,
+                                "valor_unitario": vunit,
+                                "valor_total": vtotal,
+                                "erro": ""
+                            }
+                        )
+
+                        if i_created and item_obj.status == 'PENDENTE':
+                            mapping = OmieProdutoMapping.objects.filter(
+                                fornecedor_cnpj=cnpj_forn,
+                                codigo_produto_omie=str(id_prod)
+                            ).first()
+                            
+                            if mapping and mapping.produto:
+                                item_obj.produto = mapping.produto
+                                item_obj.quantidade_convertida = item_obj.quantidade_entrada * mapping.fator_conversao_para_base
+                                item_obj.status = 'VINCULADO'
+                                item_obj.save()
+
+            except Exception as e:
+                resultados["erros"] += 1
+                logger.exception(f"Erro ao processar recebimento {chave_nfe}")
+                OmieRecebimentoNFe.objects.filter(chave_nfe=chave_nfe).update(erro=str(e), status="ERRO")
+
+        if pagina >= resp.get("nTotalPaginas", 1):
+            break
+        pagina += 1
+
+    return resultados
+
+
+def aprovar_recebimento_nfe(recebimento: OmieRecebimentoNFe, usuario) -> dict:
+    if not recebimento.pode_aprovar():
+        raise ValidationError("O recebimento não está elegível para aprovação. Verifique vínculos.")
+
+    with transaction.atomic():
+        receb_lock = OmieRecebimentoNFe.objects.select_for_update().get(pk=recebimento.pk)
+        if receb_lock.status in ['IMPORTADA', 'APROVADA', 'IGNORADA']:
+            raise ValidationError("Este recebimento já foi processado.")
+
+        itens = receb_lock.itens.all()
+        movimentacoes_criadas = []
+
+        for item in itens:
+            if item.status == 'IGNORADO':
+                continue
+
+            if not item.produto:
+                raise ValidationError(f"Item '{item.descricao}' não possui produto associado.")
+            if item.movimentacao:
+                continue
+
+            qtd_movimento = item.quantidade_para_entrada()
+            if qtd_movimento <= 0:
+                raise ValidationError(f"Quantidade do item '{item.descricao}' convertida para estoque deve ser > 0.")
+
+            mov = Movimentacao(
+                produto=item.produto,
+                usuario=usuario,
+                tipo='ENTRADA',
+                quantidade=qtd_movimento,
+                observacao=f"Entrada Recebimento NF {receb_lock.numero_nf or 'S/N'} - Chave {receb_lock.chave_nfe}"
+            )
+            mov.save()
+
+            item.movimentacao = mov
+            item.status = 'IMPORTADO'
+            item.save(update_fields=['movimentacao', 'status'])
+            
+            movimentacoes_criadas.append(mov)
+
+            if receb_lock.fornecedor_cnpj:
+                fator = decimal.Decimal("1.000000")
+                if item.quantidade_convertida is not None and item.quantidade_entrada > 0:
+                    fator = item.quantidade_convertida / item.quantidade_entrada
+
+                OmieProdutoMapping.objects.get_or_create(
+                    fornecedor_cnpj=receb_lock.fornecedor_cnpj,
+                    codigo_produto_omie=str(item.id_produto_omie),
+                    codigo_produto_fornecedor=item.codigo_produto,
+                    defaults={
+                        'fornecedor': receb_lock.fornecedor,
+                        'descricao_fornecedor': item.descricao,
+                        'produto': item.produto,
+                        'unidade_nota': item.unidade_entrada,
+                        'fator_conversao_para_base': fator,
+                        'ativo': True
+                    }
+                )
+
+        receb_lock.status = 'APROVADA'
+        receb_lock.aprovado_por = usuario
+        receb_lock.aprovado_em = timezone.now()
+        receb_lock.save(update_fields=['status', 'aprovado_por', 'aprovado_em'])
+
+        log_acao(
+            usuario, 'RECEBER',
+            f"Recebimento de Nota Omie executado. NF {receb_lock.numero_nf}, {len(movimentacoes_criadas)} item(ns) importados.",
+            'OmieRecebimentoNFe', receb_lock.id
+        )
+
+    return {
+        "sucesso": True,
+        "movimentacoes_geradas": len(movimentacoes_criadas)
+    }
