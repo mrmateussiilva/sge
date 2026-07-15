@@ -154,17 +154,26 @@ def atualiza_estoque(request):
 @login_required
 def registrar_movimentacao(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        produto = Produto.objects.get(id=data['produto_id'])
-        Movimentacao.objects.create(
-            produto=produto,
-            usuario=request.user,
-            tipo=data['tipo'],
-            quantidade=data['quantidade'],
-            observacao=data.get('observacao', ''),
-        )
-        log_acao(request.user, data['tipo'], f'{data["tipo"]} de {data["quantidade"]} de {produto.descricao}', 'Movimentacao')
-        return JsonResponse({'ok': True})
+        try:
+            data = json.loads(request.body)
+            produto = Produto.objects.get(id=data['produto_id'])
+            Movimentacao.objects.create(
+                produto=produto,
+                usuario=request.user,
+                tipo=data['tipo'],
+                quantidade=data['quantidade'],
+                observacao=data.get('observacao', ''),
+            )
+            log_acao(request.user, data['tipo'], f'{data["tipo"]} de {data["quantidade"]} de {produto.descricao}', 'Movimentacao')
+            return JsonResponse({'ok': True})
+        except json.JSONDecodeError:
+            return JsonResponse({'ok': False, 'erro': 'JSON inválido.'}, status=400)
+        except KeyError as e:
+            return JsonResponse({'ok': False, 'erro': f'Campo obrigatório ausente: {e.args[0]}.'}, status=400)
+        except Produto.DoesNotExist:
+            return JsonResponse({'ok': False, 'erro': 'Produto não encontrado.'}, status=404)
+        except ValidationError as e:
+            return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
     produtos = Produto.objects.all().values('id', 'descricao')
     return render(request, 'estoque/movimentacao.html', {'produtos': list(produtos)})
 

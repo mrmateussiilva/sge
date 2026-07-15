@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -132,7 +134,19 @@ class Movimentacao(models.Model):
     data = models.DateTimeField(auto_now_add=True)
     observacao = models.CharField(max_length=255, blank=True, default='')
 
+    def _normalizar_quantidade(self):
+        try:
+            quantidade = Decimal(str(self.quantidade))
+        except (InvalidOperation, TypeError, ValueError):
+            raise ValidationError('Quantidade inválida.')
+
+        if not quantidade.is_finite() or quantidade <= 0:
+            raise ValidationError('Quantidade deve ser maior que zero.')
+
+        return quantidade
+
     def save(self, *args, **kwargs):
+        self.quantidade = self._normalizar_quantidade()
         if not self.pk:
             with transaction.atomic():
                 produto = Produto.objects.select_for_update().get(pk=self.produto.pk)

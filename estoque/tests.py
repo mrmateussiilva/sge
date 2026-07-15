@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -6,6 +8,55 @@ import json
 
 from .models import Produto, Fornecedor, Movimentacao, FechamentoMensal, ItemFechamento
 from .xml_parser import parse_nfe_xml
+
+
+class MovimentacaoTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        self.client.login(username='testuser', password='password123')
+        self.produto = Produto.objects.create(
+            descricao='PRODUTO TESTE',
+            tipo_produto='OUTRO',
+            quantidade_base=Decimal('10.00'),
+            preco_custo=Decimal('5.50'),
+            preco_venda=Decimal('10.00'),
+        )
+
+    def test_registrar_entrada_com_quantidade_string(self):
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({
+                'produto_id': self.produto.id,
+                'tipo': 'ENTRADA',
+                'quantidade': '4.00',
+                'observacao': '',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('14.00'))
+
+    def test_registrar_movimentacao_com_quantidade_invalida_retorna_400(self):
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({
+                'produto_id': self.produto.id,
+                'tipo': 'ENTRADA',
+                'quantidade': '',
+                'observacao': '',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
+
 
 class NFeImportationTestCase(TestCase):
     def setUp(self):
