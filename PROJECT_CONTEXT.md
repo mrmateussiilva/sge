@@ -137,9 +137,6 @@ preco_venda (Decimal)
 ### Atualização de preço
 `Produto.save()` → signal `post_save` (`signals.py`) compara preços antigos com novos e, se houver mudança, cria `HistoricoPreco`.
 
-### Importação de NF-e
-`xml_parser.parse_nfe_xml()` → lê XML SEFAZ (suporta `<nfeProc>` e `<NFe>` direto) → retorna dict com `numero_nf`, `fornecedor` (nome + CNPJ) e `itens[]`. A view exibe uma tela de confirmação antes de criar Produtos/Movimentações.
-
 ### Fechamento mensal
 View `realizar_fechamento` → itera todos os Produtos ativos → cria `FechamentoMensal` + `ItemFechamento` por produto → exportável em XLSX.
 
@@ -156,5 +153,4 @@ View `realizar_fechamento` → itera todos os Produtos ativos → cria `Fechamen
 - Toda ação significativa chama `log_utils.registrar_log(usuario, acao, descricao, modelo, objeto_id)` que cria um `LogAcao`.
 - Views em `estoque/views.py` (arquivo único, ~1600 linhas) — todas com `@login_required`.
 - Contexto global injeta `produtos_estoque_baixo` (via `context_processors.estoque_baixo`) para exibir alerta no header.
-- Unidades de medida da NF-e são mapeadas para os códigos internos via `xml_parser._map_unidade_medida()`.
 - O campo `quantidade_base` **sempre** representa a unidade base do produto (metros para tecido/papel, litros para tinta, unidades para o restante). Quantidades em rolos/vidros são apenas propriedades calculadas para exibição.
