@@ -1,6 +1,7 @@
 import csv
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -22,6 +23,7 @@ from openpyxl.utils import get_column_letter
 @login_required
 def dashboard(request):
     total_itens = Produto.objects.count()
+    estoque_zerado_count = Produto.objects.filter(quantidade_base__lte=0).count()
     valor_total = Produto.objects.aggregate(
         total=Sum(F('quantidade_base') * F('preco_custo'))
     )['total'] or 0
@@ -78,6 +80,7 @@ def dashboard(request):
 
     return render(request, 'estoque/dashboard.html', {
         'total_itens': total_itens,
+        'estoque_zerado_count': estoque_zerado_count,
         'valor_total': valor_total,
         'valor_venda_total': valor_venda_total,
         'lucro_estimado': lucro_estimado,
@@ -108,6 +111,7 @@ def lista_produtos(request):
             'quantidade': float(p.quantidade_base),
             'estoque_minimo': float(p.estoque_minimo),
             'tipo_produto': p.tipo_produto,
+            'tipo_label': p.get_tipo_produto_display(),
             'fornecedor': p.fornecedor.nome if p.fornecedor else None,
             'preco_custo': float(p.preco_custo),
             'preco_venda': float(p.preco_venda),
@@ -127,14 +131,14 @@ def lista_produtos(request):
 @login_required
 def atualiza_estoque(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        produto = Produto.objects.get(id=data['id'])
-        variacao = data['variacao']
-        if variacao == 0:
-            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
-        tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
-        quantidade = abs(variacao)
         try:
+            data = json.loads(request.body)
+            produto = Produto.objects.get(id=data['id'])
+            variacao = Decimal(str(data['variacao']))
+            if variacao == 0:
+                return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+            tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
+            quantidade = abs(variacao)
             with transaction.atomic():
                 Movimentacao.objects.create(
                     produto=produto,
@@ -145,8 +149,16 @@ def atualiza_estoque(request):
                 )
             produto.refresh_from_db()
             return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+        except json.JSONDecodeError:
+            return JsonResponse({'ok': False, 'erro': 'JSON inválido.'}, status=400)
+        except KeyError as e:
+            return JsonResponse({'ok': False, 'erro': f'Campo obrigatório ausente: {e.args[0]}.'}, status=400)
+        except (InvalidOperation, TypeError, ValueError):
+            return JsonResponse({'ok': False, 'erro': 'Variação de estoque inválida.'}, status=400)
+        except Produto.DoesNotExist:
+            return JsonResponse({'ok': False, 'erro': 'Produto não encontrado.'}, status=404)
         except ValidationError as e:
-            return JsonResponse({'ok': False, 'erro': str(e)}, status=400)
+            return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
     return JsonResponse({'ok': False}, status=405)
 
 
@@ -174,7 +186,11 @@ def registrar_movimentacao(request):
         except ValidationError as e:
             return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
     produtos = Produto.objects.all().values('id', 'descricao')
-    return render(request, 'estoque/movimentacao.html', {'produtos': list(produtos)})
+    movimentacoes = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')[:50]
+    return render(request, 'estoque/movimentacao.html', {
+        'produtos': list(produtos),
+        'movimentacoes': movimentacoes,
+    })
 
 
 @login_required

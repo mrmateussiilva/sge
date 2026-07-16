@@ -55,6 +55,50 @@ class MovimentacaoTestCase(TestCase):
         self.produto.refresh_from_db()
         self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
 
+    def test_registrar_saida_sem_saldo_retorna_400_com_erro(self):
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({
+                'produto_id': self.produto.id,
+                'tipo': 'SAIDA',
+                'quantidade': '15.00',
+                'observacao': '',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertFalse(data['ok'])
+        self.assertIn('Quantidade indisponível', data['erro'])
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
+
+    def test_paginas_operacionais_renderizam(self):
+        for name in ('dashboard', 'lista_produtos', 'registrar_movimentacao', 'cadastrar_produto'):
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name))
+                self.assertEqual(response.status_code, 200)
+
+    def test_cadastrar_produto_com_campos_minimos(self):
+        response = self.client.post(
+            reverse('cadastrar_produto'),
+            data=json.dumps({
+                'tipo_produto': 'OUTRO',
+                'unidade_medida': 'UN',
+                'descricao': 'PRODUTO MINIMO',
+                'quantidade_base': 0,
+                'preco_custo': 0,
+                'preco_venda': 0,
+                'estoque_minimo': 0,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertTrue(Produto.objects.filter(descricao='PRODUTO MINIMO').exists())
+
 
 class FechamentoTestCase(TestCase):
     def setUp(self):

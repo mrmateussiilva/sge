@@ -1,18 +1,21 @@
 {% extends 'estoque/base.html' %}
-{% block title %}S.G.E - Gestão de Produtos{% endblock %}
+{% block title %}S.G.E - Produtos{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
     <div>
         <h1 class="mb-1 fw-bold"><i class="bi bi-box me-2 text-primary"></i>Produtos</h1>
-        <p class="text-muted small mb-0">Gerencie insumos, estoques mínimos, preços e fornecedores.</p>
+        <p class="text-muted mb-0">Busque, acompanhe alertas e movimente o estoque sem sair da lista.</p>
     </div>
-    <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
-        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm flex-grow-1 flex-md-grow-0 fw-medium">
-            <i class="bi bi-plus-lg me-1"></i>Novo Produto
+    <div class="d-flex flex-wrap gap-2 w-100 w-lg-auto">
+        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm flex-fill flex-lg-grow-0">
+            <i class="bi bi-plus-lg me-1"></i>Novo produto
         </a>
-        <div class="dropdown flex-grow-1 flex-md-grow-0">
-            <button class="btn btn-outline-secondary dropdown-toggle w-100 shadow-sm fw-medium" type="button" data-bs-toggle="dropdown">
+        <button type="button" class="btn btn-outline-primary shadow-sm flex-fill flex-lg-grow-0" onclick="openGlobalMoveModal()">
+            <i class="bi bi-arrow-left-right me-1"></i>Movimentar
+        </button>
+        <div class="dropdown flex-fill flex-lg-grow-0">
+            <button class="btn btn-outline-secondary dropdown-toggle w-100 shadow-sm" type="button" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical me-1"></i>Mais
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -21,540 +24,169 @@
                         <i class="bi bi-upload me-2 text-primary"></i>Importar CSV
                     </button>
                 </li>
-                <li>
-                    <a href="{% url 'exportar_csv' %}" class="dropdown-item py-2">
-                        <i class="bi bi-download me-2 text-success"></i>Exportar CSV
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'exportar_atual_xlsx' %}" class="dropdown-item py-2">
-                        <i class="bi bi-file-earmark-excel me-2 text-success"></i>Exportar Excel (.xlsx)
-                    </a>
-                </li>
+                <li><a href="{% url 'exportar_csv' %}" class="dropdown-item py-2"><i class="bi bi-download me-2 text-success"></i>Exportar CSV</a></li>
+                <li><a href="{% url 'exportar_atual_xlsx' %}" class="dropdown-item py-2"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Exportar Excel</a></li>
             </ul>
         </div>
     </div>
 </div>
 
 <div id="app">
-    <!-- Barra de Filtros Avançados -->
-    <div class="card shadow-sm border-0 rounded-3 mb-4">
-        <div class="card-body p-3 bg-light rounded-3">
+    <div class="card shadow-sm border-0 rounded-3 mb-3">
+        <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-                <!-- Busca Textual -->
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar por descrição ou fornecedor..." v-model="searchQuery" id="inputBusca">
-                        <button class="btn btn-outline-secondary bg-white border-start-0" type="button" v-if="searchQuery" @click="searchQuery = ''">
+                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar produto ou fornecedor..." v-model="searchQuery" autofocus>
+                        <button class="btn btn-outline-secondary border-start-0" type="button" v-if="searchQuery" @click="searchQuery = ''">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
                 </div>
-
-                <!-- Filtro por Status do Estoque -->
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-funnel text-muted"></i></span>
-                        <select class="form-select" v-model="filtroEstoque">
-                            <option value="TODOS">Todos os Status</option>
-                            <option value="BAIXO">⚠️ Estoque Baixo</option>
-                            <option value="ZERADO">🚫 Estoque Zerado</option>
-                            <option value="OK">✅ Estoque OK</option>
-                        </select>
-                    </div>
+                <div class="col-6 col-lg-2">
+                    <select class="form-select" v-model="filtroEstoque">
+                        <option value="TODOS">Todos</option>
+                        <option value="BAIXO">Estoque baixo</option>
+                        <option value="ZERADO">Zerado</option>
+                        <option value="OK">Estoque OK</option>
+                    </select>
                 </div>
-
-                <!-- Filtro por Fornecedor -->
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-truck text-muted"></i></span>
-                        <select class="form-select" v-model="filtroFornecedor">
-                            <option value="TODOS">Todos Fornecedores</option>
-                            <option v-for="f in fornecedoresUnicos" :key="f" :value="f">[[ f ]]</option>
-                            <option value="SEM_FORNECEDOR">Sem Fornecedor</option>
-                        </select>
-                    </div>
+                <div class="col-6 col-lg-2">
+                    <select class="form-select" v-model="filtroTipo">
+                        <option value="TODOS">Todos tipos</option>
+                        <option v-for="tipo in tiposUnicos" :key="tipo.key" :value="tipo.key">[[ tipo.label ]]</option>
+                    </select>
                 </div>
-
-                <!-- Limpar Filtros / Contador -->
-                <div class="col-12 col-md-2 text-md-end">
-                    <button class="btn btn-outline-danger btn-sm w-100 shadow-sm" v-if="temFiltrosAtivos" @click="limparFiltros">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar Filtros
+                <div class="col-12 col-lg-3 text-lg-end">
+                    <button class="btn btn-outline-secondary w-100 w-lg-auto" type="button" @click="limparFiltros" v-if="temFiltrosAtivos">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar filtros
                     </button>
-                    <span class="text-muted small d-block" v-else>
-                        <i class="bi bi-box-seam me-1"></i>[[ totalFiltrado ]] / [[ produtos.length ]] itens
-                    </span>
+                    <span class="text-muted small" v-else>[[ produtosFiltrados.length ]] de [[ produtos.length ]] produtos</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Cards KPI de Resumo da Aba Ativa -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-primary border-4 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-boxes fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Total de Itens</small>
-                        <h5 class="mb-0 fw-bold fs-4">[[ resumoAbaAtiva.totalItens ]]</h5>
-                    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <small class="text-muted fw-semibold text-uppercase">Produtos</small>
+                    <h4 class="mb-0 fw-bold">[[ produtosFiltrados.length ]]</h4>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-success border-4 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-success bg-opacity-10 text-success p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-currency-dollar fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Valor Custo Total</small>
-                        <h5 class="mb-0 fw-bold fs-5 text-success">R$ [[ resumoAbaAtiva.valorCusto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) ]]</h5>
-                    </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <small class="text-muted fw-semibold text-uppercase">Baixo</small>
+                    <h4 class="mb-0 fw-bold text-warning">[[ resumo.baixos ]]</h4>
                 </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-warning border-4 shadow-sm h-100" :class="resumoAbaAtiva.baixos > 0 ? 'bg-warning bg-opacity-10' : ''">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-warning bg-opacity-10 text-warning p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-exclamation-triangle fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Estoque Baixo</small>
-                        <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.baixos > 0 ? 'text-warning' : ''">[[ resumoAbaAtiva.baixos ]]</h5>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-danger border-4 shadow-sm h-100" :class="resumoAbaAtiva.zerados > 0 ? 'bg-danger bg-opacity-10' : ''">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-danger bg-opacity-10 text-danger p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-slash-circle fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Estoque Zerado</small>
-                        <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.zerados > 0 ? 'text-danger fw-extrabold' : ''">[[ resumoAbaAtiva.zerados ]]</h5>
-                    </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <small class="text-muted fw-semibold text-uppercase">Zerado</small>
+                    <h4 class="mb-0 fw-bold text-danger">[[ resumo.zerados ]]</h4>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Abas por tipo de insumo -->
     <div class="card shadow-sm border-0 rounded-3">
-        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
-            <ul class="nav nav-tabs card-header-tabs" role="tablist">
-                <li class="nav-item" v-for="tab in tabs" :key="tab.key" role="presentation">
-                    <button
-                        class="nav-link px-3 py-2 d-flex align-items-center gap-2"
-                        :class="{ active: abaAtiva === tab.key }"
-                        @click="abaAtiva = tab.key"
-                        type="button"
-                    >
-                        <i :class="tab.icon"></i>
-                        [[ tab.label ]]
-                        <span class="badge rounded-pill ms-1"
-                            :class="abaAtiva === tab.key ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'"
-                            style="font-size: 0.75rem;"
-                        >[[ filtradosPorTipo(tab.key).length ]]</span>
-                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="badge bg-danger pulse-danger rounded-circle p-1" title="Contém insumos com alerta de estoque" style="width: 8px; height: 8px; margin-left: 2px;"></span>
-                    </button>
-                </li>
-            </ul>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Produto</th>
+                        <th>Tipo</th>
+                        <th>Fornecedor</th>
+                        <th>Estoque</th>
+                        <th>Mínimo</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="p in produtosFiltrados" :key="p.id">
+                        <td class="ps-4">
+                            <a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-semibold text-dark">[[ p.descricao ]]</a>
+                            <div class="small text-muted d-lg-none">[[ p.tipo_label ]] · [[ p.fornecedor || 'Sem fornecedor' ]]</div>
+                        </td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">[[ p.tipo_label ]]</span></td>
+                        <td><span class="text-muted">[[ p.fornecedor || 'Sem fornecedor' ]]</span></td>
+                        <td>
+                            <strong :class="{ 'text-danger': isEstoqueZerado(p), 'text-warning': isEstoqueBaixo(p) }">
+                                [[ formatQtd(p.quantidade) ]] [[ unidade(p) ]]
+                            </strong>
+                        </td>
+                        <td>[[ formatQtd(p.estoque_minimo) ]]</td>
+                        <td>
+                            <span class="badge bg-danger" v-if="isEstoqueZerado(p)">Zerado</span>
+                            <span class="badge bg-warning text-dark" v-else-if="isEstoqueBaixo(p)">Baixo</span>
+                            <span class="badge bg-success bg-opacity-10 text-success" v-else>OK</span>
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-success" @click="abrirMovimento(p, 'ENTRADA')">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i>Entrada
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" @click="abrirMovimento(p, 'SAIDA')">
+                                    <i class="bi bi-box-arrow-up me-1"></i>Saída
+                                </button>
+                                <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-if="produtosFiltrados.length === 0">
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum produto encontrado.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
+    </div>
 
-        <div class="card-body p-0">
-
-            <!-- TABELA PAPEL -->
-            <div v-show="abaAtiva === 'PAPEL'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light user-select-none">
-                        <tr>
-                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
-                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
-                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('metros_por_rolo')">
-                                Metros/Rolo <i class="bi" :class="getSortIconNum('metros_por_rolo')"></i>
-                            </th>
-                            <th>Rolos Est.</th>
-                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
-                                Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
-                            </th>
-                            <th class="pe-4 text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="p in filtradosPorTipo('PAPEL')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
-                            <td data-label="Rolos Est.">
-                                <span class="badge bg-primary bg-opacity-10 text-primary" v-if="p.metros_por_rolo > 0">
-                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
-                                </span>
-                                <span v-else class="text-muted">—</span>
-                            </td>
-                            <td data-label="Total Metros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
-                                    <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
-                                </div>
-                                <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
-                                        <div class="progress-bar" role="progressbar" 
-                                            :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
-                                            :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
-                                </div>
-                            </td>
-                            <td data-label="Preço Custo/Venda">
-                                <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
-                                        <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                            +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtradosPorTipo('PAPEL').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum papel encontrado com os filtros aplicados.</td>
-                        </tr>
-                    </tbody>
-                </table>
+    <div class="modal fade" id="movimentoProdutoModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form @submit.prevent="registrarMovimento">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">[[ movimento.tipo === 'ENTRADA' ? 'Entrada de estoque' : 'Saída de estoque' ]]</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body pt-0">
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-semibold">Produto</label>
+                            <div class="fw-semibold">[[ movimento.produto ? movimento.produto.descricao : '' ]]</div>
+                            <div class="small text-muted" v-if="movimento.produto">Estoque atual: [[ formatQtd(movimento.produto.quantidade) ]] [[ unidade(movimento.produto) ]]</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Quantidade</label>
+                            <input type="number" min="0.01" step="0.01" class="form-control form-control-lg" v-model="movimento.quantidade" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Observação</label>
+                            <input type="text" class="form-control" v-model="movimento.observacao" placeholder="Opcional">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" :disabled="movimento.salvando">
+                            [[ movimento.salvando ? 'Salvando...' : 'Registrar' ]]
+                        </button>
+                    </div>
+                </form>
             </div>
-
-            <!-- TABELA TECIDO -->
-            <div v-show="abaAtiva === 'TECIDO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light user-select-none">
-                        <tr>
-                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
-                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
-                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('metros_por_rolo')">
-                                Metros/Rolo <i class="bi" :class="getSortIconNum('metros_por_rolo')"></i>
-                            </th>
-                            <th>Rolos Est.</th>
-                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
-                                Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
-                            </th>
-                            <th class="pe-4 text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="p in filtradosPorTipo('TECIDO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
-                            <td data-label="Rolos Est.">
-                                <span class="badge bg-success bg-opacity-10 text-success" v-if="p.metros_por_rolo > 0">
-                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
-                                </span>
-                                <span v-else class="text-muted">—</span>
-                            </td>
-                            <td data-label="Total Metros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
-                                    <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
-                                </div>
-                                <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
-                                        <div class="progress-bar" role="progressbar" 
-                                            :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
-                                            :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
-                                </div>
-                            </td>
-                            <td data-label="Preço Custo/Venda">
-                                <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
-                                        <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                            +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtradosPorTipo('TECIDO').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum tecido encontrado com os filtros aplicados.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- TABELA TINTA -->
-            <div v-show="abaAtiva === 'TINTA'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light user-select-none">
-                        <tr>
-                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
-                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('tipo_tinta')">
-                                Tipo <i class="bi" :class="getSortIcon('tipo_tinta')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('cor_tinta')">
-                                Cor <i class="bi" :class="getSortIcon('cor_tinta')"></i>
-                            </th>
-                            <th>L/Vidro</th>
-                            <th>Vidros Est.</th>
-                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Litros <i class="bi" :class="getSortIconNum('quantidade')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
-                                Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
-                            </th>
-                            <th class="pe-4 text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="p in filtradosPorTipo('TINTA')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td data-label="Tipo">
-                                <span class="badge" :class="p.tipo_tinta === 'SUBLIMACAO' ? 'bg-info bg-opacity-25 text-info' : 'bg-warning bg-opacity-25 text-warning'">
-                                    [[ p.tipo_tinta === 'SUBLIMACAO' ? 'Sublimação' : p.tipo_tinta === 'SOLVENTE' ? 'Solvente' : p.tipo_tinta ]]
-                                </span>
-                            </td>
-                            <td data-label="Cor">
-                                <span class="d-flex align-items-center gap-2">
-                                    <span class="rounded-circle d-inline-block border" style="width:13px;height:13px;" :style="corStyle(p.cor_tinta)"></span>
-                                    [[ p.cor_tinta ]]
-                                </span>
-                            </td>
-                            <td class="text-muted" data-label="L/Vidro">[[ p.litros_por_vidro ? p.litros_por_vidro + ' L' : '—' ]]</td>
-                            <td data-label="Vidros Est.">
-                                <span class="badge bg-info bg-opacity-10 text-info" v-if="p.litros_por_vidro > 0">
-                                    [[ Math.floor(p.quantidade / p.litros_por_vidro) ]] vidros
-                                </span>
-                                <span v-else class="text-muted">—</span>
-                            </td>
-                            <td data-label="Total Litros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
-                                    <input type="number" step="0.1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
-                                </div>
-                                <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] [[ getUnidadeSymbol(p) ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
-                                        <div class="progress-bar" role="progressbar" 
-                                            :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
-                                            :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
-                                </div>
-                            </td>
-                            <td data-label="Preço Custo/Venda">
-                                <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
-                                        <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                            +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtradosPorTipo('TINTA').length === 0">
-                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhuma tinta encontrada com os filtros aplicados.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- TABELA AVIAMENTO -->
-            <div v-show="abaAtiva === 'AVIAMENTO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light user-select-none">
-                        <tr>
-                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
-                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
-                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Quantidade <i class="bi" :class="getSortIconNum('quantidade')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
-                                Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
-                            </th>
-                            <th class="pe-4 text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="p in filtradosPorTipo('AVIAMENTO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td data-label="Quantidade" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
-                                    <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
-                                </div>
-                                <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
-                                        <div class="progress-bar" role="progressbar" 
-                                            :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
-                                            :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
-                                </div>
-                            </td>
-                            <td data-label="Preço Custo/Venda">
-                                <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
-                                        <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                            +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtradosPorTipo('AVIAMENTO').length === 0">
-                            <td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum aviamento encontrado com os filtros aplicados.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- TABELA OUTRO -->
-            <div v-show="abaAtiva === 'OUTRO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light user-select-none">
-                        <tr>
-                            <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
-                                Descrição <i class="bi" :class="getSortIcon('descricao')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('fornecedor')">
-                                Fornecedor <i class="bi" :class="getSortIcon('fornecedor')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Quantidade <i class="bi" :class="getSortIconNum('quantidade')"></i>
-                            </th>
-                            <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
-                                Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
-                            </th>
-                            <th class="pe-4 text-end">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="p in filtradosPorTipo('OUTRO')" :key="p.id" :class="{ 'estoque-zerado': isEstoqueZerado(p), 'estoque-baixo': isEstoqueBaixo(p) }">
-                            <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
-                            <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
-                            <td data-label="Quantidade" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
-                                    <input type="number" step="0.01" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
-                                </div>
-                                <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
-                                        <div class="progress-bar" role="progressbar" 
-                                            :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
-                                            :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
-                                        </div>
-                                    </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
-                                </div>
-                            </td>
-                            <td data-label="Preço Custo/Venda">
-                                <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
-                                        <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
-                                            +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="filtradosPorTipo('OUTRO').length === 0">
-                            <td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum item encontrado com os filtros aplicados.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
         </div>
     </div>
 </div>
 
-<!-- Modal Importar CSV -->
 <div class="modal fade" id="importarModal" tabindex="-1" aria-labelledby="importarModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -566,17 +198,17 @@
         <p class="small text-muted mb-3">Envie um arquivo CSV seguindo o modelo padrão para adicionar múltiplos produtos ao mesmo tempo.</p>
         <div class="mb-4">
           <a href="{% url 'template_csv_produtos' %}" class="btn btn-sm btn-light border shadow-sm">
-            <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i>Baixar Modelo em Branco
+            <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i>Baixar modelo
           </a>
         </div>
         <form id="formImportarCSV" enctype="multipart/form-data">
           <div class="mb-3">
-            <label for="arquivoCSV" class="form-label fw-medium">Selecione o Arquivo (.csv)</label>
+            <label for="arquivoCSV" class="form-label fw-medium">Arquivo .csv</label>
             <input class="form-control" type="file" id="arquivoCSV" name="arquivo" accept=".csv" required>
           </div>
           <div class="d-grid mt-4">
             <button type="submit" class="btn btn-primary shadow-sm" id="btnImportar">
-                <i class="bi bi-upload me-1"></i>Iniciar Importação
+                <i class="bi bi-upload me-1"></i>Importar
             </button>
           </div>
         </form>
@@ -592,58 +224,45 @@
     const { createApp } = Vue;
     const csrfToken = '{{ csrf_token }}';
 
-    const COR_COLORS = {
-        'BLACK': '#111111', 'YELLOW': '#f5c400', 'MAGENTA': '#e0115f',
-        'CYAN': '#00b4d8', 'LIGHT_CYAN': '#90e0ef', 'LIGHT_MAGENTA': '#f4a7c3',
-        'BRANCO': '#f8f9fa', 'INCOLOR': '#dee2e6',
-    };
-
     createApp({
         compilerOptions: { delimiters: ['[[', ']]'] },
         data() {
             return {
                 produtos: {{ produtos_json|safe }},
                 searchQuery: '',
-                filtroEstoque: 'TODOS',
-                filtroFornecedor: 'TODOS',
-                ordemColuna: 'descricao',
-                ordemDirecao: 'asc',
-                abaAtiva: 'PAPEL',
-                editingId: null,
-                editingValue: '',
-                tabs: [
-                    { key: 'PAPEL',     label: 'Papel',      icon: 'bi bi-file-earmark-text' },
-                    { key: 'TECIDO',    label: 'Tecido',     icon: 'bi bi-grid-3x3-gap' },
-                    { key: 'TINTA',     label: 'Tinta',      icon: 'bi bi-droplet-half' },
-                    { key: 'AVIAMENTO', label: 'Aviamentos', icon: 'bi bi-tools' },
-                    { key: 'OUTRO',     label: 'Outros',     icon: 'bi bi-three-dots' },
-                ],
+                filtroEstoque: new URLSearchParams(window.location.search).get('filtro') === 'baixo' ? 'BAIXO' : new URLSearchParams(window.location.search).get('filtro') === 'zerado' ? 'ZERADO' : 'TODOS',
+                filtroTipo: 'TODOS',
+                movimento: {
+                    produto: null,
+                    tipo: 'ENTRADA',
+                    quantidade: '',
+                    observacao: '',
+                    salvando: false,
+                },
+                movimentoModal: null,
             };
         },
+        mounted() {
+            this.movimentoModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('movimentoProdutoModal'));
+        },
         computed: {
-            fornecedoresUnicos() {
-                const set = new Set();
-                this.produtos.forEach(p => {
-                    if (p.fornecedor) set.add(p.fornecedor);
-                });
-                return Array.from(set).sort();
+            tiposUnicos() {
+                const tipos = new Map();
+                this.produtos.forEach(p => tipos.set(p.tipo_produto, p.tipo_label));
+                return Array.from(tipos, ([key, label]) => ({ key, label })).sort((a, b) => a.label.localeCompare(b.label));
             },
             temFiltrosAtivos() {
-                return this.searchQuery !== '' || this.filtroEstoque !== 'TODOS' || this.filtroFornecedor !== 'TODOS';
+                return this.searchQuery || this.filtroEstoque !== 'TODOS' || this.filtroTipo !== 'TODOS';
             },
             produtosFiltrados() {
                 let lista = this.produtos;
-
-                // 1. Busca textual (Descrição ou Fornecedor)
                 const q = this.searchQuery.toLowerCase().trim();
                 if (q) {
-                    lista = lista.filter(p => 
-                        p.descricao.toLowerCase().includes(q) || 
-                        (p.fornecedor && p.fornecedor.toLowerCase().includes(q))
-                    );
+                    lista = lista.filter(p => p.descricao.toLowerCase().includes(q) || (p.fornecedor || '').toLowerCase().includes(q));
                 }
-
-                // 2. Filtro por Estoque
+                if (this.filtroTipo !== 'TODOS') {
+                    lista = lista.filter(p => p.tipo_produto === this.filtroTipo);
+                }
                 if (this.filtroEstoque === 'ZERADO') {
                     lista = lista.filter(p => this.isEstoqueZerado(p));
                 } else if (this.filtroEstoque === 'BAIXO') {
@@ -651,55 +270,20 @@
                 } else if (this.filtroEstoque === 'OK') {
                     lista = lista.filter(p => !this.isEstoqueZerado(p) && !this.isEstoqueBaixo(p));
                 }
-
-                // 3. Filtro por Fornecedor
-                if (this.filtroFornecedor !== 'TODOS') {
-                    if (this.filtroFornecedor === 'SEM_FORNECEDOR') {
-                        lista = lista.filter(p => !p.fornecedor);
-                    } else {
-                        lista = lista.filter(p => p.fornecedor === this.filtroFornecedor);
-                    }
-                }
-
-                // 4. Ordenação por Coluna
-                const campo = this.ordemColuna;
-                const dir = this.ordemDirecao === 'asc' ? 1 : -1;
-
-                lista = [...lista].sort((a, b) => {
-                    let valA = a[campo];
-                    let valB = b[campo];
-
-                    if (valA === null || valA === undefined) valA = '';
-                    if (valB === null || valB === undefined) valB = '';
-
-                    if (typeof valA === 'string') {
-                        return valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base' }) * dir;
-                    }
-                    return (valA - valB) * dir;
-                });
-
-                return lista;
+                return [...lista].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
             },
-            totalFiltrado() { 
-                return this.produtosFiltrados.length; 
-            },
-            resumoAbaAtiva() {
-                const itens = this.produtosFiltrados.filter(p => p.tipo_produto === this.abaAtiva);
-                const valorCusto = itens.reduce((acc, p) => acc + (p.quantidade * p.preco_custo), 0);
-                const baixos = itens.filter(p => this.isEstoqueBaixo(p)).length;
-                const zerados = itens.filter(p => this.isEstoqueZerado(p)).length;
-
+            resumo() {
                 return {
-                    totalItens: itens.length,
-                    valorCusto: valorCusto,
-                    baixos: baixos,
-                    zerados: zerados,
+                    baixos: this.produtosFiltrados.filter(p => this.isEstoqueBaixo(p)).length,
+                    zerados: this.produtosFiltrados.filter(p => this.isEstoqueZerado(p)).length,
                 };
-            }
+            },
         },
         methods: {
-            filtradosPorTipo(tipo) {
-                return this.produtosFiltrados.filter(p => p.tipo_produto === tipo);
+            limparFiltros() {
+                this.searchQuery = '';
+                this.filtroEstoque = 'TODOS';
+                this.filtroTipo = 'TODOS';
             },
             isEstoqueZerado(p) {
                 return p.quantidade <= 0;
@@ -707,100 +291,44 @@
             isEstoqueBaixo(p) {
                 return p.quantidade > 0 && p.estoque_minimo > 0 && p.quantidade <= p.estoque_minimo;
             },
-            temEstoqueCriticoNaAba(tipo) {
-                return this.produtos.some(p => p.tipo_produto === tipo && (this.isEstoqueZerado(p) || this.isEstoqueBaixo(p)));
+            unidade(p) {
+                return { UN: 'un', M: 'm', KG: 'kg', L: 'L', RL: 'rl', CX: 'cx', PC: 'pc', G: 'g', ML: 'ml' }[p.unidade_medida] || '';
             },
-            limparFiltros() {
-                this.searchQuery = '';
-                this.filtroEstoque = 'TODOS';
-                this.filtroFornecedor = 'TODOS';
+            formatQtd(v) {
+                return Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
             },
-            ordenarPor(campo) {
-                if (this.ordemColuna === campo) {
-                    this.ordemDirecao = this.ordemDirecao === 'asc' ? 'desc' : 'asc';
-                } else {
-                    this.ordemColuna = campo;
-                    this.ordemDirecao = 'asc';
-                }
+            abrirMovimento(produto, tipo) {
+                this.movimento = { produto, tipo, quantidade: '', observacao: '', salvando: false };
+                this.movimentoModal.show();
             },
-            getSortIcon(campo) {
-                if (this.ordemColuna !== campo) return 'bi-arrow-down-up opacity-25 ms-1';
-                return this.ordemDirecao === 'asc' ? 'bi-sort-alpha-down text-primary ms-1' : 'bi-sort-alpha-down-alt text-primary ms-1';
-            },
-            getSortIconNum(campo) {
-                if (this.ordemColuna !== campo) return 'bi-arrow-down-up opacity-25 ms-1';
-                return this.ordemDirecao === 'asc' ? 'bi-sort-numeric-down text-primary ms-1' : 'bi-sort-numeric-down-alt text-primary ms-1';
-            },
-            getUnidadeSymbol(p) {
-                const map = {
-                    'UN': 'un', 'M': 'm', 'KG': 'kg', 'L': 'L',
-                    'RL': 'rl', 'CX': 'cx', 'PC': 'pc', 'G': 'g',
-                    'ML': 'ml', 'OUTRO': ''
-                };
-                if (p.unidade_medida && map[p.unidade_medida] !== undefined) {
-                    return map[p.unidade_medida];
-                }
-                if (p.tipo_produto === 'TINTA') return 'L';
-                if (p.tipo_produto === 'TECIDO' || p.tipo_produto === 'PAPEL') return 'm';
-                return 'un';
-            },
-            corStyle(cor) {
-                const c = COR_COLORS[cor] || '#dee2e6';
-                return { backgroundColor: c, borderColor: c === '#f8f9fa' ? '#ced4da' : c };
-            },
-            alterar(produto, variacao) {
-                const nova = produto.quantidade + variacao;
-                if (nova < 0) return;
-                produto.quantidade = nova;
-                fetch('/atualiza-estoque/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ id: produto.id, variacao: variacao }),
-                }).then(() => showToast('Estoque atualizado!'));
-            },
-            startEdit(p) {
-                this.editingId = p.id;
-                this.editingValue = p.quantidade;
-                this.$nextTick(() => {
-                    const input = this.$refs['input-edit-' + p.id];
-                    if (input && input[0]) {
-                        input[0].focus();
-                        input[0].select();
+            async registrarMovimento() {
+                if (!this.movimento.produto) return;
+                this.movimento.salvando = true;
+                try {
+                    const resp = await fetch('/movimentacao/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({
+                            produto_id: this.movimento.produto.id,
+                            tipo: this.movimento.tipo,
+                            quantidade: this.movimento.quantidade,
+                            observacao: this.movimento.observacao,
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.ok) {
+                        showToast(data.erro || 'Erro ao registrar movimentação.', 'danger');
+                        return;
                     }
-                });
-            },
-            saveEdit(p) {
-                const nv = parseFloat(this.editingValue);
-                if (isNaN(nv) || nv < 0) {
-                    this.cancelEdit();
-                    return;
+                    const qtd = Number(this.movimento.quantidade);
+                    this.movimento.produto.quantidade += this.movimento.tipo === 'ENTRADA' ? qtd : -qtd;
+                    showToast('Movimentação registrada.');
+                    this.movimentoModal.hide();
+                } catch {
+                    showToast('Erro de conexão.', 'danger');
+                } finally {
+                    this.movimento.salvando = false;
                 }
-                const diff = nv - p.quantidade;
-                if (diff === 0) {
-                    this.cancelEdit();
-                    return;
-                }
-                p.quantidade = nv;
-                this.editingId = null;
-                
-                fetch('/atualiza-estoque/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ id: p.id, variacao: diff }),
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.ok) {
-                        showToast('Estoque atualizado!');
-                    } else {
-                        showToast('Erro ao atualizar estoque.', 'danger');
-                    }
-                })
-                .catch(() => showToast('Erro de conexão.', 'danger'));
-            },
-            cancelEdit() {
-                this.editingId = null;
-                this.editingValue = '';
             },
         },
     }).mount('#app');
@@ -818,21 +346,22 @@
             formData.append('arquivo', fileInput.files[0]);
             try {
                 const response = await fetch('{% url "importar_csv_produtos" %}', {
-                    method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: formData
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: formData,
                 });
                 const data = await response.json();
                 if (data.ok) {
-                    showToast(data.mensagem);
-                    setTimeout(() => window.location.reload(), 1500);
+                    showToast(data.mensagem || 'Produtos importados.');
+                    setTimeout(() => window.location.reload(), 900);
                 } else {
-                    showToast(data.erro, 'danger');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
+                    showToast(data.erro || 'Erro ao importar.', 'danger');
                 }
-            } catch (err) {
-                showToast('Erro de conexão.', 'danger');
+            } catch {
+                showToast('Erro ao enviar arquivo.', 'danger');
+            } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-upload me-1"></i>Iniciar Importação';
+                btn.innerHTML = '<i class="bi bi-upload me-1"></i>Importar';
             }
         });
     }
