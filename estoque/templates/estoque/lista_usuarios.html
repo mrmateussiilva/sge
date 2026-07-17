@@ -46,8 +46,8 @@
             <tbody>
                 {% for u in usuarios %}
                 <tr>
-                    <td class="ps-4">{{ u.username }}</td>
-                    <td>
+                    <td class="ps-4" data-label="Usuário">{{ u.username }}</td>
+                    <td data-label="Grupo">
                         {% if u.groups.all %}
                             {% for g in u.groups.all %}
                             <span class="badge bg-primary">{{ g.name }}</span>
@@ -56,10 +56,10 @@
                         <span class="badge bg-secondary">Sem grupo</span>
                         {% endif %}
                     </td>
-                    <td>{% if u.is_superuser %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-muted"></i>{% endif %}</td>
-                    <td class="pe-4">
-                        <form class="form-alterar-grupo" style="display:inline-flex;gap:4px;">
-                            <select name="grupo_id" class="form-select form-select-sm" style="width:auto;">
+                    <td data-label="Admin">{% if u.is_superuser %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-muted"></i>{% endif %}</td>
+                    <td class="pe-4" data-label="Ações">
+                        <form class="form-alterar-grupo d-flex gap-1 w-100">
+                            <select name="grupo_id" class="form-select form-select-sm">
                                 <option value="">Sem grupo</option>
                                 {% for g in grupos %}
                                 <option value="{{ g.id }}" {% if g in u.groups.all %}selected{% endif %}>{{ g.name }}</option>

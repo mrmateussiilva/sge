@@ -3,7 +3,7 @@
 /* global typography and defaults */
 body {
     font-family: 'Outfit', sans-serif;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
     background-color: #f8fafc;
     color: #1e293b;
     overflow-x: hidden;
@@ -260,6 +260,61 @@ body {
     animation: pulse 2s infinite;
 }
 
+.min-width-0,
+.min-w-0 {
+    min-width: 0;
+}
+
+.page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.page-actions .btn,
+.page-actions .dropdown {
+    flex: 0 1 auto;
+}
+
+.mobile-scroll-tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+}
+
+.mobile-scroll-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-scroll-tabs .nav-item,
+.mobile-scroll-tabs .nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.markup-input {
+    width: 110px;
+}
+
+@media (min-width: 576px) {
+    .w-sm-auto {
+        width: auto !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .w-md-auto {
+        width: auto !important;
+    }
+}
+
+@media (min-width: 992px) {
+    .w-lg-auto {
+        width: auto !important;
+    }
+}
+
 /* Row states for products table */
 .estoque-zerado {
     background-color: rgba(148, 163, 184, 0.06) !important;
@@ -333,17 +388,124 @@ body {
 }
 
 /* Responsive Tables (Mobile Cards) */
-@media (max-width: 767.98px) {
+@media screen and (max-width: 767.98px) {
+    h1,
+    .h1 {
+        font-size: 1.55rem;
+        line-height: 1.2;
+    }
+
+    h4,
+    .h4 {
+        font-size: 1.15rem;
+    }
+
+    h5,
+    .h5 {
+        font-size: 1rem;
+    }
+
+    .card {
+        border-radius: 10px !important;
+    }
+
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    .card-body.p-0 {
+        padding: 0 !important;
+    }
+
+    .card-header {
+        padding: 0.9rem 1rem !important;
+    }
+
+    .modal-dialog {
+        margin: 0.75rem;
+    }
+
+    .modal-content {
+        max-height: calc(100dvh - 1.5rem);
+    }
+
+    .modal-body {
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .modal-footer > * {
+        margin: 0 !important;
+        width: 100%;
+    }
+
+    .btn {
+        min-height: 2.5rem;
+    }
+
+    .btn-sm {
+        min-height: 2.25rem;
+    }
+
+    .page-actions,
+    .page-actions .dropdown,
+    .page-actions .btn {
+        width: 100%;
+    }
+
+    .page-actions .btn,
+    .page-actions .dropdown-toggle {
+        justify-content: center;
+    }
+
+    .input-group,
+    .form-control,
+    .form-select {
+        min-width: 0;
+    }
+
+    .markup-input {
+        width: 100%;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 2.75rem;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        min-height: 2.35rem;
+    }
+
+    .list-group-item {
+        min-width: 0;
+    }
+
+    .display-6 {
+        font-size: 1.75rem;
+    }
+
     /* Esconde thead nativo e garante que a tabela vire um bloco */
     .table-responsive {
         border: none !important;
+        overflow: visible;
     }
     
     .table thead {
         display: none;
     }
     
-    .table, .table tbody, .table tr, .table td {
+    .table,
+    .table tbody,
+    .table tfoot,
+    .table tr,
+    .table td {
         display: block;
         width: 100%;
     }
@@ -355,6 +517,11 @@ body {
         border-radius: 12px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         padding: 0.5rem;
+    }
+
+    .table tfoot tr {
+        background: rgba(99, 102, 241, 0.08);
+        border-color: rgba(99, 102, 241, 0.16) !important;
     }
     
     [data-bs-theme="dark"] .table tr {
@@ -370,6 +537,9 @@ body {
         text-align: right;
         padding: 0.75rem !important;
         border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+        gap: 1rem;
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
     
     [data-bs-theme="dark"] .table td {
@@ -381,15 +551,30 @@ body {
         justify-content: center;
         padding-top: 1rem !important;
     }
+
+    .table td[colspan] {
+        display: block;
+        text-align: center;
+    }
+
+    .table td[colspan]::before {
+        display: none;
+    }
     
     .table td::before {
         content: attr(data-label);
+        flex: 0 0 auto;
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.75rem;
         color: #64748b;
         margin-right: auto;
         text-align: left;
+    }
+
+    .table td:not([data-label])::before,
+    .table td[data-label=""]::before {
+        display: none;
     }
     
     [data-bs-theme="dark"] .table td::before {
@@ -404,6 +589,36 @@ body {
     .table td .btn-group .btn {
         flex: 1;
         padding: 0.5rem;
+    }
+
+    .table td .d-flex {
+        min-width: 0;
+    }
+
+    .table td input,
+    .table td select {
+        max-width: none !important;
+        width: 100%;
+    }
+
+    .table td .btn:not(.dropdown-toggle) {
+        white-space: nowrap;
+    }
+
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-tabs .nav-link {
+        white-space: nowrap;
+        padding: 0.7rem 0.9rem;
     }
 
     /* Bottom Navigation Padding */

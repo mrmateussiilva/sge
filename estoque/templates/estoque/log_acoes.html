@@ -19,11 +19,11 @@
             <tbody>
                 {% for log in logs %}
                 <tr>
-                    <td class="ps-4 text-muted small">{{ log.data|date:"d/m/Y H:i" }}</td>
-                    <td>{{ log.usuario|default:'-' }}</td>
-                    <td><span class="badge bg-secondary">{{ log.get_acao_display }}</span></td>
-                    <td><span class="badge bg-info bg-opacity-10 text-info">{{ log.modelo|default:'-' }}</span></td>
-                    <td class="pe-4">{{ log.descricao }}</td>
+                    <td class="ps-4 text-muted small" data-label="Data">{{ log.data|date:"d/m/Y H:i" }}</td>
+                    <td data-label="Usuário">{{ log.usuario|default:'-' }}</td>
+                    <td data-label="Ação"><span class="badge bg-secondary">{{ log.get_acao_display }}</span></td>
+                    <td data-label="Modelo"><span class="badge bg-info bg-opacity-10 text-info">{{ log.modelo|default:'-' }}</span></td>
+                    <td class="pe-4" data-label="Descrição">{{ log.descricao }}</td>
                 </tr>
                 {% empty %}
                 <tr>

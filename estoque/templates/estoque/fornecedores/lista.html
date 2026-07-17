@@ -2,14 +2,14 @@
 {% block title %}S.G.E - Fornecedores{% endblock %}
 
 {% block content %}
+<div id="app">
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
     <h1 class="mb-0 fw-bold"><i class="bi bi-truck me-2"></i>Fornecedores</h1>
-    <button class="btn btn-primary shadow-sm" @click="abrirModal()" id="btnNovoFornecedor">
+    <button class="btn btn-primary shadow-sm w-100 w-sm-auto" @click="abrirModal()" id="btnNovoFornecedor">
         <i class="bi bi-plus-lg me-1"></i>Novo Fornecedor
     </button>
 </div>
 
-<div id="app">
     <!-- Busca -->
     <div class="row g-2 mb-3">
         <div class="col-12 col-md-5">
@@ -37,14 +37,14 @@
                 </thead>
                 <tbody>
                     <tr v-for="f in filtrados" :key="f.id">
-                        <td class="ps-4 fw-medium">[[ f.nome ]]</td>
-                        <td class="text-muted small">[[ f.cnpj || '—' ]]</td>
-                        <td class="text-muted small">[[ f.email || '—' ]]</td>
-                        <td class="text-muted small">[[ f.telefone || '—' ]]</td>
-                        <td>
+                        <td class="ps-4 fw-medium" data-label="Nome">[[ f.nome ]]</td>
+                        <td class="text-muted small" data-label="CNPJ">[[ f.cnpj || '—' ]]</td>
+                        <td class="text-muted small" data-label="E-mail">[[ f.email || '—' ]]</td>
+                        <td class="text-muted small" data-label="Telefone">[[ f.telefone || '—' ]]</td>
+                        <td data-label="Produtos">
                             <span class="badge bg-primary bg-opacity-10 text-primary">[[ f.total_produtos ]] produto(s)</span>
                         </td>
-                        <td class="pe-4">
+                        <td class="pe-4" data-label="Ações">
                             <div class="d-flex gap-1">
                                 <button class="btn btn-warning btn-sm shadow-sm" @click="abrirModal(f)" title="Editar">
                                     <i class="bi bi-pencil"></i>

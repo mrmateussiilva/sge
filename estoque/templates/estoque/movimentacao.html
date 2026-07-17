@@ -7,7 +7,7 @@
         <h1 class="mb-1 fw-bold"><i class="bi bi-arrow-left-right me-2"></i>Movimentar estoque</h1>
         <p class="text-muted mb-0">Registre entradas e saídas e acompanhe o histórico recente.</p>
     </div>
-    <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary shadow-sm">
+    <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary shadow-sm w-100 w-lg-auto">
         <i class="bi bi-box-seam me-1"></i>Ver produtos
     </a>
 </div>
@@ -78,17 +78,17 @@
                         <tbody>
                             {% for m in movimentacoes %}
                             <tr>
-                                <td class="ps-4"><a href="{% url 'detalhe_produto' m.produto.id %}" class="text-decoration-none fw-medium text-dark">{{ m.produto.descricao }}</a></td>
-                                <td>
+                                <td class="ps-4" data-label="Produto"><a href="{% url 'detalhe_produto' m.produto.id %}" class="text-decoration-none fw-medium text-dark">{{ m.produto.descricao }}</a></td>
+                                <td data-label="Tipo">
                                     {% if m.tipo == 'ENTRADA' %}
                                     <span class="badge bg-success bg-opacity-10 text-success">Entrada</span>
                                     {% else %}
                                     <span class="badge bg-danger bg-opacity-10 text-danger">Saída</span>
                                     {% endif %}
                                 </td>
-                                <td class="fw-semibold">{{ m.quantidade }}</td>
-                                <td class="text-muted small">{{ m.usuario.username|default:"Sistema" }}</td>
-                                <td class="text-muted small pe-4">{{ m.data|date:"d/m/Y H:i" }}</td>
+                                <td class="fw-semibold" data-label="Qtd">{{ m.quantidade }}</td>
+                                <td class="text-muted small" data-label="Usuário">{{ m.usuario.username|default:"Sistema" }}</td>
+                                <td class="text-muted small pe-4" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
                             </tr>
                             {% empty %}
                             <tr><td colspan="5" class="text-center text-muted py-5">Nenhuma movimentação registrada.</td></tr>

@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h1 class="mb-0 fw-bold"><i class="bi bi-cart me-2"></i>Ordem #{{ ordem.id }}</h1>
-    <div class="d-flex gap-2">
+    <div class="page-actions">
         {% if ordem.status == 'PENDENTE' %}
         <button onclick="confirmarAcao('Aprovar Ordem', 'Aprovar esta ordem de compra?', function() { alterarStatus('{% url "aprovar_ordem" ordem.id %}', 'aprovada'); })" class="btn btn-primary shadow-sm">
             <i class="bi bi-check-lg me-1"></i>Aprovar
@@ -80,10 +80,10 @@
             <tbody>
                 {% for item in itens %}
                 <tr>
-                    <td class="ps-4">{{ item.produto.descricao }}</td>
-                    <td>{{ item.quantidade }}</td>
-                    <td>R$ {{ item.preco_unitario }}</td>
-                    <td class="pe-4 fw-medium">R$ {{ item.quantidade|floatformat:2 }}</td>
+                    <td class="ps-4" data-label="Produto">{{ item.produto.descricao }}</td>
+                    <td data-label="Quantidade">{{ item.quantidade }}</td>
+                    <td data-label="Preço Unitário">R$ {{ item.preco_unitario }}</td>
+                    <td class="pe-4 fw-medium" data-label="Subtotal">R$ {{ item.quantidade|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -96,7 +96,7 @@
             <tfoot>
                 <tr class="table-light fw-bold">
                     <td colspan="3" class="text-end pe-3">Total:</td>
-                    <td class="pe-4">R$ {{ itens_total }}</td>
+                    <td class="pe-4" data-label="Total">R$ {{ itens_total }}</td>
                 </tr>
             </tfoot>
         </table>

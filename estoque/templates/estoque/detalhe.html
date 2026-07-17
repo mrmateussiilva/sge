@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h1 class="mb-0 fw-bold"><i class="bi bi-info-circle me-2"></i>Detalhes do Produto</h1>
-    <div class="d-flex gap-2">
+    <div class="page-actions">
         <a href="{% url 'editar_produto' produto.id %}" class="btn btn-warning shadow-sm">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
@@ -155,17 +155,17 @@
             <tbody>
                 {% for m in movimentacoes %}
                 <tr>
-                    <td class="ps-4 text-muted small">{{ m.data|date:"d/m/Y H:i" }}</td>
-                    <td>
+                    <td class="ps-4 text-muted small" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
+                    <td data-label="Tipo">
                         {% if m.tipo == 'ENTRADA' %}
                         <span class="badge bg-success"><i class="bi bi-arrow-up me-1"></i>Entrada</span>
                         {% else %}
                         <span class="badge bg-danger"><i class="bi bi-arrow-down me-1"></i>Saída</span>
                         {% endif %}
                     </td>
-                    <td>{{ m.quantidade }}</td>
-                    <td class="text-muted">{{ m.observacao|default:'-' }}</td>
-                    <td class="pe-4">
+                    <td data-label="Quantidade">{{ m.quantidade }}</td>
+                    <td class="text-muted" data-label="Observação">{{ m.observacao|default:'-' }}</td>
+                    <td class="pe-4" data-label="Ação">
                         <button onclick="excluirMovimentacao({{ m.id }})" class="btn btn-outline-danger btn-sm" title="Excluir">
                             <i class="bi bi-x-lg"></i>
                         </button>
@@ -203,12 +203,12 @@
             <tbody>
                 {% for h in historico_precos %}
                 <tr>
-                    <td class="ps-4 text-muted small">{{ h.data|date:"d/m/Y H:i" }}</td>
-                    <td>{% if h.preco_custo_antigo is not None %}R$ {{ h.preco_custo_antigo }}{% else %}-{% endif %}</td>
-                    <td>{% if h.preco_custo_novo is not None %}R$ {{ h.preco_custo_novo }}{% else %}-{% endif %}</td>
-                    <td>{% if h.preco_venda_antigo is not None %}R$ {{ h.preco_venda_antigo }}{% else %}-{% endif %}</td>
-                    <td>{% if h.preco_venda_novo is not None %}R$ {{ h.preco_venda_novo }}{% else %}-{% endif %}</td>
-                    <td class="pe-4">{{ h.usuario|default:'-' }}</td>
+                    <td class="ps-4 text-muted small" data-label="Data">{{ h.data|date:"d/m/Y H:i" }}</td>
+                    <td data-label="Custo antigo">{% if h.preco_custo_antigo is not None %}R$ {{ h.preco_custo_antigo }}{% else %}-{% endif %}</td>
+                    <td data-label="Custo novo">{% if h.preco_custo_novo is not None %}R$ {{ h.preco_custo_novo }}{% else %}-{% endif %}</td>
+                    <td data-label="Venda antiga">{% if h.preco_venda_antigo is not None %}R$ {{ h.preco_venda_antigo }}{% else %}-{% endif %}</td>
+                    <td data-label="Venda nova">{% if h.preco_venda_novo is not None %}R$ {{ h.preco_venda_novo }}{% else %}-{% endif %}</td>
+                    <td class="pe-4" data-label="Usuário">{{ h.usuario|default:'-' }}</td>
                 </tr>
                 {% empty %}
                 <tr>
