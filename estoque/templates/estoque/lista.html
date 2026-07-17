@@ -235,10 +235,10 @@
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1m" :aria-label="'Adicionar 1 metro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1m" :aria-label="'Remover 1 metro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -313,10 +313,10 @@
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1m"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1m"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1m" :aria-label="'Adicionar 1 metro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1m" :aria-label="'Remover 1 metro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -402,10 +402,10 @@
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1L"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1L"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1L" :aria-label="'Adicionar 1 litro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1L" :aria-label="'Remover 1 litro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -469,10 +469,10 @@
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1" :aria-label="'Adicionar 1 unidade em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1" :aria-label="'Remover 1 unidade de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -536,10 +536,10 @@
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm shadow-sm">
-                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" title="Adicionar 1"><i class="bi bi-plus-lg"></i></button>
-                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" title="Remover 1"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes"><i class="bi bi-eye"></i></a>
+                                    <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1" :aria-label="'Adicionar 1 unidade em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
+                                    <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1" :aria-label="'Remover 1 unidade de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
+                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
+                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -591,6 +591,17 @@
 (function() {
     const { createApp } = Vue;
     const csrfToken = '{{ csrf_token }}';
+    const urlParams = new URLSearchParams(window.location.search);
+    const filtroUrlMap = {
+        baixo: 'BAIXO',
+        zerado: 'ZERADO',
+        ok: 'OK',
+        todos: 'TODOS',
+    };
+    const filtroInicial = filtroUrlMap[(urlParams.get('filtro') || '').toLowerCase()] || 'TODOS';
+    const buscaInicial = urlParams.get('busca') || urlParams.get('q') || '';
+    const abasValidas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO'];
+    const abaInicial = (urlParams.get('aba') || 'PAPEL').toUpperCase();
 
     const COR_COLORS = {
         'BLACK': '#111111', 'YELLOW': '#f5c400', 'MAGENTA': '#e0115f',
@@ -603,12 +614,12 @@
         data() {
             return {
                 produtos: {{ produtos_json|safe }},
-                searchQuery: '',
-                filtroEstoque: 'TODOS',
+                searchQuery: buscaInicial,
+                filtroEstoque: filtroInicial,
                 filtroFornecedor: 'TODOS',
                 ordemColuna: 'descricao',
                 ordemDirecao: 'asc',
-                abaAtiva: 'PAPEL',
+                abaAtiva: abasValidas.includes(abaInicial) ? abaInicial : 'PAPEL',
                 editingId: null,
                 editingValue: '',
                 tabs: [
@@ -697,9 +708,34 @@
                 };
             }
         },
+        watch: {
+            searchQuery() {
+                this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+            },
+            filtroEstoque() {
+                this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+            },
+            filtroFornecedor() {
+                this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+            },
+        },
+        mounted() {
+            this.$nextTick(() => {
+                this.selecionarPrimeiraAbaSeAtualVazia();
+            });
+        },
         methods: {
             filtradosPorTipo(tipo) {
                 return this.produtosFiltrados.filter(p => p.tipo_produto === tipo);
+            },
+            selecionarPrimeiraAbaComResultado() {
+                const tab = this.tabs.find(t => this.filtradosPorTipo(t.key).length > 0);
+                if (tab) this.abaAtiva = tab.key;
+            },
+            selecionarPrimeiraAbaSeAtualVazia() {
+                if (this.temFiltrosAtivos && this.filtradosPorTipo(this.abaAtiva).length === 0) {
+                    this.selecionarPrimeiraAbaComResultado();
+                }
             },
             isEstoqueZerado(p) {
                 return p.quantidade <= 0;
@@ -714,6 +750,7 @@
                 this.searchQuery = '';
                 this.filtroEstoque = 'TODOS';
                 this.filtroFornecedor = 'TODOS';
+                this.selecionarPrimeiraAbaComResultado();
             },
             ordenarPor(campo) {
                 if (this.ordemColuna === campo) {
@@ -749,14 +786,34 @@
                 return { backgroundColor: c, borderColor: c === '#f8f9fa' ? '#ced4da' : c };
             },
             alterar(produto, variacao) {
+                if (produto.updating) return;
                 const nova = produto.quantidade + variacao;
                 if (nova < 0) return;
+                const anterior = produto.quantidade;
                 produto.quantidade = nova;
+                produto.updating = true;
                 fetch('/atualiza-estoque/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                     body: JSON.stringify({ id: produto.id, variacao: variacao }),
-                }).then(() => showToast('Estoque atualizado!'));
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.ok) {
+                        produto.quantidade = data.nova_quantidade;
+                        showToast('Estoque atualizado!');
+                    } else {
+                        produto.quantidade = anterior;
+                        showToast(data.erro || 'Erro ao atualizar estoque.', 'danger');
+                    }
+                })
+                .catch(() => {
+                    produto.quantidade = anterior;
+                    showToast('Erro de conexão.', 'danger');
+                })
+                .finally(() => {
+                    produto.updating = false;
+                });
             },
             startEdit(p) {
                 this.editingId = p.id;
@@ -780,8 +837,10 @@
                     this.cancelEdit();
                     return;
                 }
+                const anterior = p.quantidade;
                 p.quantidade = nv;
                 this.editingId = null;
+                p.updating = true;
                 
                 fetch('/atualiza-estoque/', {
                     method: 'POST',
@@ -791,12 +850,20 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.ok) {
+                        p.quantidade = data.nova_quantidade;
                         showToast('Estoque atualizado!');
                     } else {
-                        showToast('Erro ao atualizar estoque.', 'danger');
+                        p.quantidade = anterior;
+                        showToast(data.erro || 'Erro ao atualizar estoque.', 'danger');
                     }
                 })
-                .catch(() => showToast('Erro de conexão.', 'danger'));
+                .catch(() => {
+                    p.quantidade = anterior;
+                    showToast('Erro de conexão.', 'danger');
+                })
+                .finally(() => {
+                    p.updating = false;
+                });
             },
             cancelEdit() {
                 this.editingId = null;

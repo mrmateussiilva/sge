@@ -629,6 +629,7 @@ body {
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         background: rgba(255, 255, 255, 0.9) !important;
+        min-height: 64px;
     }
     [data-bs-theme="dark"] .bottom-nav {
         background: rgba(15, 23, 42, 0.9) !important;
@@ -637,6 +638,15 @@ body {
     .bottom-nav .nav-link:hover {
         background: transparent !important;
         color: #4f46e5 !important;
+    }
+    .bottom-nav .nav-link {
+        min-height: 44px;
+        min-width: 56px;
+        justify-content: center;
+    }
+    .bottom-nav .nav-link span {
+        font-size: 0.7rem !important;
+        line-height: 1;
     }
     [data-bs-theme="dark"] .bottom-nav .nav-link:hover {
         color: #818cf8 !important;
