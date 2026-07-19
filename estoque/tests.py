@@ -8,6 +8,30 @@ import json
 from .models import FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, Movimentacao, Produto
 
 
+class LoginTemplateTestCase(TestCase):
+    def test_login_renderiza_com_next(self):
+        response = self.client.get(f"{reverse('login')}?next=/produtos/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Acessar o SGE')
+        self.assertContains(response, 'name="next" value="/produtos/"')
+        self.assertContains(response, 'autocomplete="username"')
+        self.assertContains(response, 'autocomplete="current-password"')
+
+    def test_login_invalido_exibe_mensagem_generica_e_preserva_usuario(self):
+        response = self.client.post(
+            reverse('login'),
+            data={
+                'username': 'operador',
+                'password': 'senha-incorreta',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuário ou senha inválidos.')
+        self.assertContains(response, 'value="operador"')
+
+
 class MovimentacaoTestCase(TestCase):
     def setUp(self):
         self.client = Client()
