@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 import json
 
-from .models import Produto, Fornecedor, Movimentacao, FechamentoMensal, ItemFechamento
+from .models import FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, Movimentacao, Produto
 
 
 class MovimentacaoTestCase(TestCase):
@@ -98,6 +98,63 @@ class MovimentacaoTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertTrue(Produto.objects.filter(descricao='PRODUTO MINIMO').exists())
+
+
+class HistoricoPrecoTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username='priceuser', password='password123')
+        self.client.login(username='priceuser', password='password123')
+        self.produto = Produto.objects.create(
+            descricao='PRODUTO PRECO',
+            tipo_produto='OUTRO',
+            quantidade_base=Decimal('10.00'),
+            preco_custo=Decimal('5.50'),
+            preco_venda=Decimal('10.00'),
+        )
+
+    def test_salvamento_direto_cria_historico_quando_preco_muda(self):
+        self.produto.preco_custo = Decimal('6.25')
+        self.produto.save()
+
+        historico = HistoricoPreco.objects.get(produto=self.produto)
+        self.assertEqual(historico.preco_custo_antigo, Decimal('5.50'))
+        self.assertEqual(historico.preco_custo_novo, Decimal('6.25'))
+        self.assertIsNone(historico.preco_venda_antigo)
+        self.assertIsNone(historico.preco_venda_novo)
+        self.assertIsNone(historico.usuario)
+
+    def test_salvamento_direto_sem_mudar_preco_nao_cria_historico(self):
+        self.produto.descricao = 'PRODUTO PRECO EDITADO'
+        self.produto.save()
+
+        self.assertFalse(HistoricoPreco.objects.filter(produto=self.produto).exists())
+
+    def test_editar_produto_cria_um_historico_com_usuario(self):
+        response = self.client.post(
+            reverse('editar_produto', args=[self.produto.id]),
+            data=json.dumps({
+                'tipo_produto': 'OUTRO',
+                'unidade_medida': 'UN',
+                'descricao': 'PRODUTO PRECO',
+                'quantidade_base': '10.00',
+                'preco_custo': '6.00',
+                'preco_venda': '12.00',
+                'estoque_minimo': '0.00',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        historicos = HistoricoPreco.objects.filter(produto=self.produto)
+        self.assertEqual(historicos.count(), 1)
+        historico = historicos.get()
+        self.assertEqual(historico.preco_custo_antigo, Decimal('5.50'))
+        self.assertEqual(historico.preco_custo_novo, Decimal('6.00'))
+        self.assertEqual(historico.preco_venda_antigo, Decimal('10.00'))
+        self.assertEqual(historico.preco_venda_novo, Decimal('12.00'))
+        self.assertEqual(historico.usuario, self.user)
 
 
 class FechamentoTestCase(TestCase):
