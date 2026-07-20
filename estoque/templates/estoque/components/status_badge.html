@@ -1,0 +1,16 @@
+{% if status == 'NORMAL' %}<span class="status-badge status-badge--normal"><i class="bi bi-check-circle" aria-hidden="true"></i>Normal</span>
+{% elif status == 'BAIXO' %}<span class="status-badge status-badge--low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Estoque baixo</span>
+{% elif status == 'ZERADO' %}<span class="status-badge status-badge--zero"><i class="bi bi-slash-circle" aria-hidden="true"></i>Estoque zerado</span>
+{% elif status == 'SEM_MINIMO' %}<span class="status-badge status-badge--no-minimum"><i class="bi bi-dash-circle" aria-hidden="true"></i>Sem mínimo</span>
+{% elif status == 'ENTRADA' %}<span class="status-badge status-badge--entry"><i class="bi bi-arrow-up" aria-hidden="true"></i>Entrada</span>
+{% elif status == 'SAIDA' %}<span class="status-badge status-badge--exit"><i class="bi bi-arrow-down" aria-hidden="true"></i>Saída</span>
+{% elif status == 'CRIAR' %}<span class="status-badge status-badge--creation"><i class="bi bi-plus-circle" aria-hidden="true"></i>Criação</span>
+{% elif status == 'EDITAR' %}<span class="status-badge status-badge--edit"><i class="bi bi-pencil" aria-hidden="true"></i>Edição</span>
+{% elif status == 'EXCLUIR' %}<span class="status-badge status-badge--deletion"><i class="bi bi-trash" aria-hidden="true"></i>Exclusão</span>
+{% elif status == 'APROVAR' %}<span class="status-badge status-badge--completed"><i class="bi bi-check-circle" aria-hidden="true"></i>Aprovação</span>
+{% elif status == 'RECEBER' %}<span class="status-badge status-badge--completed"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Recebimento</span>
+{% elif status == 'CANCELAR' %}<span class="status-badge status-badge--deletion"><i class="bi bi-x-circle" aria-hidden="true"></i>Cancelamento</span>
+{% elif status == 'PENDENTE' %}<span class="status-badge status-badge--pending"><i class="bi bi-clock" aria-hidden="true"></i>Pendente</span>
+{% elif status == 'CONCLUIDO' or status == 'RECEBIDA' or status == 'APROVADA' %}<span class="status-badge status-badge--completed"><i class="bi bi-check-circle" aria-hidden="true"></i>{{ label|default:status }}</span>
+{% elif status == 'CANCELADA' %}<span class="status-badge status-badge--neutral"><i class="bi bi-x-circle" aria-hidden="true"></i>{{ label|default:'Cancelada' }}</span>
+{% else %}<span class="status-badge status-badge--neutral">{{ label|default:status|default:'Não informado' }}</span>{% endif %}

@@ -31,6 +31,68 @@ def decimal_ou_none(value):
     return Decimal(str(value))
 
 
+PERFIS_NEGOCIO = {
+    'Admin': 'Administrador',
+    'Gestor': 'Gestor de estoque',
+    'Operador': 'Operador',
+    'Leitura': 'Somente leitura',
+    'Visualizador': 'Somente leitura',
+}
+
+
+def json_ok(**kwargs):
+    return JsonResponse({'ok': True, **kwargs})
+
+
+def json_erro(mensagem, status=400, codigo='VALIDACAO'):
+    return JsonResponse({'ok': False, 'erro': mensagem, 'codigo': codigo}, status=status)
+
+
+def usuario_pode_alterar(request):
+    return request.user.is_superuser
+
+
+def exigir_admin_json(request):
+    if not usuario_pode_alterar(request):
+        return json_erro('Permissão negada.', status=403, codigo='PERMISSAO_NEGADA')
+    return None
+
+
+def produto_operacional_json(produto):
+    minimo = produto.estoque_minimo
+    return {
+        'id': produto.id,
+        'descricao': produto.descricao,
+        'fornecedor': produto.fornecedor.nome if produto.fornecedor else '',
+        'quantidade': float(produto.quantidade_base),
+        'quantidade_formatada': produto.quantidade_formatada,
+        'estoque_minimo': float(minimo) if minimo is not None else None,
+        'estoque_minimo_formatado': formatar_quantidade(minimo, produto.unidade_base_codigo) if minimo is not None else 'Sem mínimo configurado',
+        'unidade_codigo': produto.unidade_base_codigo,
+        'unidade_simbolo': produto.unidade_simbolo,
+        'unidade_nome': unidade_info(produto).plural,
+        'status_estoque': produto.status_estoque,
+    }
+
+
+def resumo_fechamento(referencia):
+    produtos = list(Produto.objects.select_related('fornecedor').all())
+    valuation = calcular_valor_estoque(produtos)
+    sem_fornecedor = sum(1 for p in produtos if not p.fornecedor_id)
+    return {
+        'referencia_mes_ano': referencia,
+        'total_produtos': len(produtos),
+        'produtos_zerados': Produto.objects.filter(filtro_zerado()).count(),
+        'produtos_baixos': Produto.objects.filter(filtro_baixo()).count(),
+        'produtos_sem_custo': valuation.produtos_sem_custo,
+        'produtos_sem_fornecedor': sem_fornecedor,
+        'valor_conhecido': float(valuation.valor_conhecido),
+        'valor_conhecido_formatado': dinheiro_br(valuation.valor_conhecido),
+        'calculo_completo': valuation.calculo_completo,
+        'duplicado': FechamentoMensal.objects.filter(referencia_mes_ano=referencia).exists(),
+    }
+
+
 @login_required
 def dashboard(request):
     produtos_base = Produto.objects.select_related('fornecedor').all()
@@ -151,7 +213,7 @@ def atualiza_estoque(request):
             produto = Produto.objects.get(id=data['id'])
             variacao = Decimal(str(data['variacao']))
             if variacao == 0:
-                return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base), 'nova_quantidade_formatada': produto.quantidade_formatada})
+                return json_ok(nova_quantidade=float(produto.quantidade_base), nova_quantidade_formatada=produto.quantidade_formatada)
             tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
             quantidade = abs(variacao)
             with transaction.atomic():
@@ -163,18 +225,22 @@ def atualiza_estoque(request):
                     observacao='Ajuste rápido de estoque',
                 )
             produto.refresh_from_db()
-            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base), 'nova_quantidade_formatada': produto.quantidade_formatada, 'status_estoque': produto.status_estoque})
+            return json_ok(
+                nova_quantidade=float(produto.quantidade_base),
+                nova_quantidade_formatada=produto.quantidade_formatada,
+                status_estoque=produto.status_estoque,
+            )
         except json.JSONDecodeError:
-            return JsonResponse({'ok': False, 'erro': 'JSON inválido.'}, status=400)
+            return json_erro('JSON inválido.')
         except KeyError as e:
-            return JsonResponse({'ok': False, 'erro': f'Campo obrigatório ausente: {e.args[0]}.'}, status=400)
+            return json_erro(f'Campo obrigatório ausente: {e.args[0]}.')
         except (InvalidOperation, TypeError, ValueError):
-            return JsonResponse({'ok': False, 'erro': 'Variação de estoque inválida.'}, status=400)
+            return json_erro('Quantidade inválida.')
         except Produto.DoesNotExist:
-            return JsonResponse({'ok': False, 'erro': 'Produto não encontrado.'}, status=404)
+            return json_erro('Produto não encontrado.', status=404)
         except ValidationError as e:
-            return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
-    return JsonResponse({'ok': False}, status=405)
+            return json_erro('; '.join(e.messages), codigo='SALDO_INSUFICIENTE')
+    return json_erro('Método não permitido.', status=405)
 
 
 @login_required
@@ -183,27 +249,40 @@ def registrar_movimentacao(request):
         try:
             data = json.loads(request.body)
             produto = Produto.objects.get(id=data['produto_id'])
+            tipo = data['tipo']
+            quantidade = Decimal(str(data['quantidade']))
+            if quantidade <= 0:
+                return json_erro('Quantidade deve ser maior que zero.')
+            if tipo == 'SAIDA' and produto.quantidade_base < quantidade:
+                return json_erro('Saldo insuficiente para esta saída.', codigo='SALDO_INSUFICIENTE')
             Movimentacao.objects.create(
                 produto=produto,
                 usuario=request.user,
-                tipo=data['tipo'],
-                quantidade=data['quantidade'],
+                tipo=tipo,
+                quantidade=quantidade,
                 observacao=data.get('observacao', ''),
             )
-            log_acao(request.user, data['tipo'], f'{data["tipo"]} de {data["quantidade"]} de {produto.descricao}', 'Movimentacao')
-            return JsonResponse({'ok': True})
+            produto.refresh_from_db()
+            log_acao(request.user, tipo, f'{tipo} de {quantidade} {produto.unidade_simbolo} de {produto.descricao}', 'Movimentacao')
+            return json_ok(
+                mensagem='Movimentação registrada com sucesso.',
+                saldo_atual=produto.quantidade_formatada,
+                status_estoque=produto.status_estoque,
+            )
         except json.JSONDecodeError:
-            return JsonResponse({'ok': False, 'erro': 'JSON inválido.'}, status=400)
+            return json_erro('JSON inválido.')
         except KeyError as e:
-            return JsonResponse({'ok': False, 'erro': f'Campo obrigatório ausente: {e.args[0]}.'}, status=400)
+            return json_erro(f'Campo obrigatório ausente: {e.args[0]}.')
+        except (InvalidOperation, TypeError, ValueError):
+            return json_erro('Quantidade inválida.')
         except Produto.DoesNotExist:
-            return JsonResponse({'ok': False, 'erro': 'Produto não encontrado.'}, status=404)
+            return json_erro('Produto não encontrado.', status=404)
         except ValidationError as e:
-            return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
-    produtos = Produto.objects.all().values('id', 'descricao')
+            return json_erro('; '.join(e.messages), codigo='SALDO_INSUFICIENTE')
+    produtos = [produto_operacional_json(p) for p in Produto.objects.select_related('fornecedor').all().order_by('descricao')]
     movimentacoes = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')[:50]
     return render(request, 'estoque/movimentacao.html', {
-        'produtos': list(produtos),
+        'produtos': produtos,
         'movimentacoes': movimentacoes,
     })
 
@@ -323,17 +402,29 @@ def editar_produto(request, id):
 def excluir_produto(request, id):
     produto = get_object_or_404(Produto, id=id)
     if request.method == 'POST':
+        perm_error = exigir_admin_json(request)
+        if perm_error:
+            return perm_error
+        if produto.movimentacoes.exists():
+            return json_erro('O produto não pode ser excluído porque possui movimentações vinculadas.', codigo='VINCULO_IMPEDITIVO')
+        if ItemOrdemCompra.objects.filter(produto=produto).exists():
+            return json_erro('O produto não pode ser excluído porque possui ordens de compra vinculadas.', codigo='VINCULO_IMPEDITIVO')
+        if ItemFechamento.objects.filter(produto=produto).exists():
+            return json_erro('O produto não pode ser excluído porque possui fechamentos históricos vinculados.', codigo='VINCULO_IMPEDITIVO')
         descricao = produto.descricao
         produto.delete()
         log_acao(request.user, 'EXCLUIR', f'Excluiu produto {descricao}', 'Produto', id)
-        return JsonResponse({'ok': True})
-    return JsonResponse({'ok': False}, status=405)
+        return json_ok(mensagem='Produto excluído com sucesso.')
+    return json_erro('Exclusão deve usar POST.', status=405)
 
 
 @login_required
 def excluir_movimentacao(request, id):
     mov = get_object_or_404(Movimentacao, id=id)
     if request.method == 'POST':
+        perm_error = exigir_admin_json(request)
+        if perm_error:
+            return perm_error
         with transaction.atomic():
             produto = Produto.objects.select_for_update().get(pk=mov.produto.pk)
             if mov.tipo == 'ENTRADA':
@@ -344,8 +435,8 @@ def excluir_movimentacao(request, id):
             descricao = f'{mov.get_tipo_display()} de {mov.quantidade} de {mov.produto.descricao}'
             mov.delete()
         log_acao(request.user, 'EXCLUIR', f'Excluiu movimentacao: {descricao}', 'Movimentacao', id)
-        return JsonResponse({'ok': True})
-    return JsonResponse({'ok': False}, status=405)
+        return json_ok(mensagem='Movimentação excluída e saldo recalculado com sucesso.', nova_quantidade=produto.quantidade_formatada)
+    return json_erro('Exclusão deve usar POST.', status=405)
 
 
 @login_required
@@ -516,17 +607,39 @@ def relatorio_mensal(request):
 
 @login_required
 def log_acoes(request):
-    logs = LogAcao.objects.select_related('usuario').all()[:50]
-    return render(request, 'estoque/log_acoes.html', {'logs': logs})
+    busca = request.GET.get('q', '').strip()
+    acao = request.GET.get('acao', '').strip()
+    logs = LogAcao.objects.select_related('usuario').all()
+    if busca:
+        logs = logs.filter(
+            Q(descricao__icontains=busca)
+            | Q(usuario__username__icontains=busca)
+            | Q(modelo__icontains=busca)
+        )
+    if acao:
+        logs = logs.filter(acao=acao)
+    logs = logs[:100]
+    return render(request, 'estoque/log_acoes.html', {
+        'logs': logs,
+        'busca': busca,
+        'acao_selecionada': acao,
+        'acoes': LogAcao.ACAO_CHOICES,
+    })
 
 
 @login_required
 def lista_usuarios(request):
     from django.contrib.auth.models import User, Group
     if not request.user.is_superuser:
+        if request.method == 'POST':
+            return json_erro('Permissão negada.', status=403, codigo='PERMISSAO_NEGADA')
         return render(request, 'estoque/lista_usuarios.html', {'erro': 'Apenas administradores podem gerenciar usuarios.'})
     usuarios = User.objects.prefetch_related('groups').all()
     grupos = Group.objects.all()
+    perfis = [
+        {'id': g.id, 'nome': PERFIS_NEGOCIO.get(g.name, g.name), 'interno': g.name}
+        for g in grupos
+    ]
     if request.method == 'POST':
         import json
         data = json.loads(request.body)
@@ -543,17 +656,33 @@ def lista_usuarios(request):
                 return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
             log_acao(request.user, 'CRIAR', f'Criou usuario {user.username}', 'User', user.id)
         elif acao == 'grupo':
+            perm_error = exigir_admin_json(request)
+            if perm_error:
+                return perm_error
             user = User.objects.get(id=data['user_id'])
-            grupo = Group.objects.get(id=data['grupo_id'])
+            grupo_id = data.get('grupo_id')
+            grupo = Group.objects.get(id=grupo_id) if grupo_id else None
+            novo_superuser = bool(grupo and grupo.name == 'Admin')
+            admins_ativos = User.objects.filter(is_superuser=True, is_active=True).count()
+            removendo_admin = user.is_superuser and not novo_superuser
+            if removendo_admin and user.id == request.user.id:
+                return json_erro('Você não pode remover sua própria permissão administrativa.', status=400, codigo='PERMISSAO_NEGADA')
+            if removendo_admin and admins_ativos <= 1:
+                return json_erro('O sistema precisa manter pelo menos um administrador.', status=400, codigo='PERMISSAO_NEGADA')
             user.groups.clear()
-            user.groups.add(grupo)
-            user.is_superuser = (grupo.name == 'Admin')
+            if grupo:
+                user.groups.add(grupo)
+            user.is_staff = grupo is not None
+            user.is_superuser = novo_superuser
             user.save()
-            log_acao(request.user, 'EDITAR', f'Alterou grupo do usuario {user.username} para {grupo.name}', 'User', user.id)
-        return JsonResponse({'ok': True})
+            perfil_nome = PERFIS_NEGOCIO.get(grupo.name, grupo.name) if grupo else 'Sem perfil'
+            log_acao(request.user, 'EDITAR', f'Alterou perfil do usuário {user.username} para {perfil_nome}', 'User', user.id)
+            return json_ok(mensagem='Perfil atualizado com sucesso.')
+        return json_ok()
     return render(request, 'estoque/lista_usuarios.html', {
         'usuarios': usuarios,
         'grupos': grupos,
+        'perfis': perfis,
     })
 
 
@@ -695,12 +824,21 @@ def salvar_fornecedor(request, id=None):
 @login_required
 def excluir_fornecedor(request, id):
     if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
+        return json_erro('Exclusão deve usar POST.', status=405)
+    perm_error = exigir_admin_json(request)
+    if perm_error:
+        return perm_error
     fornecedor = get_object_or_404(Fornecedor, id=id)
+    vinculados = Produto.objects.filter(fornecedor=fornecedor).count()
+    if vinculados:
+        return json_erro(
+            f'O fornecedor não pode ser excluído porque possui {vinculados} produto(s) vinculado(s).',
+            codigo='VINCULO_IMPEDITIVO',
+        )
     nome = fornecedor.nome
     fornecedor.delete()
     log_acao(request.user, 'EXCLUIR', f'Excluiu fornecedor: {nome}', 'Fornecedor', id)
-    return JsonResponse({'ok': True})
+    return json_ok(mensagem='Fornecedor excluído com sucesso.')
 
 
 # ─────────────────────────────────────────────
@@ -748,12 +886,21 @@ def salvar_categoria(request, id=None):
 @login_required
 def excluir_categoria(request, id):
     if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
+        return json_erro('Exclusão deve usar POST.', status=405)
+    perm_error = exigir_admin_json(request)
+    if perm_error:
+        return perm_error
     categoria = get_object_or_404(Categoria, id=id)
+    vinculados = categoria.produtos.count()
+    if vinculados:
+        return json_erro(
+            f'A categoria não pode ser excluída porque possui {vinculados} produto(s) vinculado(s).',
+            codigo='VINCULO_IMPEDITIVO',
+        )
     nome = categoria.nome
     categoria.delete()
     log_acao(request.user, 'EXCLUIR', f'Excluiu categoria: {nome}', 'Categoria', id)
-    return JsonResponse({'ok': True})
+    return json_ok(mensagem='Categoria excluída com sucesso.')
 
 
 @login_required
@@ -787,6 +934,17 @@ def lista_fechamentos(request):
 
 
 @login_required
+def revisar_fechamento(request):
+    referencia = request.GET.get('referencia_mes_ano', '').strip()
+    if not referencia:
+        return json_erro('Mês/Ano de referência é obrigatório.')
+    resumo = resumo_fechamento(referencia)
+    if resumo['duplicado']:
+        return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
+    return json_ok(resumo=resumo)
+
+
+@login_required
 def realizar_fechamento(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
@@ -798,9 +956,11 @@ def realizar_fechamento(request):
             return JsonResponse({'ok': False, 'erro': 'Mês/Ano de referência é obrigatório.'}, status=400)
             
         if FechamentoMensal.objects.filter(referencia_mes_ano=referencia).exists():
-            return JsonResponse({'ok': False, 'erro': f'Já existe um fechamento realizado para o mês {referencia}.'}, status=400)
+            return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
             
         with transaction.atomic():
+            if FechamentoMensal.objects.select_for_update().filter(referencia_mes_ano=referencia).exists():
+                return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
             fechamento = FechamentoMensal.objects.create(
                 usuario=request.user,
                 referencia_mes_ano=referencia,
@@ -817,9 +977,9 @@ def realizar_fechamento(request):
                     preco_venda=p.preco_venda,
                 )
         log_acao(request.user, 'CRIAR', f'Realizou fechamento de estoque para o mês {referencia}', 'FechamentoMensal', fechamento.id)
-        return JsonResponse({'ok': True})
+        return json_ok(mensagem='Fechamento mensal realizado com sucesso.')
     except Exception as e:
-        return JsonResponse({'ok': False, 'erro': f'Erro ao realizar fechamento: {str(e)}'}, status=500)
+        return json_erro(f'Erro ao realizar fechamento: {str(e)}', status=500)
 
 
 @login_required

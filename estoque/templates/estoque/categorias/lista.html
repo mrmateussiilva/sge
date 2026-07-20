@@ -2,44 +2,51 @@
 {% block title %}S.G.E - Categorias{% endblock %}
 
 {% block content %}
+<div class="page-container">
 <div id="app">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
-    <h1 class="mb-0 fw-bold"><i class="bi bi-tags me-2"></i>Categorias</h1>
-    <button class="btn btn-primary shadow-sm w-100 w-sm-auto" @click="abrirModal()" id="btnNovaCategoria">
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-tags"></i></span><h1>Categorias</h1></div>
+        <p class="page-header__description">Organize os produtos em grupos de consulta e acompanhamento.</p>
+    </div>
+    <div class="page-header__actions">
+    <button class="btn btn-primary" @click="abrirModal()" id="btnNovaCategoria">
         <i class="bi bi-plus-lg me-1"></i>Nova Categoria
     </button>
-</div>
+    </div>
+</header>
 
-    <!-- Busca -->
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-md-5">
-            <div class="input-group shadow-sm">
-                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <div class="filter-bar filter-bar--compact mb-4" role="search" aria-label="Filtro de categorias">
+        <div class="filter-bar__search">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input type="text" class="form-control border-start-0" placeholder="Buscar categoria..." v-model="busca">
             </div>
         </div>
+        <span class="filter-bar__summary">[[ filtradas.length ]] de [[ categorias.length ]] categorias</span>
     </div>
 
     <!-- Grid de cards -->
     <div class="row g-3" v-if="filtradas.length > 0">
         <div class="col-12 col-sm-6 col-lg-4 col-xl-3" v-for="c in filtradas" :key="c.id">
-            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid !important;" :style="{ borderLeftColor: c.cor + ' !important' }">
+            <div class="category-card card h-100" :style="{ '--category-color': c.cor }">
                 <div class="card-body">
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="rounded-circle d-inline-block border" style="width:16px;height:16px;" :style="{ backgroundColor: c.cor }"></span>
+                        <span class="category-swatch" :style="{ backgroundColor: c.cor }"></span>
                         <h6 class="fw-bold mb-0">[[ c.nome ]]</h6>
                     </div>
                     <p class="text-muted small mb-2" v-if="c.descricao">[[ c.descricao ]]</p>
-                    <span class="badge bg-primary bg-opacity-10 text-primary small">[[ c.total_produtos ]] produto(s)</span>
+                    <span class="status-badge status-badge--info">[[ c.total_produtos ]] produto(s)</span>
                 </div>
                 <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-3">
-                    <div class="d-flex gap-1">
-                        <button class="btn btn-warning btn-sm w-50" @click="abrirModal(c)">
-                            <i class="bi bi-pencil me-1"></i>Editar
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100" type="button" data-bs-toggle="dropdown">
+                            Ações
                         </button>
-                        <button class="btn btn-danger btn-sm w-50" @click="confirmarExcluir(c)">
-                            <i class="bi bi-trash me-1"></i>Excluir
-                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button class="dropdown-item" type="button" @click="abrirModal(c)">Editar</button></li>
+                            <li><button class="dropdown-item text-danger" type="button" @click="confirmarExcluir(c)">Excluir</button></li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -47,10 +54,11 @@
     </div>
 
     <!-- Estado vazio -->
-    <div class="text-center py-5 text-muted" v-else>
-        <i class="bi bi-tags fs-1 d-block mb-3 opacity-50"></i>
-        <p class="fw-medium">Nenhuma categoria encontrada.</p>
-        <button class="btn btn-primary" @click="abrirModal()">
+    <div class="empty-state" v-else>
+        <i class="bi bi-tags empty-state__icon"></i>
+        <p class="empty-state__title">Nenhuma categoria encontrada</p>
+        <p class="empty-state__description">Limpe a busca ou crie uma categoria para organizar os produtos.</p>
+        <button class="btn btn-primary empty-state__action" @click="abrirModal()">
             <i class="bi bi-plus-lg me-1"></i>Criar primeira categoria
         </button>
     </div>
@@ -74,7 +82,7 @@
                         <div class="col-12 col-sm-4">
                             <label class="form-label fw-medium">Cor</label>
                             <div class="d-flex gap-2 align-items-center">
-                                <input type="color" class="form-control form-control-color" v-model="form.cor" style="width:48px;height:38px;">
+                                <input type="color" class="category-color-input form-control form-control-color" v-model="form.cor">
                                 <input type="text" class="form-control form-control-sm" v-model="form.cor" placeholder="#6c757d" maxlength="7">
                             </div>
                         </div>
@@ -87,9 +95,9 @@
 
                     <!-- Preview -->
                     <div class="mt-3 p-3 rounded-3 border d-flex align-items-center gap-2">
-                        <span class="rounded-circle d-inline-block border" style="width:14px;height:14px;" :style="{ backgroundColor: form.cor }"></span>
+                        <span class="category-swatch" :style="{ backgroundColor: form.cor }"></span>
                         <span class="fw-medium">[[ form.nome || 'Preview da categoria' ]]</span>
-                        <span class="badge ms-auto" :style="{ backgroundColor: form.cor + '22', color: form.cor }">
+                        <span class="status-badge status-badge--neutral ms-auto">
                             Categoria
                         </span>
                     </div>
@@ -109,6 +117,7 @@
         </div>
     </div>
 </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -116,13 +125,14 @@
 (function() {
     const { createApp } = Vue;
     const csrfToken = '{{ csrf_token }}';
+    const buscaInicial = new URLSearchParams(window.location.search).get('q') || '';
 
     createApp({
         compilerOptions: { delimiters: ['[[', ']]'] },
         data() {
             return {
                 categorias: {{ categorias_json|safe }},
-                busca: '',
+                busca: buscaInicial,
                 form: { id: null, nome: '', descricao: '', cor: '#6c757d' },
                 editando: false,
                 salvando: false,
@@ -138,6 +148,14 @@
                     c.nome.toLowerCase().includes(q) ||
                     (c.descricao && c.descricao.toLowerCase().includes(q))
                 );
+            },
+        },
+        watch: {
+            busca(valor) {
+                const params = new URLSearchParams(window.location.search);
+                if (valor.trim()) params.set('q', valor.trim()); else params.delete('q');
+                const query = params.toString();
+                history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
             },
         },
         mounted() {
@@ -184,14 +202,16 @@
                 }
             },
             confirmarExcluir(c) {
-                if (!confirm(`Excluir a categoria "${c.nome}"?\nOs produtos vinculados ficarão sem categoria.`)) return;
+                if (!confirm(`Excluir a categoria "${c.nome}"?\n\nProdutos vinculados: ${c.total_produtos}.\nA exclusão será bloqueada se houver vínculos.`)) return;
                 fetch(`/categorias/${c.id}/excluir/`, {
                     method: 'POST',
                     headers: { 'X-CSRFToken': csrfToken },
                 }).then(r => r.json()).then(data => {
                     if (data.ok) {
                         this.categorias = this.categorias.filter(x => x.id !== c.id);
-                        showToast('Categoria excluída!');
+                        showToast(data.mensagem || 'Categoria excluída!');
+                    } else {
+                        showToast(data.erro || 'Erro ao excluir categoria.', 'danger');
                     }
                 });
             },

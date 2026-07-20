@@ -2,11 +2,30 @@
 {% block title %}S.G.E - Log de Atividades{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 fw-bold"><i class="bi bi-activity me-2"></i>Log de Atividades</h1>
+<div class="page-container page-container--wide">
+{% include 'estoque/components/page_header.html' with page_title='Atividades' page_description='Consulte as ações relevantes registradas pelo sistema.' page_icon='bi-activity' %}
 
-<div class="card shadow-sm border-0 rounded-3">
+<form method="get" class="filter-bar filter-bar--activity mb-4" role="search" aria-label="Filtros de atividades">
+    <div class="filter-bar__search">
+        <label class="form-label" for="atividadeBusca">Busca</label>
+        <div class="input-group"><span class="input-group-text"><i class="bi bi-search"></i></span><input id="atividadeBusca" type="search" name="q" class="form-control" value="{{ busca }}" placeholder="Usuário, modelo ou descrição"></div>
+    </div>
+    <div>
+        <label class="form-label" for="atividadeAcao">Ação</label>
+        <select id="atividadeAcao" name="acao" class="form-select">
+            <option value="">Todas as ações</option>
+            {% for valor, nome in acoes %}<option value="{{ valor }}" {% if acao_selecionada == valor %}selected{% endif %}>{{ nome }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="filter-bar__actions">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+        <a href="{% url 'log_acoes' %}" class="btn btn-outline-secondary">Limpar</a>
+    </div>
+</form>
+
+<section class="content-panel">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Data</th>
@@ -21,19 +40,16 @@
                 <tr>
                     <td class="ps-4 text-muted small" data-label="Data">{{ log.data|date:"d/m/Y H:i" }}</td>
                     <td data-label="Usuário">{{ log.usuario|default:'-' }}</td>
-                    <td data-label="Ação"><span class="badge bg-secondary">{{ log.get_acao_display }}</span></td>
-                    <td data-label="Modelo"><span class="badge bg-info bg-opacity-10 text-info">{{ log.modelo|default:'-' }}</span></td>
+                    <td data-label="Ação">{% include 'estoque/components/status_badge.html' with status=log.acao label=log.get_acao_display %}</td>
+                    <td data-label="Modelo"><span class="status-badge status-badge--info">{{ log.modelo|default:'-' }}</span></td>
                     <td class="pe-4" data-label="Descrição">{{ log.descricao }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox me-1"></i>Nenhuma atividade registrada.
-                    </td>
-                </tr>
+                {% include 'estoque/components/empty_state.html' with table_colspan=5 empty_icon='bi-activity' empty_title='Nenhuma atividade encontrada' empty_description='Ajuste os filtros para ampliar a consulta.' %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</section>
 </div>
 {% endblock %}

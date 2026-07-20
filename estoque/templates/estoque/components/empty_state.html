@@ -1,0 +1,12 @@
+{% if table_colspan %}<tr><td colspan="{{ table_colspan }}">{% endif %}
+<div class="empty-state">
+    <i class="bi {{ empty_icon|default:'bi-inbox' }} empty-state__icon" aria-hidden="true"></i>
+    <p class="empty-state__title">{{ empty_title }}</p>
+    {% if empty_description %}<p class="empty-state__description">{{ empty_description }}</p>{% endif %}
+    {% if empty_action_url %}
+    <a href="{{ empty_action_url }}" class="btn btn-primary empty-state__action">
+        {% if empty_action_icon %}<i class="bi {{ empty_action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ empty_action_label }}
+    </a>
+    {% endif %}
+</div>
+{% if table_colspan %}</td></tr>{% endif %}

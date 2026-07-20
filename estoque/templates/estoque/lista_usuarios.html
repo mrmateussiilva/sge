@@ -2,28 +2,32 @@
 {% block title %}S.G.E - Usuários{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 fw-bold"><i class="bi bi-people me-2"></i>Gerenciar Usuários</h1>
+<div class="page-container page-container--wide">
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-people"></i></span><h1>Usuários</h1></div>
+        <p class="page-header__description">Gerencie acessos e perfis de negócio do SGE.</p>
+    </div>
+    {% if not erro %}<div class="page-header__actions"><button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoUsuario" aria-expanded="false" aria-controls="novoUsuario"><i class="bi bi-plus-lg me-1"></i>Novo usuário</button></div>{% endif %}
+</header>
 
 {% if erro %}
 <div class="alert alert-danger">{{ erro }}</div>
 <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Voltar ao Dashboard</a>
 {% else %}
 
-<div class="card shadow-sm border-0 rounded-3 mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-semibold">Usuários</h5>
-        <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#novoUsuario">
-            <i class="bi bi-plus-lg me-1"></i>Novo Usuário
-        </button>
-    </div>
+<section class="content-panel mb-4">
+    <div class="content-panel__header"><h5 class="mb-0 fw-semibold">Usuários cadastrados</h5></div>
     <div class="collapse" id="novoUsuario">
         <div class="card-body border-bottom">
             <form id="formNovoUsuario" class="row g-3">
                 <div class="col-md-4">
-                    <input type="text" name="username" class="form-control" placeholder="Usuário" required>
+                    <label class="form-label" for="novoUsername">Usuário</label>
+                    <input id="novoUsername" type="text" name="username" class="form-control" placeholder="Ex: maria.silva" autocomplete="username" required>
                 </div>
                 <div class="col-md-4">
-                    <input type="password" name="password" class="form-control" placeholder="Senha" required>
+                    <label class="form-label" for="novaSenha">Senha inicial</label>
+                    <input id="novaSenha" type="password" name="password" class="form-control" placeholder="Informe uma senha segura" autocomplete="new-password" required>
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-success w-100">
@@ -34,12 +38,12 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Usuário</th>
-                    <th>Grupo</th>
-                    <th>Admin</th>
+                    <th>Perfil</th>
+                    <th>Status</th>
                     <th class="pe-4">Ações</th>
                 </tr>
             </thead>
@@ -50,34 +54,39 @@
                     <td data-label="Grupo">
                         {% if u.groups.all %}
                             {% for g in u.groups.all %}
-                            <span class="badge bg-primary">{{ g.name }}</span>
+                            <span class="status-badge status-badge--info">
+                                {% if g.name == 'Admin' %}Administrador{% elif g.name == 'Gestor' %}Gestor de estoque{% elif g.name == 'Operador' %}Operador{% elif g.name == 'Leitura' or g.name == 'Visualizador' %}Somente leitura{% else %}{{ g.name }}{% endif %}
+                            </span>
                             {% endfor %}
                         {% else %}
-                        <span class="badge bg-secondary">Sem grupo</span>
+                        <span class="status-badge status-badge--neutral">Sem perfil</span>
                         {% endif %}
                     </td>
-                    <td data-label="Admin">{% if u.is_superuser %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-muted"></i>{% endif %}</td>
+                    <td data-label="Status">{% if u.is_superuser %}<span class="status-badge status-badge--success">Administrador</span>{% elif u.is_staff %}<span class="status-badge status-badge--info">Acesso operacional</span>{% else %}<span class="status-badge status-badge--neutral">Sem acesso administrativo</span>{% endif %}</td>
                     <td class="pe-4" data-label="Ações">
                         <form class="form-alterar-grupo d-flex gap-1 w-100">
                             <select name="grupo_id" class="form-select form-select-sm">
-                                <option value="">Sem grupo</option>
-                                {% for g in grupos %}
-                                <option value="{{ g.id }}" {% if g in u.groups.all %}selected{% endif %}>{{ g.name }}</option>
+                                <option value="">Sem perfil</option>
+                                {% for p in perfis %}
+                                <option value="{{ p.id }}" {% for g in u.groups.all %}{% if g.id == p.id %}selected{% endif %}{% endfor %}>{{ p.nome }}</option>
                                 {% endfor %}
                             </select>
                             <input type="hidden" name="user_id" value="{{ u.id }}">
-                            <button type="submit" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-check"></i>
+                            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                                Salvar perfil
                             </button>
                         </form>
                     </td>
                 </tr>
+                {% empty %}
+                {% include 'estoque/components/empty_state.html' with table_colspan=4 empty_icon='bi-people' empty_title='Nenhum usuário cadastrado' empty_description='Crie o primeiro usuário para conceder acesso ao sistema.' %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
-</div>
+</section>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -86,6 +95,8 @@
     const csrfToken = '{{ csrf_token }}';
     document.getElementById('formNovoUsuario')?.addEventListener('submit', function(e) {
         e.preventDefault();
+        const button = e.submitter;
+        button.disabled = true;
         const data = new FormData(this);
         fetch('{% url "lista_usuarios" %}', {
             method: 'POST',
@@ -97,12 +108,18 @@
             }),
         }).then(function(r) { return r.json(); }).then(function(d) {
             if (d.ok) { showToast('Usuário criado!'); location.reload(); }
-            else { showToast('Erro ao criar usuário.', 'danger'); }
+            else { showToast(d.erro || 'Erro ao criar usuário.', 'danger'); }
+        }).catch(function() {
+            showToast('Falha de conexão com o servidor.', 'danger');
+        }).finally(function() {
+            button.disabled = false;
         });
     });
     document.querySelectorAll('.form-alterar-grupo').forEach(function(form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+            const button = e.submitter;
+            button.disabled = true;
             const data = new FormData(this);
             fetch('{% url "lista_usuarios" %}', {
                 method: 'POST',
@@ -113,8 +130,12 @@
                     grupo_id: parseInt(data.get('grupo_id')) || null,
                 }),
             }).then(function(r) { return r.json(); }).then(function(d) {
-                if (d.ok) { showToast('Grupo alterado!'); location.reload(); }
-                else { showToast('Erro ao alterar grupo.', 'danger'); }
+                if (d.ok) { showToast(d.mensagem || 'Perfil atualizado com sucesso.'); location.reload(); }
+                else { showToast(d.erro || 'Erro ao alterar perfil.', 'danger'); }
+            }).catch(function() {
+                showToast('Falha de conexão com o servidor.', 'danger');
+            }).finally(function() {
+                button.disabled = false;
             });
         });
     });

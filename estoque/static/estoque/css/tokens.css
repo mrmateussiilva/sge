@@ -1,0 +1,69 @@
+:root {
+    --sge-primary: #2563eb;
+    --sge-primary-hover: #1d4ed8;
+    --sge-bg: #f4f6f9;
+    --sge-surface: #ffffff;
+    --sge-surface-subtle: #f8fafc;
+    --sge-surface-raised: #ffffff;
+    --sge-border: #d8dee8;
+    --sge-border-strong: #b8c2d1;
+    --sge-text: #172033;
+    --sge-text-muted: #5f6b7c;
+    --sge-success: #177245;
+    --sge-success-soft: #e9f7ef;
+    --sge-warning: #a15c00;
+    --sge-warning-soft: #fff5df;
+    --sge-danger: #b42318;
+    --sge-danger-soft: #fff0ee;
+    --sge-info: #096b9c;
+    --sge-info-soft: #eaf6fb;
+
+    --sge-shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+    --sge-shadow-md: 0 4px 12px rgb(16 24 40 / 8%);
+
+    --sge-radius-sm: 4px;
+    --sge-radius-md: 6px;
+    --sge-radius-lg: 8px;
+
+    --sge-space-1: 0.25rem;
+    --sge-space-2: 0.5rem;
+    --sge-space-3: 0.75rem;
+    --sge-space-4: 1rem;
+    --sge-space-5: 1.5rem;
+    --sge-space-6: 2rem;
+
+    --sge-font-xs: 0.75rem;
+    --sge-font-sm: 0.875rem;
+    --sge-font-md: 1rem;
+    --sge-font-lg: 1.125rem;
+    --sge-font-xl: 1.5rem;
+    --sge-font-2xl: 1.875rem;
+
+    --sge-page-max: 1240px;
+    --sge-page-wide: 1560px;
+    --sge-focus-ring: 0 0 0 3px rgb(37 99 235 / 22%);
+}
+
+[data-bs-theme="dark"] {
+    --sge-primary: #60a5fa;
+    --sge-primary-hover: #93c5fd;
+    --sge-bg: #0d121c;
+    --sge-surface: #151c28;
+    --sge-surface-subtle: #111823;
+    --sge-surface-raised: #1a2331;
+    --sge-border: #303b4b;
+    --sge-border-strong: #465367;
+    --sge-text: #edf2f7;
+    --sge-text-muted: #aab4c3;
+    --sge-success: #64d99b;
+    --sge-success-soft: #153426;
+    --sge-warning: #f6c35b;
+    --sge-warning-soft: #3a2c12;
+    --sge-danger: #ff8d85;
+    --sge-danger-soft: #3c1e20;
+    --sge-info: #6cc8ed;
+    --sge-info-soft: #122f3d;
+    --sge-shadow-sm: 0 1px 2px rgb(0 0 0 / 28%);
+    --sge-shadow-md: 0 6px 16px rgb(0 0 0 / 24%);
+    --sge-focus-ring: 0 0 0 3px rgb(96 165 250 / 28%);
+}

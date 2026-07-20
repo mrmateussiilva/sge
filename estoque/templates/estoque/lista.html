@@ -2,17 +2,21 @@
 {% block title %}S.G.E - Gestão de Produtos{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-    <div>
-        <h1 class="mb-1 fw-bold"><i class="bi bi-box me-2 text-primary"></i>Produtos</h1>
-        <p class="text-muted small mb-0">Gerencie insumos, estoques mínimos, preços e fornecedores.</p>
+<div class="page-container page-container--wide">
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title">
+            <span class="page-header__icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
+            <h1>Produtos</h1>
+        </div>
+        <p class="page-header__description">Gerencie insumos, estoques mínimos, preços e fornecedores.</p>
     </div>
-    <div class="page-actions w-100 w-md-auto">
-        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary shadow-sm flex-grow-1 flex-md-grow-0 fw-medium">
+    <div class="page-header__actions">
+        <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary fw-medium">
             <i class="bi bi-plus-lg me-1"></i>Novo Produto
         </a>
-        <div class="dropdown flex-grow-1 flex-md-grow-0">
-            <button class="btn btn-outline-secondary dropdown-toggle w-100 shadow-sm fw-medium" type="button" data-bs-toggle="dropdown">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle w-100 fw-medium" type="button" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical me-1"></i>Mais
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -34,41 +38,38 @@
             </ul>
         </div>
     </div>
-</div>
+</header>
 
 <div id="app">
-    <!-- Barra de Filtros Avançados -->
-    <div class="card shadow-sm border-0 rounded-3 mb-4">
-        <div class="card-body p-3 bg-light rounded-3">
-            <div class="row g-2 align-items-center">
+    <div class="filter-bar mb-4" role="search" aria-label="Filtros de produtos">
                 <!-- Busca Textual -->
-                <div class="col-12 col-md-4">
+                <div class="filter-bar__search">
                     <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <span class="input-group-text border-end-0"><i class="bi bi-search text-muted"></i></span>
                         <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar por descrição ou fornecedor..." v-model="searchQuery" id="inputBusca">
-                        <button class="btn btn-outline-secondary bg-white border-start-0" type="button" v-if="searchQuery" @click="searchQuery = ''">
+                        <button class="btn btn-outline-secondary border-start-0" type="button" v-if="searchQuery" @click="searchQuery = ''" title="Limpar busca" aria-label="Limpar busca">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Filtro por Status do Estoque -->
-                <div class="col-12 col-sm-6 col-md-3">
+                <div>
                     <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-funnel text-muted"></i></span>
+                        <span class="input-group-text"><i class="bi bi-funnel text-muted"></i></span>
                         <select class="form-select" v-model="filtroEstoque">
                             <option value="TODOS">Todos os Status</option>
-                            <option value="BAIXO">⚠️ Estoque Baixo</option>
-                            <option value="ZERADO">🚫 Estoque Zerado</option>
-                            <option value="OK">✅ Estoque OK</option>
+                            <option value="BAIXO">Estoque baixo</option>
+                            <option value="ZERADO">Estoque zerado</option>
+                            <option value="OK">Estoque normal</option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Filtro por Fornecedor -->
-                <div class="col-12 col-sm-6 col-md-3">
+                <div>
                     <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-truck text-muted"></i></span>
+                        <span class="input-group-text"><i class="bi bi-truck text-muted"></i></span>
                         <select class="form-select" v-model="filtroFornecedor">
                             <option value="TODOS">Todos Fornecedores</option>
                             <option v-for="f in fornecedoresUnicos" :key="f" :value="f">[[ f ]]</option>
@@ -78,78 +79,47 @@
                 </div>
 
                 <!-- Limpar Filtros / Contador -->
-                <div class="col-12 col-md-2 text-md-end">
-                    <button class="btn btn-outline-danger btn-sm w-100 shadow-sm" v-if="temFiltrosAtivos" @click="limparFiltros">
+                <div class="filter-bar__actions align-items-center">
+                    <button class="btn btn-outline-secondary w-100" type="button" v-if="temFiltrosAtivos" @click="limparFiltros">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar Filtros
                     </button>
-                    <span class="text-muted small d-block" v-else>
+                    <span class="filter-bar__summary" v-else>
                         <i class="bi bi-box-seam me-1"></i>[[ totalFiltrado ]] exibidos / [[ produtos.length ]] produtos
                     </span>
                 </div>
-            </div>
-        </div>
     </div>
 
     <!-- Cards KPI de Resumo da Aba Ativa -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-primary border-4 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-primary bg-opacity-10 text-primary p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-boxes fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Produtos nesta categoria</small>
-                        <h5 class="mb-0 fw-bold fs-4">[[ resumoAbaAtiva.totalItens ]]</h5>
-                    </div>
-                </div>
+            <div class="metric-card metric-card--info">
+                <span class="metric-card__icon"><i class="bi bi-boxes"></i></span>
+                <span class="metric-card__body"><span class="metric-card__label">Produtos nesta categoria</span><span class="metric-card__value">[[ resumoAbaAtiva.totalItens ]]</span></span>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-success border-4 shadow-sm h-100">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-success bg-opacity-10 text-success p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-currency-dollar fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Valor conhecido</small>
-                        <h5 class="mb-0 fw-bold fs-5 text-success">R$ [[ formatDinheiro(resumoAbaAtiva.valorCusto) ]]</h5>
-                        <small class="text-warning" v-if="resumoAbaAtiva.semCusto > 0">[[ resumoAbaAtiva.semCusto ]] sem custo</small>
-                    </div>
-                </div>
+            <div class="metric-card metric-card--success">
+                <span class="metric-card__icon"><i class="bi bi-currency-dollar"></i></span>
+                <span class="metric-card__body"><span class="metric-card__label">Valor conhecido nesta categoria</span><span class="metric-card__value">R$ [[ formatDinheiro(resumoAbaAtiva.valorCusto) ]]</span><span class="metric-card__helper" v-if="resumoAbaAtiva.semCusto > 0">Parcial: [[ resumoAbaAtiva.semCusto ]] sem custo</span></span>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-warning border-4 shadow-sm h-100" :class="resumoAbaAtiva.baixos > 0 ? 'bg-warning bg-opacity-10' : ''">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-warning bg-opacity-10 text-warning p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-exclamation-triangle fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Baixo nesta categoria</small>
-                        <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.baixos > 0 ? 'text-warning' : ''">[[ resumoAbaAtiva.baixos ]]</h5>
-                    </div>
-                </div>
+            <div class="metric-card metric-card--warning">
+                <span class="metric-card__icon"><i class="bi bi-exclamation-triangle"></i></span>
+                <span class="metric-card__body"><span class="metric-card__label">Baixo nesta categoria</span><span class="metric-card__value">[[ resumoAbaAtiva.baixos ]]</span></span>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 border-start border-danger border-4 shadow-sm h-100" :class="resumoAbaAtiva.zerados > 0 ? 'bg-danger bg-opacity-10' : ''">
-                <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                    <div class="rounded-3 bg-danger bg-opacity-10 text-danger p-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                        <i class="bi bi-slash-circle fs-4"></i>
-                    </div>
-                    <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Zerado nesta categoria</small>
-                        <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.zerados > 0 ? 'text-danger fw-extrabold' : ''">[[ resumoAbaAtiva.zerados ]]</h5>
-                    </div>
-                </div>
+            <div class="metric-card metric-card--danger">
+                <span class="metric-card__icon"><i class="bi bi-slash-circle"></i></span>
+                <span class="metric-card__body"><span class="metric-card__label">Zerado nesta categoria</span><span class="metric-card__value">[[ resumoAbaAtiva.zerados ]]</span></span>
             </div>
         </div>
     </div>
 
     <!-- Abas por tipo de insumo -->
-    <div class="card shadow-sm border-0 rounded-3">
-        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+    <section class="content-panel">
+        <div class="content-panel__header pb-0">
             <ul class="nav nav-tabs card-header-tabs mobile-scroll-tabs" role="tablist">
                 <li class="nav-item" v-for="tab in tabs" :key="tab.key" role="presentation">
                     <button
@@ -162,19 +132,18 @@
                         [[ tab.label ]]
                         <span class="badge rounded-pill ms-1"
                             :class="abaAtiva === tab.key ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'"
-                            style="font-size: 0.75rem;"
                         >[[ filtradosPorTipo(tab.key).length ]]</span>
-                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="badge bg-danger pulse-danger rounded-circle p-1" title="Contém insumos com alerta de estoque" style="width: 8px; height: 8px; margin-left: 2px;"></span>
+                        <span v-if="temEstoqueCriticoNaAba(tab.key)" class="critical-dot bg-danger" title="Contém insumos com alerta de estoque"><span class="visually-hidden">Contém estoque crítico</span></span>
                     </button>
                 </li>
             </ul>
         </div>
 
-        <div class="card-body p-0">
+        <div>
 
             <!-- TABELA PAPEL -->
-            <div v-show="abaAtiva === 'PAPEL'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div v-show="abaAtiva === 'PAPEL'" class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
@@ -208,19 +177,19 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td data-label="Saldo em metros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
+                                <div v-if="editingId === p.id" class="inline-stock-edit d-flex align-items-center gap-1" @click.stop>
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
                                     <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
+                                    <div class="stock-progress progress mt-1" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
                                             :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                    <span class="status-badge status-badge--zero ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle"></i>Estoque zerado</span>
+                                    <span class="status-badge status-badge--low ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle"></i>Estoque baixo</span>
                                 </div>
                             </td>
                             <td data-label="Preço Custo/Venda">
@@ -235,24 +204,29 @@
                                 </div>
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
+                                <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1m" :aria-label="'Adicionar 1 metro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1m" :aria-label="'Remover 1 metro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" :aria-label="'Mais ações para ' + p.descricao"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a :href="'/produto/' + p.id + '/'" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a :href="'/produto/' + p.id + '/editar/'" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('PAPEL').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum papel encontrado com os filtros aplicados.</td>
+                            <td colspan="7"><div class="empty-state"><i class="bi bi-inbox empty-state__icon"></i><p class="empty-state__title">Nenhum papel encontrado</p><p class="empty-state__description">Ajuste ou limpe os filtros aplicados.</p></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- TABELA TECIDO -->
-            <div v-show="abaAtiva === 'TECIDO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div v-show="abaAtiva === 'TECIDO'" class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
@@ -286,19 +260,19 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td data-label="Saldo em metros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
+                                <div v-if="editingId === p.id" class="inline-stock-edit d-flex align-items-center gap-1" @click.stop>
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
                                     <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
+                                    <div class="stock-progress progress mt-1" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
                                             :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                    <span class="status-badge status-badge--zero ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle"></i>Estoque zerado</span>
+                                    <span class="status-badge status-badge--low ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle"></i>Estoque baixo</span>
                                 </div>
                             </td>
                             <td data-label="Preço Custo/Venda">
@@ -313,24 +287,29 @@
                                 </div>
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
+                                <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1m" :aria-label="'Adicionar 1 metro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1m" :aria-label="'Remover 1 metro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" :aria-label="'Mais ações para ' + p.descricao"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a :href="'/produto/' + p.id + '/'" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a :href="'/produto/' + p.id + '/editar/'" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('TECIDO').length === 0">
-                            <td colspan="7" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum tecido encontrado com os filtros aplicados.</td>
+                            <td colspan="7"><div class="empty-state"><i class="bi bi-inbox empty-state__icon"></i><p class="empty-state__title">Nenhum tecido encontrado</p><p class="empty-state__description">Ajuste ou limpe os filtros aplicados.</p></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- TABELA TINTA -->
-            <div v-show="abaAtiva === 'TINTA'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div v-show="abaAtiva === 'TINTA'" class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
@@ -363,7 +342,7 @@
                             </td>
                             <td data-label="Cor">
                                 <span class="d-flex align-items-center gap-2">
-                                    <span class="rounded-circle d-inline-block border" style="width:13px;height:13px;" :style="corStyle(p.cor_tinta)"></span>
+                                    <span class="ink-swatch" :style="corStyle(p.cor_tinta)"></span>
                                     [[ p.cor_tinta ]]
                                 </span>
                             </td>
@@ -375,19 +354,19 @@
                                 <span v-else class="text-muted">—</span>
                             </td>
                             <td data-label="Saldo em litros" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
+                                <div v-if="editingId === p.id" class="inline-stock-edit d-flex align-items-center gap-1" @click.stop>
                                     <input type="number" step="0.1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
                                     <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
+                                    <div class="stock-progress progress mt-1" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
                                             :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                    <span class="status-badge status-badge--zero ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle"></i>Estoque zerado</span>
+                                    <span class="status-badge status-badge--low ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle"></i>Estoque baixo</span>
                                 </div>
                             </td>
                             <td data-label="Preço Custo/Venda">
@@ -402,24 +381,29 @@
                                 </div>
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
+                                <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1L" :aria-label="'Adicionar 1 litro em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1L" :aria-label="'Remover 1 litro de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" :aria-label="'Mais ações para ' + p.descricao"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a :href="'/produto/' + p.id + '/'" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a :href="'/produto/' + p.id + '/editar/'" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('TINTA').length === 0">
-                            <td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhuma tinta encontrada com os filtros aplicados.</td>
+                            <td colspan="8"><div class="empty-state"><i class="bi bi-inbox empty-state__icon"></i><p class="empty-state__title">Nenhuma tinta encontrada</p><p class="empty-state__description">Ajuste ou limpe os filtros aplicados.</p></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- TABELA AVIAMENTO -->
-            <div v-show="abaAtiva === 'AVIAMENTO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div v-show="abaAtiva === 'AVIAMENTO'" class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
@@ -442,19 +426,19 @@
                             <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td data-label="Quantidade" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
+                                <div v-if="editingId === p.id" class="inline-stock-edit d-flex align-items-center gap-1" @click.stop>
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
                                     <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
+                                    <div class="stock-progress progress mt-1" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
                                             :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                    <span class="status-badge status-badge--zero ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle"></i>Estoque zerado</span>
+                                    <span class="status-badge status-badge--low ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle"></i>Estoque baixo</span>
                                 </div>
                             </td>
                             <td data-label="Preço Custo/Venda">
@@ -469,24 +453,29 @@
                                 </div>
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
+                                <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1" :aria-label="'Adicionar 1 unidade em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1" :aria-label="'Remover 1 unidade de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" :aria-label="'Mais ações para ' + p.descricao"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a :href="'/produto/' + p.id + '/'" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a :href="'/produto/' + p.id + '/editar/'" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('AVIAMENTO').length === 0">
-                            <td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum aviamento encontrado com os filtros aplicados.</td>
+                            <td colspan="5"><div class="empty-state"><i class="bi bi-inbox empty-state__icon"></i><p class="empty-state__title">Nenhum aviamento encontrado</p><p class="empty-state__description">Ajuste ou limpe os filtros aplicados.</p></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- TABELA OUTRO -->
-            <div v-show="abaAtiva === 'OUTRO'" class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+            <div v-show="abaAtiva === 'OUTRO'" class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4 cursor-pointer" @click="ordenarPor('descricao')">
@@ -509,19 +498,19 @@
                             <td class="ps-4" data-label="Descrição"><a :href="'/produto/' + p.id + '/'" class="text-decoration-none fw-medium product-link">[[ p.descricao ]]</a></td>
                             <td data-label="Fornecedor"><span class="text-muted small">[[ p.fornecedor || '—' ]]</span></td>
                             <td data-label="Quantidade" @dblclick="startEdit(p)">
-                                <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
+                                <div v-if="editingId === p.id" class="inline-stock-edit d-flex align-items-center gap-1" @click.stop>
                                     <input type="number" step="0.01" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
                                     <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
-                                    <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
+                                    <div class="stock-progress progress mt-1" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
                                             :class="isEstoqueZerado(p) ? 'bg-secondary' : isEstoqueBaixo(p) ? 'bg-danger' : 'bg-success'">
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger text-white ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle me-1"></i>Zerado</span>
-                                    <span class="badge bg-danger pulse-danger ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle-fill me-1"></i>Baixo</span>
+                                    <span class="status-badge status-badge--zero ms-1" v-if="isEstoqueZerado(p)"><i class="bi bi-slash-circle"></i>Estoque zerado</span>
+                                    <span class="status-badge status-badge--low ms-1" v-else-if="isEstoqueBaixo(p)"><i class="bi bi-exclamation-triangle"></i>Estoque baixo</span>
                                 </div>
                             </td>
                             <td data-label="Preço Custo/Venda">
@@ -536,23 +525,28 @@
                                 </div>
                             </td>
                             <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm shadow-sm">
+                                <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-success" @click="alterar(p, 1)" :disabled="p.updating" title="Adicionar 1" :aria-label="'Adicionar 1 unidade em ' + p.descricao"><i class="bi bi-plus-lg"></i></button>
                                     <button class="btn btn-outline-danger" @click="alterar(p, -1)" :disabled="p.updating" title="Remover 1" :aria-label="'Remover 1 unidade de ' + p.descricao"><i class="bi bi-dash-lg"></i></button>
-                                    <a :href="'/produto/' + p.id + '/editar/'" class="btn btn-outline-warning" title="Editar" :aria-label="'Editar ' + p.descricao"><i class="bi bi-pencil"></i></a>
-                                    <a :href="'/produto/' + p.id + '/'" class="btn btn-outline-secondary" title="Detalhes" :aria-label="'Ver detalhes de ' + p.descricao"><i class="bi bi-eye"></i></a>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" :aria-label="'Mais ações para ' + p.descricao"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a :href="'/produto/' + p.id + '/'" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a :href="'/produto/' + p.id + '/editar/'" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="filtradosPorTipo('OUTRO').length === 0">
-                            <td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum item encontrado com os filtros aplicados.</td>
+                            <td colspan="5"><div class="empty-state"><i class="bi bi-inbox empty-state__icon"></i><p class="empty-state__title">Nenhum item encontrado</p><p class="empty-state__description">Ajuste ou limpe os filtros aplicados.</p></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
         </div>
-    </div>
+    </section>
 </div>
 
 <!-- Modal Importar CSV -->
@@ -566,7 +560,7 @@
       <div class="modal-body">
         <p class="small text-muted mb-3">Envie um arquivo CSV seguindo o modelo padrão para adicionar múltiplos produtos ao mesmo tempo.</p>
         <div class="mb-4">
-          <a href="{% url 'template_csv_produtos' %}" class="btn btn-sm btn-light border shadow-sm">
+          <a href="{% url 'template_csv_produtos' %}" class="btn btn-sm btn-light border">
             <i class="bi bi-file-earmark-spreadsheet me-1 text-success"></i>Baixar Modelo em Branco
           </a>
         </div>
@@ -576,7 +570,7 @@
             <input class="form-control" type="file" id="arquivoCSV" name="arquivo" accept=".csv" required>
           </div>
           <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-primary shadow-sm" id="btnImportar">
+            <button type="submit" class="btn btn-primary" id="btnImportar">
                 <i class="bi bi-upload me-1"></i>Iniciar Importação
             </button>
           </div>
@@ -584,6 +578,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 {% endblock %}
 
@@ -599,8 +594,10 @@
         ok: 'OK',
         todos: 'TODOS',
     };
+    const filtroQueryMap = { BAIXO: 'baixo', ZERADO: 'zerado', OK: 'ok' };
     const filtroInicial = filtroUrlMap[(urlParams.get('filtro') || '').toLowerCase()] || 'TODOS';
     const buscaInicial = urlParams.get('busca') || urlParams.get('q') || '';
+    const fornecedorInicial = urlParams.get('fornecedor') || 'TODOS';
     const abasValidas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO'];
     const abaInicial = (urlParams.get('aba') || 'PAPEL').toUpperCase();
 
@@ -617,7 +614,7 @@
                 produtos: {{ produtos_json|safe }},
                 searchQuery: buscaInicial,
                 filtroEstoque: filtroInicial,
-                filtroFornecedor: 'TODOS',
+                filtroFornecedor: fornecedorInicial,
                 ordemColuna: 'descricao',
                 ordemDirecao: 'asc',
                 abaAtiva: abasValidas.includes(abaInicial) ? abaInicial : 'PAPEL',
@@ -714,12 +711,18 @@
         watch: {
             searchQuery() {
                 this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+                this.syncUrl();
             },
             filtroEstoque() {
                 this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+                this.syncUrl();
             },
             filtroFornecedor() {
                 this.$nextTick(() => this.selecionarPrimeiraAbaSeAtualVazia());
+                this.syncUrl();
+            },
+            abaAtiva() {
+                this.syncUrl();
             },
         },
         mounted() {
@@ -728,6 +731,17 @@
             });
         },
         methods: {
+            syncUrl() {
+                const params = new URLSearchParams(window.location.search);
+                const busca = this.searchQuery.trim();
+                if (busca) params.set('busca', busca); else params.delete('busca');
+                params.delete('q');
+                if (this.filtroEstoque !== 'TODOS') params.set('filtro', filtroQueryMap[this.filtroEstoque]); else params.delete('filtro');
+                if (this.filtroFornecedor !== 'TODOS') params.set('fornecedor', this.filtroFornecedor); else params.delete('fornecedor');
+                if (this.abaAtiva !== 'PAPEL') params.set('aba', this.abaAtiva.toLowerCase()); else params.delete('aba');
+                const query = params.toString();
+                history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
+            },
             filtradosPorTipo(tipo) {
                 return this.produtosFiltrados.filter(p => p.tipo_produto === tipo);
             },

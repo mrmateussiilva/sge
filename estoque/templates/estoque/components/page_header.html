@@ -1,0 +1,26 @@
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title">
+            <span class="page-header__icon" aria-hidden="true">
+                <i class="bi {{ page_icon }}"></i>
+            </span>
+            <h1>{{ page_title }}</h1>
+        </div>
+        {% if page_description %}
+        <p class="page-header__description">{{ page_description }}</p>
+        {% endif %}
+    </div>
+    {% if action_url or action_modal %}
+    <div class="page-header__actions">
+        {% if action_url %}
+        <a href="{{ action_url }}" class="btn btn-primary">
+            {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ action_label }}
+        </a>
+        {% else %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#{{ action_modal }}">
+            {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ action_label }}
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+</header>

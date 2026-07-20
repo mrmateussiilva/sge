@@ -2,11 +2,12 @@
 {% block title %}S.G.E - Nova Ordem{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 fw-bold"><i class="bi bi-cart-plus me-2"></i>Nova Ordem de Compra</h1>
+<div class="page-container">
+{% include 'estoque/components/page_header.html' with page_title='Nova ordem de compra' page_description='Selecione o fornecedor e informe os materiais solicitados.' page_icon='bi-cart-plus' %}
 
 <div id="app">
     <form @submit.prevent="salvar">
-        <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <section class="content-panel mb-4">
             <div class="card-body p-4">
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -24,17 +25,17 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="card shadow-sm border-0 rounded-3 mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <section class="content-panel mb-4">
+            <div class="content-panel__header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-semibold">Itens</h5>
                 <button type="button" class="btn btn-sm btn-success" @click="adicionarItem">
                     <i class="bi bi-plus-lg me-1"></i>Item
                 </button>
             </div>
             <div class="card-body p-0">
-                <table class="table mb-0">
+                <table class="data-table table">
                     <thead class="table-light">
                         <tr>
                             <th class="ps-4">Produto</th>
@@ -53,10 +54,10 @@
                                     list="produtos-datalist" required>
                             </td>
                             <td data-label="Quantidade">
-                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.quantidade)" @input="filterItemDecimal('quantidade', idx, $event)" class="form-control form-control-sm" style="max-width:120px;" required>
+                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.quantidade)" @input="filterItemDecimal('quantidade', idx, $event)" class="inline-stock-edit form-control form-control-sm" required>
                             </td>
                             <td data-label="Preço Unitário">
-                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.preco_unitario)" @input="filterItemDecimal('preco_unitario', idx, $event)" class="form-control form-control-sm" style="max-width:140px;" required>
+                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.preco_unitario)" @input="filterItemDecimal('preco_unitario', idx, $event)" class="price-input form-control form-control-sm" required>
                             </td>
                             <td class="fw-medium" data-label="Subtotal">R$ [[ (item.quantidade * item.preco_unitario).toFixed(2) ]]</td>
                             <td class="pe-4" data-label="Ação">
@@ -65,6 +66,7 @@
                                 </button>
                             </td>
                         </tr>
+                        <tr v-if="itens.length === 0"><td colspan="5"><div class="empty-state"><i class="bi bi-cart-plus empty-state__icon"></i><p class="empty-state__title">Nenhum item adicionado</p><p class="empty-state__description">Use o botão Item para incluir um produto na ordem.</p></div></td></tr>
                     </tbody>
                     <tfoot>
                         <tr class="table-light fw-bold">
@@ -75,13 +77,13 @@
                     </tfoot>
                 </table>
             </div>
-        </div>
+        </section>
 
         <div class="page-actions">
-            <button type="submit" class="btn btn-primary shadow-sm" :disabled="itens.length === 0">
+            <button type="submit" class="btn btn-primary" :disabled="itens.length === 0">
                 <i class="bi bi-check-lg me-1"></i>Salvar Ordem
             </button>
-            <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary shadow-sm">Cancelar</a>
+            <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary">Cancelar</a>
         </div>
 
         <datalist id="produtos-datalist">
@@ -90,6 +92,7 @@
             {% endfor %}
         </datalist>
     </form>
+</div>
 </div>
 {% endblock %}
 

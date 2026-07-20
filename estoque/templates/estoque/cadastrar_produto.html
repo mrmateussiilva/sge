@@ -2,10 +2,11 @@
 {% block title %}S.G.E - Novo Produto{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 fw-bold"><i class="bi bi-plus-circle me-2"></i>Novo Produto</h1>
+<div class="page-container">
+{% include 'estoque/components/page_header.html' with page_title='Novo produto' page_description='Cadastre um item e configure sua unidade, estoque mínimo e valores.' page_icon='bi-plus-circle' %}
 
 <div id="app">
-  <div class="card shadow-sm border-0 rounded-3">
+  <section class="content-panel">
     <div class="card-body p-4">
       <form @submit.prevent="enviar" class="row g-3">
 
@@ -90,16 +91,16 @@
 
           <!-- Painel Dinâmico de Margens e Simulador de Markup -->
           <div class="col-12" v-if="produto.preco_custo || produto.preco_venda">
-            <div class="p-3 rounded-3 d-flex flex-wrap gap-4 align-items-center justify-content-between" style="background-color: rgba(99, 102, 241, 0.05); border: 1px dashed rgba(99, 102, 241, 0.25);">
+            <div class="financial-summary p-3 d-flex flex-wrap gap-4 align-items-center justify-content-between">
               <div class="d-flex gap-4 flex-wrap">
                 <div>
-                  <small class="text-muted d-block fw-semibold small text-uppercase" style="font-size: 0.72rem;">Lucro Estimado</small>
+                  <small class="metric-card__label">Lucro Estimado</small>
                   <strong :class="lucroBrutoNum >= 0 ? 'text-success' : 'text-danger'" class="fs-5">
                     R$ [[ formatDinheiro(lucroBrutoNum) ]]
                   </strong>
                 </div>
                 <div>
-                  <small class="text-muted d-block fw-semibold small text-uppercase" style="font-size: 0.72rem;">Margem de Lucro (Markup)</small>
+                  <small class="metric-card__label">Margem de Lucro (Markup)</small>
                   <strong :class="markupPercent >= 0 ? 'text-success' : 'text-danger'" class="fs-5">
                     [[ formatPorcentagem(markupPercent) ]]%
                   </strong>
@@ -109,7 +110,7 @@
                 <span class="small text-muted fw-medium">Simular Markup:</span>
                 <div class="input-group input-group-sm markup-input">
                   <input type="number" class="form-control" v-model.number="simuladorMarkup" @input="calcularVendaPorMarkup" placeholder="Ex: 50">
-                  <span class="input-group-text bg-white">%</span>
+                  <span class="input-group-text">%</span>
                 </div>
               </div>
             </div>
@@ -153,14 +154,15 @@
           </div>
 
           <div class="col-12 mt-4">
-            <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm w-100" :disabled="carregando">
+            <button type="submit" class="btn btn-primary btn-lg px-5 w-100" :disabled="carregando">
               <i class="bi bi-check-lg me-2"></i>[[ carregando ? 'Salvando...' : 'Cadastrar Produto' ]]
             </button>
           </div>
         </template>
       </form>
     </div>
-  </div>
+  </section>
+</div>
 </div>
 {% endblock %}
 

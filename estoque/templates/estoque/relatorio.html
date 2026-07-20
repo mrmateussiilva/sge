@@ -2,12 +2,14 @@
 {% block title %}S.G.E - Relatório{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
-    <h1 class="mb-0 fw-bold"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Relatório de Movimentações</h1>
-    <button onclick="window.print()" class="btn btn-outline-success shadow-sm btn-print-pdf no-print w-100 w-sm-auto">
-        <i class="bi bi-file-pdf me-1"></i>Imprimir / Salvar PDF
-    </button>
-</div>
+<div class="page-container page-container--wide">
+<header class="page-header no-print">
+    <div class="page-header__content">
+        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-file-earmark-bar-graph"></i></span><h1>Relatório de movimentações</h1></div>
+        <p class="page-header__description">Consulte entradas, saídas e produtos movimentados por período.</p>
+    </div>
+    <div class="page-header__actions"><button onclick="window.print()" class="btn btn-outline-success btn-print-pdf"><i class="bi bi-file-pdf me-1"></i>Imprimir / Salvar PDF</button></div>
+</header>
 
 <!-- Cabeçalho exclusivo para versão impressa -->
 <div class="print-header d-none d-print-block mb-4">
@@ -17,92 +19,68 @@
     <hr>
 </div>
 
-<div class="card shadow-sm border-0 rounded-3 mb-4 no-print">
-    <div class="card-body p-4">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-4">
+<form method="GET" class="filter-bar filter-bar--dates mb-4 no-print">
+            <div class="filter-bar__fields">
+            <div>
                 <label class="form-label fw-medium">Data Início</label>
                 <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
             </div>
-            <div class="col-md-4">
+            <div>
                 <label class="form-label fw-medium">Data Fim</label>
                 <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
             </div>
-            <div class="col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary shadow-sm flex-grow-1">
+            </div>
+            <div class="filter-bar__actions">
+                <button type="submit" class="btn btn-primary flex-grow-1">
                     <i class="bi bi-search me-1"></i>Filtrar
                 </button>
-                <a href="{% url 'relatorio_mensal' %}" class="btn btn-outline-secondary shadow-sm">
-                    <i class="bi bi-arrow-counterclockwise"></i>
+                <a href="{% url 'relatorio_mensal' %}" class="btn btn-outline-secondary" title="Limpar filtros" aria-label="Limpar filtros">
+                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
                 </a>
             </div>
-        </form>
-    </div>
-</div>
+</form>
 
 <div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="card text-bg-primary shadow-sm border-0 rounded-3 h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <i class="bi bi-arrow-up fs-1"></i>
-                <div>
-                    <h6 class="card-title mb-1 fw-light">Entradas por unidade</h6>
+        <div class="metric-card metric-card--success">
+            <span class="metric-card__icon"><i class="bi bi-arrow-up"></i></span>
+            <span class="metric-card__body"><span class="metric-card__label">Entradas por unidade</span>
                     {% for item in total_entradas_unidade %}
-                    <p class="card-text h5 mb-0 fw-bold">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</p>
+                    <span class="metric-card__value d-block">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</span>
                     {% empty %}
-                    <p class="card-text h5 mb-0 fw-bold">0</p>
+                    <span class="metric-card__value">0</span>
                     {% endfor %}
-                </div>
-            </div>
+            </span>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-danger shadow-sm border-0 rounded-3 h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <i class="bi bi-arrow-down fs-1"></i>
-                <div>
-                    <h6 class="card-title mb-1 fw-light">Saídas por unidade</h6>
+        <div class="metric-card metric-card--danger">
+            <span class="metric-card__icon"><i class="bi bi-arrow-down"></i></span>
+            <span class="metric-card__body"><span class="metric-card__label">Saídas por unidade</span>
                     {% for item in total_saidas_unidade %}
-                    <p class="card-text h5 mb-0 fw-bold">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</p>
+                    <span class="metric-card__value d-block">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</span>
                     {% empty %}
-                    <p class="card-text h5 mb-0 fw-bold">0</p>
+                    <span class="metric-card__value">0</span>
                     {% endfor %}
-                </div>
-            </div>
+            </span>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-info shadow-sm border-0 rounded-3 h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <i class="bi bi-arrow-left-right fs-1"></i>
-                <div>
-                    <h6 class="card-title mb-0 fw-light">Movimentações</h6>
-                    <p class="card-text display-6 mb-0 fw-bold">{{ total_movimentacoes }}</p>
-                </div>
-            </div>
-        </div>
+        {% include 'estoque/components/metric_card.html' with metric_label='Movimentações no período' metric_value=total_movimentacoes metric_icon='bi-arrow-left-right' metric_variant='info' %}
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-success shadow-sm border-0 rounded-3 h-100">
-            <div class="card-body d-flex align-items-center gap-3">
-                <i class="bi bi-calculator fs-1"></i>
-                <div>
-                    <h6 class="card-title mb-0 fw-light">Produtos movimentados</h6>
-                    <p class="card-text display-6 mb-0 fw-bold">{{ produtos_afetados|length }}</p>
-                </div>
-            </div>
-        </div>
+        {% include 'estoque/components/metric_card.html' with metric_label='Produtos movimentados' metric_value=produtos_afetados|length metric_icon='bi-boxes' metric_variant='success' %}
     </div>
 </div>
 
-<div class="card shadow-sm border-0 rounded-3">
-    <div class="card-header bg-white">
+<section class="content-panel">
+    <div class="content-panel__header">
         <h5 class="mb-0 fw-semibold">
             <i class="bi bi-box me-1"></i>Movimentações por Produto
         </h5>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Produto</th>
@@ -120,14 +98,11 @@
                     <td class="pe-4 fw-medium" data-label="Saldo">{{ p.saldo }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox me-1"></i>Nenhuma movimentação no período.
-                    </td>
-                </tr>
+                {% include 'estoque/components/empty_state.html' with table_colspan=4 empty_icon='bi-calendar-x' empty_title='Nenhuma movimentação no período' empty_description='Altere as datas para consultar outro intervalo.' %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</section>
 </div>
 {% endblock %}

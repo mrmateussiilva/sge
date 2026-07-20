@@ -2,46 +2,55 @@
 {% block title %}S.G.E - {{ produto.descricao }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h1 class="mb-0 fw-bold"><i class="bi bi-info-circle me-2"></i>Detalhes do Produto</h1>
-    <div class="page-actions">
-        <a href="{% url 'editar_produto' produto.id %}" class="btn btn-warning shadow-sm">
+<div class="page-container page-container--wide">
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-box-seam"></i></span><h1>{{ produto.descricao }}</h1></div>
+        <p class="page-header__description">Consulte os dados, o saldo e o histórico deste produto.</p>
+    </div>
+    <div class="page-header__actions">
+        <a href="{% url 'editar_produto' produto.id %}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
-        <a href="{% url 'etiqueta_produto' produto.id %}" class="btn btn-outline-dark shadow-sm" target="_blank">
+        <a href="{% url 'etiqueta_produto' produto.id %}" class="btn btn-outline-secondary" target="_blank" hx-boost="false">
             <i class="bi bi-tag me-1"></i>Etiqueta
         </a>
-        <button onclick="excluirProduto({{ produto.id }})" class="btn btn-outline-danger shadow-sm">
-            <i class="bi bi-trash me-1"></i>Excluir
-        </button>
-        <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary shadow-sm">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                Ações
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'detalhe_produto' produto.id %}">Ver</a></li>
+                <li><a class="dropdown-item" href="{% url 'editar_produto' produto.id %}">Editar</a></li>
+                <li><a class="dropdown-item" href="#historico">Histórico</a></li>
+                {% if user.is_superuser %}
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item text-danger" type="button" onclick="excluirProduto({{ produto.id }}, '{{ produto.descricao|escapejs }}')">Excluir</button></li>
+                {% endif %}
+            </ul>
+        </div>
+        <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Voltar
         </a>
     </div>
-</div>
+</header>
 
-<div class="card shadow-sm border-0 rounded-3 mb-4">
+<div class="content-panel mb-4">
     <div class="card-body p-4">
         <div class="d-flex align-items-center gap-3 mb-3">
             <h4 class="mb-0 fw-bold">{{ produto.descricao }}</h4>
             <span class="badge bg-primary rounded-pill">{{ produto.get_tipo_produto_display }}</span>
-            {% if produto.quantidade_base <= 0 %}
-            <span class="badge bg-secondary rounded-pill"><i class="bi bi-slash-circle me-1"></i>Estoque Zerado</span>
-            {% elif produto.quantidade_base <= produto.estoque_minimo %}
-            <span class="badge bg-danger rounded-pill"><i class="bi bi-exclamation-triangle me-1"></i>Estoque Baixo</span>
-            {% else %}
-            <span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>Estoque OK</span>
-            {% endif %}
+            {% include 'estoque/components/status_badge.html' with status=produto.status_estoque %}
         </div>
         <div class="row g-3">
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Fornecedor</small>
                     <span class="fw-medium">{{ produto.fornecedor.nome|default:'-' }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center h-100">
+                <div class="financial-summary p-3 d-flex justify-content-between align-items-center h-100">
                     <div>
                         <small class="text-muted d-block">Quantidade Atual</small>
                         <span class="fw-medium fs-4" id="detalhe-qtd-{{ produto.id }}">{{ produto.quantidade_base }}</span> <span class="fs-6 text-muted">{{ produto.get_unidade_medida_display }}</span>
@@ -57,25 +66,25 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Estoque Mínimo</small>
                     <span class="fw-medium">{{ produto.estoque_minimo }} {{ produto.get_unidade_medida_display }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Preço de Custo</small>
                     <span class="fw-medium">R$ {{ produto.preco_custo }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Preço de Venda</small>
                     <span class="fw-medium">R$ {{ produto.preco_venda }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Lucro por Unidade</small>
                     <span class="fw-medium {% if lucro >= 0 %}text-success{% else %}text-danger{% endif %}">
                         R$ {{ lucro|floatformat:2 }}
@@ -86,32 +95,32 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Tipo</small>
                     <span class="fw-medium">{{ produto.get_tipo_produto_display }}</span>
                 </div>
             </div>
             {% if produto.tipo_produto == 'TINTA' %}
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Tipo de Tinta</small>
                     <span class="fw-medium">{{ produto.get_tipo_tinta_display }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Cor</small>
                     <span class="fw-medium">{{ produto.get_cor_tinta_display }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Litros por Vidro</small>
                     <span class="fw-medium">{{ produto.litros_por_vidro|default:'-' }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Vidros Estimados</small>
                     <span class="fw-medium">{{ produto.quantidade_vidros_estimada }}</span>
                 </div>
@@ -119,13 +128,13 @@
             {% endif %}
             {% if produto.tipo_produto == 'TECIDO' or produto.tipo_produto == 'PAPEL' %}
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Metros por Rolo</small>
                     <span class="fw-medium">{{ produto.metros_por_rolo|default:'-' }}</span>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Rolos Estimados</small>
                     <span class="fw-medium">{{ produto.quantidade_rolos_estimada }}</span>
                 </div>
@@ -135,14 +144,14 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-0 rounded-3">
-    <div class="card-header bg-white border-bottom-0 pt-3">
+<div class="content-panel">
+    <div class="content-panel__header">
         <h5 class="mb-0 fw-semibold">
             <i class="bi bi-clock-history text-primary me-1"></i>Histórico de Movimentações
         </h5>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Data</th>
@@ -157,39 +166,36 @@
                 <tr>
                     <td class="ps-4 text-muted small" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
                     <td data-label="Tipo">
-                        {% if m.tipo == 'ENTRADA' %}
-                        <span class="badge bg-success"><i class="bi bi-arrow-up me-1"></i>Entrada</span>
-                        {% else %}
-                        <span class="badge bg-danger"><i class="bi bi-arrow-down me-1"></i>Saída</span>
-                        {% endif %}
+                        {% include 'estoque/components/status_badge.html' with status=m.tipo %}
                     </td>
-                    <td data-label="Quantidade">{{ m.quantidade }}</td>
+                    <td data-label="Quantidade">{{ m.quantidade }} {{ produto.unidade_simbolo }}</td>
                     <td class="text-muted" data-label="Observação">{{ m.observacao|default:'-' }}</td>
                     <td class="pe-4" data-label="Ação">
-                        <button onclick="excluirMovimentacao({{ m.id }})" class="btn btn-outline-danger btn-sm" title="Excluir">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
+                        {% if user.is_superuser %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Ações</button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><button class="dropdown-item text-danger" type="button" onclick="excluirMovimentacao({{ m.id }}, '{{ produto.descricao|escapejs }}')">Excluir</button></li>
+                            </ul>
+                        </div>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox me-1"></i>Nenhuma movimentação registrada para este produto.
-                    </td>
-                </tr>
+                {% include 'estoque/components/empty_state.html' with table_colspan=5 empty_icon='bi-arrow-left-right' empty_title='Nenhuma movimentação registrada' empty_description='As entradas e saídas deste produto aparecerão aqui.' %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-<div class="card shadow-sm border-0 rounded-3 mt-4">
-    <div class="card-header bg-white border-bottom-0 pt-3">
+<div class="content-panel mt-4">
+    <div class="content-panel__header">
         <h5 class="mb-0 fw-semibold">
             <i class="bi bi-currency-dollar text-success me-1"></i>Histórico de Preços
         </h5>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Data</th>
@@ -211,15 +217,12 @@
                     <td class="pe-4" data-label="Usuário">{{ h.usuario|default:'-' }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox me-1"></i>Nenhuma alteração de preço registrada.
-                    </td>
-                </tr>
+                {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-cash-stack' empty_title='Nenhuma alteração de preço' empty_description='As mudanças futuras de custo e venda aparecerão aqui.' %}
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -227,33 +230,33 @@
 <script>
 const csrfToken = '{{ csrf_token }}';
 
-function excluirProduto(id) {
-    confirmarAcao('Excluir Produto', 'Tem certeza que deseja excluir este produto? Esta acao nao pode ser desfeita.', function() {
+function excluirProduto(id, descricao) {
+    confirmarAcao('Excluir Produto', 'Excluir "' + descricao + '"? A exclusão será bloqueada se houver movimentações, ordens ou fechamentos vinculados.', function() {
         fetch('/produto/' + id + '/excluir/', {
             method: 'POST',
             headers: {'X-CSRFToken': csrfToken},
         }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.ok) {
-                showToast('Produto excluido com sucesso!');
+                showToast(data.mensagem || 'Produto excluido com sucesso!');
                 setTimeout(function() { window.location.href = '/produtos/'; }, 800);
             } else {
-                showToast('Erro ao excluir produto.', 'danger');
+                showToast(data.erro || 'Erro ao excluir produto.', 'danger');
             }
         });
     });
 }
 
-function excluirMovimentacao(id) {
-    confirmarAcao('Excluir Movimentacao', 'Tem certeza? O estoque sera estornado automaticamente.', function() {
+function excluirMovimentacao(id, produto) {
+    confirmarAcao('Excluir Movimentacao', 'Excluir movimentação de ' + produto + '? Esta exclusão irá recalcular o saldo do produto. Deseja continuar?', function() {
         fetch('/movimentacao/' + id + '/excluir/', {
             method: 'POST',
             headers: {'X-CSRFToken': csrfToken},
         }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.ok) {
-                showToast('Movimentacao excluida e estoque estornado!');
+                showToast(data.mensagem || 'Movimentacao excluida e estoque estornado!');
                 setTimeout(function() { location.reload(); }, 800);
             } else {
-                showToast('Erro ao excluir movimentacao.', 'danger');
+                showToast(data.erro || 'Erro ao excluir movimentacao.', 'danger');
             }
         });
     });

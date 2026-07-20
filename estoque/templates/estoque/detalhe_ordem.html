@@ -2,59 +2,55 @@
 {% block title %}S.G.E - Ordem #{{ ordem.id }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h1 class="mb-0 fw-bold"><i class="bi bi-cart me-2"></i>Ordem #{{ ordem.id }}</h1>
-    <div class="page-actions">
+<div class="page-container page-container--wide">
+<header class="page-header">
+    <div class="page-header__content">
+        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-cart"></i></span><h1>Ordem #{{ ordem.id }}</h1></div>
+        <p class="page-header__description">Consulte os itens e avance o fluxo desta ordem de compra.</p>
+    </div>
+    <div class="page-header__actions">
         {% if ordem.status == 'PENDENTE' %}
-        <button onclick="confirmarAcao('Aprovar Ordem', 'Aprovar esta ordem de compra?', function() { alterarStatus('{% url "aprovar_ordem" ordem.id %}', 'aprovada'); })" class="btn btn-primary shadow-sm">
+        <button onclick="confirmarAcao('Aprovar Ordem', 'Aprovar esta ordem de compra?', function() { alterarStatus('{% url "aprovar_ordem" ordem.id %}', 'aprovada'); })" class="btn btn-primary">
             <i class="bi bi-check-lg me-1"></i>Aprovar
         </button>
-        <button onclick="confirmarAcao('Cancelar Ordem', 'Cancelar esta ordem?', function() { alterarStatus('{% url "cancelar_ordem" ordem.id %}', 'cancelada'); })" class="btn btn-outline-danger shadow-sm">
+        <button onclick="confirmarAcao('Cancelar Ordem', 'Cancelar esta ordem?', function() { alterarStatus('{% url "cancelar_ordem" ordem.id %}', 'cancelada'); })" class="btn btn-outline-danger">
             <i class="bi bi-x-lg me-1"></i>Cancelar
         </button>
         {% elif ordem.status == 'APROVADA' %}
-        <button onclick="confirmarAcao('Receber Ordem', 'Dar entrada no estoque de todos os itens desta ordem?', function() { alterarStatus('{% url "receber_ordem" ordem.id %}', 'recebida'); })" class="btn btn-success shadow-sm">
+        <button onclick="confirmarAcao('Receber Ordem', 'Dar entrada no estoque de todos os itens desta ordem?', function() { alterarStatus('{% url "receber_ordem" ordem.id %}', 'recebida'); })" class="btn btn-success">
             <i class="bi bi-box-seam me-1"></i>Receber no Estoque
         </button>
-        <button onclick="confirmarAcao('Cancelar Ordem', 'Cancelar esta ordem aprovada?', function() { alterarStatus('{% url "cancelar_ordem" ordem.id %}', 'cancelada'); })" class="btn btn-outline-danger shadow-sm">
+        <button onclick="confirmarAcao('Cancelar Ordem', 'Cancelar esta ordem aprovada?', function() { alterarStatus('{% url "cancelar_ordem" ordem.id %}', 'cancelada'); })" class="btn btn-outline-danger">
             <i class="bi bi-x-lg me-1"></i>Cancelar
         </button>
         {% endif %}
-        <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary shadow-sm">
+        <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Voltar
         </a>
     </div>
-</div>
+</header>
 
-<div class="card shadow-sm border-0 rounded-3 mb-4">
+<div class="content-panel mb-4">
     <div class="card-body p-4">
         <div class="d-flex align-items-center gap-3 mb-3">
             <h4 class="mb-0 fw-bold">Ordem #{{ ordem.id }}</h4>
-            {% if ordem.status == 'PENDENTE' %}
-            <span class="badge bg-warning text-dark fs-6">Pendente</span>
-            {% elif ordem.status == 'APROVADA' %}
-            <span class="badge bg-primary fs-6">Aprovada</span>
-            {% elif ordem.status == 'RECEBIDA' %}
-            <span class="badge bg-success fs-6">Recebida</span>
-            {% elif ordem.status == 'CANCELADA' %}
-            <span class="badge bg-secondary fs-6">Cancelada</span>
-            {% endif %}
+            {% include 'estoque/components/status_badge.html' with status=ordem.status label=ordem.get_status_display %}
         </div>
         <div class="row g-3">
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Fornecedor</small>
                     <span class="fw-medium">{{ ordem.fornecedor.nome|default:'-' }}</span>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Data de Criação</small>
                     <span class="fw-medium">{{ ordem.data_criacao|date:"d/m/Y H:i" }}</span>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 bg-light rounded-3">
+                <div class="financial-summary p-3">
                     <small class="text-muted d-block">Observação</small>
                     <span class="fw-medium">{{ ordem.observacao|default:'-' }}</span>
                 </div>
@@ -63,12 +59,12 @@
     </div>
 </div>
 
-<div class="card shadow-sm border-0 rounded-3">
-    <div class="card-header bg-white">
+<div class="content-panel">
+    <div class="content-panel__header">
         <h5 class="mb-0 fw-semibold">Itens</h5>
     </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+        <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Produto</th>
@@ -86,11 +82,7 @@
                     <td class="pe-4 fw-medium" data-label="Subtotal">R$ {{ item.quantidade|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox me-1"></i>Nenhum item nesta ordem.
-                    </td>
-                </tr>
+                {% include 'estoque/components/empty_state.html' with table_colspan=4 empty_icon='bi-cart-x' empty_title='Nenhum item nesta ordem' empty_description='Inclua produtos antes de prosseguir com a aprovação.' %}
                 {% endfor %}
             </tbody>
             <tfoot>
@@ -101,6 +93,7 @@
             </tfoot>
         </table>
     </div>
+</div>
 </div>
 {% endblock %}
 

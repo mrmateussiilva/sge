@@ -4,11 +4,11 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 import json
 from io import StringIO
 
-from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, Movimentacao, Produto
+from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, LogAcao, Movimentacao, Produto
 from .services.estoque_metrics import agrupar_quantidade_por_unidade
 from .services.estoque_status import BAIXO, NORMAL, SEM_MINIMO, ZERADO, classificar_estoque, filtro_baixo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
@@ -101,7 +101,7 @@ class MovimentacaoTestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         data = response.json()
         self.assertFalse(data['ok'])
-        self.assertIn('Quantidade indisponível', data['erro'])
+        self.assertIn('Saldo insuficiente', data['erro'])
         self.produto.refresh_from_db()
         self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
 
@@ -406,3 +406,156 @@ class FechamentoTestCase(TestCase):
         response = self.client.get(reverse('exportar_atual_xlsx'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+class FluxosOperacionaisTestCase(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(username='adminop', password='password123')
+        self.operador = User.objects.create_user(username='operadorop', password='password123')
+        self.fornecedor = Fornecedor.objects.create(nome='Fornecedor Operacional')
+        self.produto = Produto.objects.create(
+            descricao='TECIDO OPERACIONAL',
+            tipo_produto='TECIDO',
+            quantidade_base=Decimal('45.30'),
+            estoque_minimo=Decimal('20.00'),
+            preco_custo=Decimal('10.00'),
+            fornecedor=self.fornecedor,
+        )
+
+    def test_movimentacao_exibe_saldo_unidade_minimo_fornecedor_e_status(self):
+        self.client.login(username='operadorop', password='password123')
+        response = self.client.get(reverse('registrar_movimentacao'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '45,30 m')
+        self.assertContains(response, '20,00 m')
+        self.assertContains(response, 'Fornecedor Operacional')
+        self.assertContains(response, 'Quantidade em')
+
+    def test_saida_maior_que_saldo_e_bloqueada_no_backend(self):
+        self.client.login(username='operadorop', password='password123')
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({'produto_id': self.produto.id, 'tipo': 'SAIDA', 'quantidade': '99'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['codigo'], 'SALDO_INSUFICIENTE')
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('45.30'))
+
+    def test_quantidade_zero_e_negativa_sao_bloqueadas(self):
+        self.client.login(username='operadorop', password='password123')
+        for quantidade in ('0', '-1'):
+            with self.subTest(quantidade=quantidade):
+                response = self.client.post(
+                    reverse('registrar_movimentacao'),
+                    data=json.dumps({'produto_id': self.produto.id, 'tipo': 'ENTRADA', 'quantidade': quantidade}),
+                    content_type='application/json',
+                )
+                self.assertEqual(response.status_code, 400)
+
+    def test_saida_que_deixa_estoque_baixo_registra_status(self):
+        self.client.login(username='operadorop', password='password123')
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({'produto_id': self.produto.id, 'tipo': 'SAIDA', 'quantidade': '30.30'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status_estoque'], 'BAIXO')
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('15.00'))
+
+    def test_exclusao_via_get_e_bloqueada(self):
+        self.client.login(username='adminop', password='password123')
+        response = self.client.get(reverse('excluir_produto', args=[self.produto.id]))
+        self.assertEqual(response.status_code, 405)
+
+    def test_usuario_sem_permissao_nao_exclui_produto(self):
+        self.client.login(username='operadorop', password='password123')
+        response = self.client.post(reverse('excluir_produto', args=[self.produto.id]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_fornecedor_com_produto_vinculado_nao_exclui(self):
+        self.client.login(username='adminop', password='password123')
+        response = self.client.post(reverse('excluir_fornecedor', args=[self.fornecedor.id]))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['codigo'], 'VINCULO_IMPEDITIVO')
+
+    def test_exclusao_de_movimentacao_recalcula_saldo_e_log(self):
+        self.client.login(username='adminop', password='password123')
+        mov = Movimentacao.objects.create(
+            produto=self.produto,
+            usuario=self.admin,
+            tipo='ENTRADA',
+            quantidade=Decimal('10.00'),
+        )
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('55.30'))
+
+        response = self.client.post(reverse('excluir_movimentacao', args=[mov.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('45.30'))
+        self.assertTrue(LogAcao.objects.filter(acao='EXCLUIR', modelo='Movimentacao', objeto_id=mov.id).exists())
+
+    def test_revisao_fechamento_e_valor_parcial(self):
+        Produto.objects.create(descricao='SEM CUSTO', tipo_produto='OUTRO', quantidade_base=Decimal('5'), preco_custo=None)
+        self.client.login(username='operadorop', password='password123')
+
+        response = self.client.get(reverse('revisar_fechamento'), {'referencia_mes_ano': '07/2026'})
+
+        self.assertEqual(response.status_code, 200)
+        resumo = response.json()['resumo']
+        self.assertEqual(resumo['referencia_mes_ano'], '07/2026')
+        self.assertEqual(resumo['produtos_sem_custo'], 1)
+        self.assertFalse(resumo['calculo_completo'])
+
+    def test_fechamento_duplicado_e_bloqueado_e_snapshot_preservado(self):
+        self.client.login(username='operadorop', password='password123')
+        payload = {'referencia_mes_ano': '07/2026', 'observacao': 'teste'}
+        first = self.client.post(reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json')
+        second = self.client.post(reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json')
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(FechamentoMensal.objects.filter(referencia_mes_ano='07/2026').count(), 1)
+        self.assertTrue(LogAcao.objects.filter(acao='CRIAR', modelo='FechamentoMensal').exists())
+
+    def test_alteracao_de_perfil_requer_admin(self):
+        grupo, _ = Group.objects.get_or_create(name='Operador')
+        self.client.login(username='operadorop', password='password123')
+        response = self.client.post(
+            reverse('lista_usuarios'),
+            data=json.dumps({'acao': 'grupo', 'user_id': self.operador.id, 'grupo_id': grupo.id}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_alteracao_de_perfil_registra_log(self):
+        grupo, _ = Group.objects.get_or_create(name='Operador')
+        self.client.login(username='adminop', password='password123')
+        response = self.client.post(
+            reverse('lista_usuarios'),
+            data=json.dumps({'acao': 'grupo', 'user_id': self.operador.id, 'grupo_id': grupo.id}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.operador.refresh_from_db()
+        self.assertTrue(self.operador.is_staff)
+        self.assertTrue(LogAcao.objects.filter(acao='EDITAR', modelo='User', objeto_id=self.operador.id).exists())
+
+    def test_nao_remove_propria_administracao(self):
+        self.client.login(username='adminop', password='password123')
+        response = self.client.post(
+            reverse('lista_usuarios'),
+            data=json.dumps({'acao': 'grupo', 'user_id': self.admin.id, 'grupo_id': None}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_superuser)

@@ -1,0 +1,8 @@
+{% if metric_url %}<a href="{{ metric_url }}" class="metric-card metric-card--{{ metric_variant|default:'default' }}">{% else %}<div class="metric-card metric-card--{{ metric_variant|default:'default' }}">{% endif %}
+    <span class="metric-card__icon" aria-hidden="true"><i class="bi {{ metric_icon }}"></i></span>
+    <span class="metric-card__body">
+        <span class="metric-card__label">{{ metric_label }}</span>
+        <span class="metric-card__value{% if metric_sensitive %} valor-sensivel{% endif %}">{{ metric_value }}</span>
+        {% if metric_helper %}<span class="metric-card__helper">{{ metric_helper }}</span>{% endif %}
+    </span>
+{% if metric_url %}</a>{% else %}</div>{% endif %}

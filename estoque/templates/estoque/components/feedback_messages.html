@@ -1,0 +1,10 @@
+{% if messages %}
+<div class="feedback-stack" aria-live="polite">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} d-flex align-items-center gap-2 mb-0" role="status">
+        <i class="bi {% if message.tags == 'success' %}bi-check-circle{% elif message.tags == 'warning' %}bi-exclamation-triangle{% elif message.tags == 'error' %}bi-x-circle{% else %}bi-info-circle{% endif %}" aria-hidden="true"></i>
+        <span>{{ message }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
