@@ -83,7 +83,7 @@
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar Filtros
                     </button>
                     <span class="text-muted small d-block" v-else>
-                        <i class="bi bi-box-seam me-1"></i>[[ totalFiltrado ]] / [[ produtos.length ]] itens
+                        <i class="bi bi-box-seam me-1"></i>[[ totalFiltrado ]] exibidos / [[ produtos.length ]] produtos
                     </span>
                 </div>
             </div>
@@ -99,7 +99,7 @@
                         <i class="bi bi-boxes fs-4"></i>
                     </div>
                     <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Total de Itens</small>
+                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Produtos nesta categoria</small>
                         <h5 class="mb-0 fw-bold fs-4">[[ resumoAbaAtiva.totalItens ]]</h5>
                     </div>
                 </div>
@@ -112,8 +112,9 @@
                         <i class="bi bi-currency-dollar fs-4"></i>
                     </div>
                     <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Valor Custo Total</small>
-                        <h5 class="mb-0 fw-bold fs-5 text-success">R$ [[ resumoAbaAtiva.valorCusto.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) ]]</h5>
+                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Valor conhecido</small>
+                        <h5 class="mb-0 fw-bold fs-5 text-success">R$ [[ formatDinheiro(resumoAbaAtiva.valorCusto) ]]</h5>
+                        <small class="text-warning" v-if="resumoAbaAtiva.semCusto > 0">[[ resumoAbaAtiva.semCusto ]] sem custo</small>
                     </div>
                 </div>
             </div>
@@ -125,7 +126,7 @@
                         <i class="bi bi-exclamation-triangle fs-4"></i>
                     </div>
                     <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Estoque Baixo</small>
+                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Baixo nesta categoria</small>
                         <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.baixos > 0 ? 'text-warning' : ''">[[ resumoAbaAtiva.baixos ]]</h5>
                     </div>
                 </div>
@@ -138,7 +139,7 @@
                         <i class="bi bi-slash-circle fs-4"></i>
                     </div>
                     <div>
-                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Estoque Zerado</small>
+                        <small class="text-muted d-block fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.05em;">Zerado nesta categoria</small>
                         <h5 class="mb-0 fw-bold fs-4" :class="resumoAbaAtiva.zerados > 0 ? 'text-danger fw-extrabold' : ''">[[ resumoAbaAtiva.zerados ]]</h5>
                     </div>
                 </div>
@@ -187,7 +188,7 @@
                             </th>
                             <th>Rolos Est.</th>
                             <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                                Saldo em metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
                             </th>
                             <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
                                 Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
@@ -202,16 +203,16 @@
                             <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td data-label="Rolos Est.">
                                 <span class="badge bg-primary bg-opacity-10 text-primary" v-if="p.metros_por_rolo > 0">
-                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
+                                    [[ p.embalagens_estimadas ]] rolos
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td data-label="Total Metros" @dblclick="startEdit(p)">
+                            <td data-label="Saldo em metros" @dblclick="startEdit(p)">
                                 <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
                                     <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
@@ -224,9 +225,9 @@
                             </td>
                             <td data-label="Preço Custo/Venda">
                                 <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
+                                    <div class="text-muted">C: [[ formatPreco(p.preco_custo) ]]</div>
+                                    <div class="fw-semibold text-primary">V: [[ formatPreco(p.preco_venda) ]]</div>
+                                    <div class="mt-1" v-if="p.preco_custo !== null && p.preco_venda !== null && p.preco_custo > 0">
                                         <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
                                             +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
                                         </span>
@@ -265,7 +266,7 @@
                             </th>
                             <th>Rolos Est.</th>
                             <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                                Saldo em metros <i class="bi" :class="getSortIconNum('quantidade')"></i>
                             </th>
                             <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
                                 Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
@@ -280,16 +281,16 @@
                             <td class="text-muted" data-label="Metros/Rolo">[[ p.metros_por_rolo ? p.metros_por_rolo + ' m' : '—' ]]</td>
                             <td data-label="Rolos Est.">
                                 <span class="badge bg-success bg-opacity-10 text-success" v-if="p.metros_por_rolo > 0">
-                                    [[ Math.floor(p.quantidade / p.metros_por_rolo) ]] rolos
+                                    [[ p.embalagens_estimadas ]] rolos
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td data-label="Total Metros" @dblclick="startEdit(p)">
+                            <td data-label="Saldo em metros" @dblclick="startEdit(p)">
                                 <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
                                     <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
@@ -302,9 +303,9 @@
                             </td>
                             <td data-label="Preço Custo/Venda">
                                 <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
+                                    <div class="text-muted">C: [[ formatPreco(p.preco_custo) ]]</div>
+                                    <div class="fw-semibold text-primary">V: [[ formatPreco(p.preco_venda) ]]</div>
+                                    <div class="mt-1" v-if="p.preco_custo !== null && p.preco_venda !== null && p.preco_custo > 0">
                                         <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
                                             +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
                                         </span>
@@ -344,7 +345,7 @@
                             <th>L/Vidro</th>
                             <th>Vidros Est.</th>
                             <th class="cursor-pointer" @click="ordenarPor('quantidade')">
-                                Total Litros <i class="bi" :class="getSortIconNum('quantidade')"></i>
+                                Saldo em litros <i class="bi" :class="getSortIconNum('quantidade')"></i>
                             </th>
                             <th class="cursor-pointer" @click="ordenarPor('preco_custo')">
                                 Preços (Custo/Venda) <i class="bi" :class="getSortIconNum('preco_custo')"></i>
@@ -369,16 +370,16 @@
                             <td class="text-muted" data-label="L/Vidro">[[ p.litros_por_vidro ? p.litros_por_vidro + ' L' : '—' ]]</td>
                             <td data-label="Vidros Est.">
                                 <span class="badge bg-info bg-opacity-10 text-info" v-if="p.litros_por_vidro > 0">
-                                    [[ Math.floor(p.quantidade / p.litros_por_vidro) ]] vidros
+                                    [[ p.embalagens_estimadas ]] recipientes
                                 </span>
                                 <span v-else class="text-muted">—</span>
                             </td>
-                            <td data-label="Total Litros" @dblclick="startEdit(p)">
+                            <td data-label="Saldo em litros" @dblclick="startEdit(p)">
                                 <div v-if="editingId === p.id" class="d-flex align-items-center gap-1" style="max-width: 120px;" @click.stop>
                                     <input type="number" step="0.1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(1) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
                                     <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
@@ -391,9 +392,9 @@
                             </td>
                             <td data-label="Preço Custo/Venda">
                                 <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
+                                    <div class="text-muted">C: [[ formatPreco(p.preco_custo) ]]</div>
+                                    <div class="fw-semibold text-primary">V: [[ formatPreco(p.preco_venda) ]]</div>
+                                    <div class="mt-1" v-if="p.preco_custo !== null && p.preco_venda !== null && p.preco_custo > 0">
                                         <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
                                             +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
                                         </span>
@@ -445,7 +446,7 @@
                                     <input type="number" step="1" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(0) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
                                     <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
@@ -458,9 +459,9 @@
                             </td>
                             <td data-label="Preço Custo/Venda">
                                 <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
+                                    <div class="text-muted">C: [[ formatPreco(p.preco_custo) ]]</div>
+                                    <div class="fw-semibold text-primary">V: [[ formatPreco(p.preco_venda) ]]</div>
+                                    <div class="mt-1" v-if="p.preco_custo !== null && p.preco_venda !== null && p.preco_custo > 0">
                                         <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
                                             +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
                                         </span>
@@ -512,7 +513,7 @@
                                     <input type="number" step="0.01" class="form-control form-control-sm border-primary" v-model="editingValue" :ref="'input-edit-' + p.id" @keyup.enter="saveEdit(p)" @keyup.esc="cancelEdit" @blur="saveEdit(p)">
                                 </div>
                                 <div v-else class="user-select-none cursor-pointer" title="Duplo clique para editar">
-                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade.toFixed(2) ]] [[ getUnidadeSymbol(p) ]]</strong>
+                                    <strong :class="{ 'text-muted text-decoration-line-through': isEstoqueZerado(p), 'text-danger': isEstoqueBaixo(p) }">[[ p.quantidade_formatada ]]</strong>
                                     <div class="progress mt-1" style="height: 4px; max-width: 100px;" v-if="p.estoque_minimo > 0">
                                         <div class="progress-bar" role="progressbar" 
                                             :style="{ width: Math.min((p.quantidade / p.estoque_minimo) * 100, 100) + '%' }" 
@@ -525,9 +526,9 @@
                             </td>
                             <td data-label="Preço Custo/Venda">
                                 <div class="small">
-                                    <div class="text-muted">C: R$ [[ p.preco_custo.toFixed(2) ]]</div>
-                                    <div class="fw-semibold text-primary">V: R$ [[ p.preco_venda.toFixed(2) ]]</div>
-                                    <div class="mt-1" v-if="p.preco_custo > 0">
+                                    <div class="text-muted">C: [[ formatPreco(p.preco_custo) ]]</div>
+                                    <div class="fw-semibold text-primary">V: [[ formatPreco(p.preco_venda) ]]</div>
+                                    <div class="mt-1" v-if="p.preco_custo !== null && p.preco_venda !== null && p.preco_custo > 0">
                                         <span class="badge bg-opacity-10" :class="((p.preco_venda - p.preco_custo) / p.preco_custo * 100) >= 0 ? 'bg-success text-success' : 'bg-danger text-danger'">
                                             +[[ (((p.preco_venda - p.preco_custo) / p.preco_custo) * 100).toFixed(0) ]]% margem
                                         </span>
@@ -696,13 +697,15 @@
             },
             resumoAbaAtiva() {
                 const itens = this.produtosFiltrados.filter(p => p.tipo_produto === this.abaAtiva);
-                const valorCusto = itens.reduce((acc, p) => acc + (p.quantidade * p.preco_custo), 0);
+                const valorCusto = itens.reduce((acc, p) => acc + (p.preco_custo === null ? 0 : p.quantidade * p.preco_custo), 0);
+                const semCusto = itens.filter(p => p.quantidade > 0 && p.preco_custo === null).length;
                 const baixos = itens.filter(p => this.isEstoqueBaixo(p)).length;
                 const zerados = itens.filter(p => this.isEstoqueZerado(p)).length;
 
                 return {
                     totalItens: itens.length,
                     valorCusto: valorCusto,
+                    semCusto: semCusto,
                     baixos: baixos,
                     zerados: zerados,
                 };
@@ -738,10 +741,10 @@
                 }
             },
             isEstoqueZerado(p) {
-                return p.quantidade <= 0;
+                return p.status_estoque === 'ZERADO';
             },
             isEstoqueBaixo(p) {
-                return p.quantidade > 0 && p.estoque_minimo > 0 && p.quantidade <= p.estoque_minimo;
+                return p.status_estoque === 'BAIXO';
             },
             temEstoqueCriticoNaAba(tipo) {
                 return this.produtos.some(p => p.tipo_produto === tipo && (this.isEstoqueZerado(p) || this.isEstoqueBaixo(p)));
@@ -769,17 +772,14 @@
                 return this.ordemDirecao === 'asc' ? 'bi-sort-numeric-down text-primary ms-1' : 'bi-sort-numeric-down-alt text-primary ms-1';
             },
             getUnidadeSymbol(p) {
-                const map = {
-                    'UN': 'un', 'M': 'm', 'KG': 'kg', 'L': 'L',
-                    'RL': 'rl', 'CX': 'cx', 'PC': 'pc', 'G': 'g',
-                    'ML': 'ml', 'OUTRO': ''
-                };
-                if (p.unidade_medida && map[p.unidade_medida] !== undefined) {
-                    return map[p.unidade_medida];
-                }
-                if (p.tipo_produto === 'TINTA') return 'L';
-                if (p.tipo_produto === 'TECIDO' || p.tipo_produto === 'PAPEL') return 'm';
-                return 'un';
+                return p.unidade_simbolo || '';
+            },
+            formatDinheiro(valor) {
+                return Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+            formatPreco(valor) {
+                if (valor === null || valor === undefined) return 'Não cadastrado';
+                return 'R$ ' + this.formatDinheiro(valor);
             },
             corStyle(cor) {
                 const c = COR_COLORS[cor] || '#dee2e6';
@@ -801,6 +801,8 @@
                 .then(data => {
                     if (data.ok) {
                         produto.quantidade = data.nova_quantidade;
+                        produto.quantidade_formatada = data.nova_quantidade_formatada || produto.quantidade_formatada;
+                        produto.status_estoque = data.status_estoque || produto.status_estoque;
                         showToast('Estoque atualizado!');
                     } else {
                         produto.quantidade = anterior;
@@ -851,6 +853,8 @@
                 .then(data => {
                     if (data.ok) {
                         p.quantidade = data.nova_quantidade;
+                        p.quantidade_formatada = data.nova_quantidade_formatada || p.quantidade_formatada;
+                        p.status_estoque = data.status_estoque || p.status_estoque;
                         showToast('Estoque atualizado!');
                     } else {
                         p.quantidade = anterior;

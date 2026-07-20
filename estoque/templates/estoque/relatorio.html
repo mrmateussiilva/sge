@@ -46,8 +46,12 @@
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-arrow-up fs-1"></i>
                 <div>
-                    <h6 class="card-title mb-0 fw-light">Total Entradas</h6>
-                    <p class="card-text display-6 mb-0 fw-bold">{{ total_entradas|floatformat:2 }}</p>
+                    <h6 class="card-title mb-1 fw-light">Entradas por unidade</h6>
+                    {% for item in total_entradas_unidade %}
+                    <p class="card-text h5 mb-0 fw-bold">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</p>
+                    {% empty %}
+                    <p class="card-text h5 mb-0 fw-bold">0</p>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -57,8 +61,12 @@
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-arrow-down fs-1"></i>
                 <div>
-                    <h6 class="card-title mb-0 fw-light">Total Saídas</h6>
-                    <p class="card-text display-6 mb-0 fw-bold">{{ total_saidas|floatformat:2 }}</p>
+                    <h6 class="card-title mb-1 fw-light">Saídas por unidade</h6>
+                    {% for item in total_saidas_unidade %}
+                    <p class="card-text h5 mb-0 fw-bold">{{ item.quantidade|floatformat:2 }} {{ item.simbolo }}</p>
+                    {% empty %}
+                    <p class="card-text h5 mb-0 fw-bold">0</p>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -79,8 +87,8 @@
             <div class="card-body d-flex align-items-center gap-3">
                 <i class="bi bi-calculator fs-1"></i>
                 <div>
-                    <h6 class="card-title mb-0 fw-light">Saldo Líquido</h6>
-                    <p class="card-text display-6 mb-0 fw-bold">{{ saldo_liquido|floatformat:2 }}</p>
+                    <h6 class="card-title mb-0 fw-light">Produtos movimentados</h6>
+                    <p class="card-text display-6 mb-0 fw-bold">{{ produtos_afetados|length }}</p>
                 </div>
             </div>
         </div>
@@ -107,9 +115,9 @@
                 {% for p in produtos_afetados %}
                 <tr>
                     <td class="ps-4" data-label="Produto">{{ p.nome }}</td>
-                    <td class="text-success fw-medium" data-label="Entradas">{{ p.entradas|floatformat:2 }}</td>
-                    <td class="text-danger fw-medium" data-label="Saídas">{{ p.saidas|floatformat:2 }}</td>
-                    <td class="pe-4 fw-medium" data-label="Saldo">{{ p.saldo|floatformat:2 }}</td>
+                    <td class="text-success fw-medium" data-label="Entradas">{{ p.entradas }}</td>
+                    <td class="text-danger fw-medium" data-label="Saídas">{{ p.saidas }}</td>
+                    <td class="pe-4 fw-medium" data-label="Saldo">{{ p.saldo }}</td>
                 </tr>
                 {% empty %}
                 <tr>

@@ -14,25 +14,31 @@ from django.utils import timezone
 
 from .log_utils import log_acao
 from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto, FechamentoMensal, ItemFechamento
+from .services.estoque_metrics import agrupar_quantidade_por_unidade, serializar_totais_unidade, valor_por_tipo
+from .services.estoque_status import filtro_baixo, filtro_zerado
+from .services.estoque_valuation import calcular_valor_estoque
+from .services.units import decimal_br, dinheiro_br, formatar_capacidade_embalagem, formatar_quantidade, unidade_base_codigo, unidade_info
+from .services.usernames import validate_username_available
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 
+def decimal_ou_none(value):
+    if value in (None, ''):
+        return None
+    return Decimal(str(value))
+
+
 @login_required
 def dashboard(request):
-    total_itens = Produto.objects.count()
-    estoque_zerado_count = Produto.objects.filter(quantidade_base__lte=0).count()
-    valor_total = Produto.objects.aggregate(
-        total=Sum(F('quantidade_base') * F('preco_custo'))
-    )['total'] or 0
-    valor_venda_total = Produto.objects.aggregate(
-        total=Sum(F('quantidade_base') * F('preco_venda'))
-    )['total'] or 0
-    estoque_baixo = Produto.objects.filter(
-        quantidade_base__lte=F('estoque_minimo')
-    ).select_related('fornecedor')
+    produtos_base = Produto.objects.select_related('fornecedor').all()
+    produtos_lista = list(produtos_base)
+    total_itens = len(produtos_lista)
+    estoque_zerado_count = Produto.objects.filter(filtro_zerado()).count()
+    estoque_baixo = Produto.objects.filter(filtro_baixo()).select_related('fornecedor')
+    valuation = calcular_valor_estoque(produtos_lista)
     ultimas_movimentacoes = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')[:5]
 
     hoje = timezone.now()
@@ -67,24 +73,19 @@ def dashboard(request):
             'saidas': saidas_meses,
         })
 
-    valor_por_tipo = Produto.objects.values('tipo_produto').annotate(
-        total=Sum(F('quantidade_base') * F('preco_custo'))
-    ).order_by()
+    valores_por_tipo = valor_por_tipo(produtos_lista)
     tipo_choices = dict(Produto.TIPO_PRODUTO_CHOICES)
-    tipo_labels = [tipo_choices.get(t['tipo_produto'], t['tipo_produto']) for t in valor_por_tipo]
-    tipo_data = [float(t['total']) for t in valor_por_tipo]
+    tipo_labels = [tipo_choices.get(tipo, tipo) for tipo in valores_por_tipo.keys()]
+    tipo_data = [float(total) for total in valores_por_tipo.values()]
 
-    # Lucro estimado e margem
-    lucro_estimado = valor_venda_total - valor_total
-    margem_estimada = (lucro_estimado / valor_total * 100) if valor_total > 0 else 0
+    valor_total = valuation.valor_conhecido
 
     return render(request, 'estoque/dashboard.html', {
         'total_itens': total_itens,
         'estoque_zerado_count': estoque_zerado_count,
         'valor_total': valor_total,
-        'valor_venda_total': valor_venda_total,
-        'lucro_estimado': lucro_estimado,
-        'margem_estimada': margem_estimada,
+        'valuation': valuation,
+        'valor_total_formatado': dinheiro_br(valor_total),
         'estoque_baixo': estoque_baixo,
         'ultimas_movimentacoes': ultimas_movimentacoes,
         'ultimos_logs': LogAcao.objects.select_related('usuario').all()[:5],
@@ -100,28 +101,42 @@ def dashboard(request):
 
 @login_required
 def lista_produtos(request):
-    produtos = Produto.objects.select_related('fornecedor').all().order_by('descricao')
+    produtos = Produto.objects.select_related('fornecedor', 'categoria').all().order_by('descricao')
     produtos_data = []
     for p in produtos:
-        lucro = float(p.preco_venda) - float(p.preco_custo)
-        margem = (lucro / float(p.preco_custo) * 100) if float(p.preco_custo) > 0 else 0
+        preco_custo = p.preco_custo
+        preco_venda = p.preco_venda
+        lucro = (preco_venda - preco_custo) if preco_venda is not None and preco_custo is not None else None
+        margem = (lucro / preco_custo * 100) if lucro is not None and preco_custo and preco_custo > 0 else None
+        unidade = unidade_info(p)
         produtos_data.append({
             'id': p.id,
             'descricao': p.descricao,
             'quantidade': float(p.quantidade_base),
-            'estoque_minimo': float(p.estoque_minimo),
+            'quantidade_formatada': p.quantidade_formatada,
+            'estoque_minimo': float(p.estoque_minimo) if p.estoque_minimo is not None else None,
+            'estoque_minimo_formatado': formatar_quantidade(p.estoque_minimo, unidade.codigo) if p.estoque_minimo is not None else 'Sem mínimo',
+            'status_estoque': p.status_estoque,
             'tipo_produto': p.tipo_produto,
             'tipo_label': p.get_tipo_produto_display(),
             'fornecedor': p.fornecedor.nome if p.fornecedor else None,
-            'preco_custo': float(p.preco_custo),
-            'preco_venda': float(p.preco_venda),
-            'lucro': round(lucro, 2),
-            'margem': round(margem, 1),
+            'categoria_id': p.categoria_id,
+            'categoria': p.categoria.nome if p.categoria else None,
+            'preco_custo': float(preco_custo) if preco_custo is not None else None,
+            'preco_venda': float(preco_venda) if preco_venda is not None else None,
+            'preco_custo_formatado': dinheiro_br(preco_custo) if preco_custo is not None else 'Não cadastrado',
+            'preco_venda_formatado': dinheiro_br(preco_venda) if preco_venda is not None else 'Não cadastrado',
+            'lucro': float(lucro) if lucro is not None else None,
+            'margem': float(round(margem, 1)) if margem is not None else None,
             'metros_por_rolo': float(p.metros_por_rolo) if p.metros_por_rolo else 0,
             'litros_por_vidro': float(p.litros_por_vidro) if p.litros_por_vidro else 0,
+            'capacidade_embalagem': formatar_capacidade_embalagem(p),
+            'embalagens_estimadas': float(p.quantidade_rolos_estimada if p.tipo_produto in ('PAPEL', 'TECIDO') else p.quantidade_vidros_estimada),
             'tipo_tinta': p.tipo_tinta,
             'cor_tinta': p.cor_tinta,
-            'unidade_medida': p.unidade_medida or 'UN',
+            'unidade_medida': unidade.codigo,
+            'unidade_simbolo': unidade.simbolo,
+            'unidade_nome': unidade.singular,
         })
     return render(request, 'estoque/lista.html', {
         'produtos_json': json.dumps(produtos_data),
@@ -136,7 +151,7 @@ def atualiza_estoque(request):
             produto = Produto.objects.get(id=data['id'])
             variacao = Decimal(str(data['variacao']))
             if variacao == 0:
-                return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+                return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base), 'nova_quantidade_formatada': produto.quantidade_formatada})
             tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
             quantidade = abs(variacao)
             with transaction.atomic():
@@ -148,7 +163,7 @@ def atualiza_estoque(request):
                     observacao='Ajuste rápido de estoque',
                 )
             produto.refresh_from_db()
-            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base)})
+            return JsonResponse({'ok': True, 'nova_quantidade': float(produto.quantidade_base), 'nova_quantidade_formatada': produto.quantidade_formatada, 'status_estoque': produto.status_estoque})
         except json.JSONDecodeError:
             return JsonResponse({'ok': False, 'erro': 'JSON inválido.'}, status=400)
         except KeyError as e:
@@ -199,17 +214,18 @@ def exportar_csv(request):
     response['Content-Disposition'] = 'attachment; filename="relatorio_estoque.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['Descricao', 'Tipo', 'Fornecedor', 'Quantidade', 'Preco Custo', 'Preco Venda', 'Estoque Minimo'])
+    writer.writerow(['Descricao', 'Tipo', 'Fornecedor', 'Unidade Base', 'Quantidade', 'Preco Custo', 'Preco Venda', 'Estoque Minimo'])
     produtos = Produto.objects.select_related('fornecedor').all()
     for p in produtos:
         writer.writerow([
             p.descricao,
             p.get_tipo_produto_display(),
             p.fornecedor.nome if p.fornecedor else '',
-            float(p.quantidade_base),
-            float(p.preco_custo),
-            float(p.preco_venda),
-            float(p.estoque_minimo),
+            p.unidade_simbolo,
+            p.quantidade_formatada,
+            p.preco_custo if p.preco_custo is not None else '',
+            p.preco_venda if p.preco_venda is not None else '',
+            p.estoque_minimo if p.estoque_minimo is not None else '',
         ])
     return response
 
@@ -223,9 +239,9 @@ def cadastrar_produto(request):
             descricao=data['descricao'],
             fornecedor_id=data.get('fornecedor_id') or None,
             quantidade_base=data.get('quantidade_base', 0),
-            preco_custo=data.get('preco_custo', 0),
-            preco_venda=data.get('preco_venda', 0),
-            estoque_minimo=data.get('estoque_minimo', 0),
+            preco_custo=decimal_ou_none(data.get('preco_custo')),
+            preco_venda=decimal_ou_none(data.get('preco_venda')),
+            estoque_minimo=decimal_ou_none(data.get('estoque_minimo')),
             metros_por_rolo=data.get('metros_por_rolo') or None,
             tipo_tinta=data.get('tipo_tinta', 'N/A'),
             cor_tinta=data.get('cor_tinta', 'INCOLOR'),
@@ -254,9 +270,9 @@ def editar_produto(request, id):
         produto.descricao = data['descricao']
         produto.fornecedor_id = data.get('fornecedor_id') or None
         produto.quantidade_base = data.get('quantidade_base', 0)
-        produto.preco_custo = data.get('preco_custo', 0)
-        produto.preco_venda = data.get('preco_venda', 0)
-        produto.estoque_minimo = data.get('estoque_minimo', 0)
+        produto.preco_custo = decimal_ou_none(data.get('preco_custo'))
+        produto.preco_venda = decimal_ou_none(data.get('preco_venda'))
+        produto.estoque_minimo = decimal_ou_none(data.get('estoque_minimo'))
         produto.metros_por_rolo = data.get('metros_por_rolo') or None
         produto.tipo_tinta = data.get('tipo_tinta', 'N/A')
         produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
@@ -291,9 +307,9 @@ def editar_produto(request, id):
             'fornecedor_id': produto.fornecedor_id or '',
             'categoria_id': produto.categoria_id or '',
             'quantidade_base': float(produto.quantidade_base) if produto.quantidade_base else '',
-            'preco_custo': float(produto.preco_custo) if produto.preco_custo else '',
-            'preco_venda': float(produto.preco_venda) if produto.preco_venda else '',
-            'estoque_minimo': float(produto.estoque_minimo) if produto.estoque_minimo else '',
+            'preco_custo': float(produto.preco_custo) if produto.preco_custo is not None else '',
+            'preco_venda': float(produto.preco_venda) if produto.preco_venda is not None else '',
+            'estoque_minimo': float(produto.estoque_minimo) if produto.estoque_minimo is not None else '',
             'metros_por_rolo': float(produto.metros_por_rolo) if produto.metros_por_rolo else None,
             'tipo_tinta': produto.tipo_tinta,
             'cor_tinta': produto.cor_tinta,
@@ -337,14 +353,14 @@ def detalhe_produto(request, id):
     produto = get_object_or_404(Produto, id=id)
     movimentacoes = Movimentacao.objects.filter(produto=produto).select_related('produto').order_by('-data')
     historico_precos = HistoricoPreco.objects.filter(produto=produto)[:20]
-    lucro = float(produto.preco_venda) - float(produto.preco_custo)
-    margem = (lucro / float(produto.preco_custo) * 100) if float(produto.preco_custo) > 0 else 0
+    lucro = (produto.preco_venda - produto.preco_custo) if produto.preco_venda is not None and produto.preco_custo is not None else None
+    margem = (lucro / produto.preco_custo * 100) if lucro is not None and produto.preco_custo and produto.preco_custo > 0 else None
     return render(request, 'estoque/detalhe.html', {
         'produto': produto,
         'movimentacoes': movimentacoes,
         'historico_precos': historico_precos,
-        'lucro': round(lucro, 2),
-        'margem': round(margem, 1),
+        'lucro': round(lucro, 2) if lucro is not None else None,
+        'margem': round(margem, 1) if margem is not None else None,
     })
 
 
@@ -457,11 +473,10 @@ def relatorio_mensal(request):
         dt_fim = hoje
 
     movs = Movimentacao.objects.filter(data__gte=dt_inicio, data__lte=dt_fim).select_related('produto')
+    total_entradas_unidade = serializar_totais_unidade(agrupar_quantidade_por_unidade(movs.filter(tipo='ENTRADA')))
+    total_saidas_unidade = serializar_totais_unidade(agrupar_quantidade_por_unidade(movs.filter(tipo='SAIDA')))
 
-    total_entradas = movs.filter(tipo='ENTRADA').aggregate(s=Sum('quantidade'))['s'] or 0
-    total_saidas = movs.filter(tipo='SAIDA').aggregate(s=Sum('quantidade'))['s'] or 0
-
-    por_produto = movs.values('produto__descricao', 'tipo').annotate(
+    por_produto = movs.values('produto__descricao', 'produto__tipo_produto', 'produto__unidade_medida', 'tipo').annotate(
         total=Sum('quantidade')
     ).order_by('produto__descricao')
 
@@ -469,23 +484,31 @@ def relatorio_mensal(request):
     for item in por_produto:
         nome = item['produto__descricao']
         if nome not in movs_por_produto:
-            movs_por_produto[nome] = {'entradas': 0, 'saidas': 0}
+            fake_produto = type('ProdutoUnidade', (), {
+                'tipo_produto': item['produto__tipo_produto'],
+                'unidade_medida': item['produto__unidade_medida'],
+            })()
+            movs_por_produto[nome] = {'entradas': Decimal('0'), 'saidas': Decimal('0'), 'unidade': unidade_base_codigo(fake_produto)}
         if item['tipo'] == 'ENTRADA':
-            movs_por_produto[nome]['entradas'] += float(item['total'])
+            movs_por_produto[nome]['entradas'] += item['total']
         else:
-            movs_por_produto[nome]['saidas'] += float(item['total'])
+            movs_por_produto[nome]['saidas'] += item['total']
 
     produtos_afetados = [
-        {'nome': nome, 'entradas': d['entradas'], 'saidas': d['saidas'], 'saldo': d['entradas'] - d['saidas']}
+        {
+            'nome': nome,
+            'entradas': formatar_quantidade(d['entradas'], d['unidade']),
+            'saidas': formatar_quantidade(d['saidas'], d['unidade']),
+            'saldo': formatar_quantidade(d['entradas'] - d['saidas'], d['unidade']),
+        }
         for nome, d in movs_por_produto.items()
     ]
 
     return render(request, 'estoque/relatorio.html', {
         'data_inicio': data_inicio,
         'data_fim': data_fim,
-        'total_entradas': total_entradas,
-        'total_saidas': total_saidas,
-        'saldo_liquido': total_entradas - total_saidas,
+        'total_entradas_unidade': total_entradas_unidade,
+        'total_saidas_unidade': total_saidas_unidade,
         'total_movimentacoes': movs.count(),
         'produtos_afetados': produtos_afetados,
     })
@@ -509,11 +532,15 @@ def lista_usuarios(request):
         data = json.loads(request.body)
         acao = data.get('acao')
         if acao == 'criar':
-            user = User.objects.create_user(
-                username=data['username'],
-                password=data['password'],
-                is_staff=True,
-            )
+            try:
+                username = validate_username_available(data.get('username'))
+                user = User.objects.create_user(
+                    username=username,
+                    password=data['password'],
+                    is_staff=True,
+                )
+            except ValidationError as e:
+                return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
             log_acao(request.user, 'CRIAR', f'Criou usuario {user.username}', 'User', user.id)
         elif acao == 'grupo':
             user = User.objects.get(id=data['user_id'])
@@ -571,15 +598,20 @@ def importar_csv_produtos(request):
                         tipo = 'OUTRO'
                         
                     def parse_decimal(val):
-                        if not val:
-                            return 0.0
-                        return float(str(val).replace(',', '.').strip())
+                        if val in (None, ''):
+                            return None
+                        text = str(val).replace(',', '.').strip()
+                        return Decimal(text) if text else None
+
+                    def parse_decimal_zero(val):
+                        parsed = parse_decimal(val)
+                        return parsed if parsed is not None else Decimal('0')
                         
-                    qt_rolos = parse_decimal(row.get('qt_rolos'))
-                    metros_por_rolo = parse_decimal(row.get('metros_por_rolo'))
-                    qt_vidros = parse_decimal(row.get('qt_vidros'))
-                    litros_por_vidro = parse_decimal(row.get('litros_por_vidro'))
-                    quantidade_base = parse_decimal(row.get('quantidade_base'))
+                    qt_rolos = parse_decimal_zero(row.get('qt_rolos'))
+                    metros_por_rolo = parse_decimal_zero(row.get('metros_por_rolo'))
+                    qt_vidros = parse_decimal_zero(row.get('qt_vidros'))
+                    litros_por_vidro = parse_decimal_zero(row.get('litros_por_vidro'))
+                    quantidade_base = parse_decimal_zero(row.get('quantidade_base'))
                     
                     if tipo in ['TECIDO', 'PAPEL'] and qt_rolos > 0 and metros_por_rolo > 0 and quantidade_base == 0:
                         quantidade_base = qt_rolos * metros_por_rolo
@@ -729,8 +761,15 @@ def lista_fechamentos(request):
     fechamentos = FechamentoMensal.objects.prefetch_related('itens').select_related('usuario').all()
     fechamentos_json = []
     for f in fechamentos:
-        total_itens = f.itens.count()
-        valor_total = sum(float(item.quantidade * item.preco_custo) for item in f.itens.all())
+        itens = list(f.itens.all())
+        total_itens = len(itens)
+        valor_total = Decimal('0.00')
+        produtos_sem_custo = 0
+        for item in itens:
+            if item.quantidade > 0 and item.preco_custo is None:
+                produtos_sem_custo += 1
+            elif item.preco_custo is not None:
+                valor_total += item.quantidade * item.preco_custo
         fechamentos_json.append({
             'id': f.id,
             'data_fechamento': f.data_fechamento.strftime('%d/%m/%Y %H:%M'),
@@ -738,7 +777,9 @@ def lista_fechamentos(request):
             'referencia_mes_ano': f.referencia_mes_ano,
             'observacao': f.observacao,
             'total_itens': total_itens,
-            'valor_total': valor_total,
+            'valor_total': float(valor_total),
+            'produtos_sem_custo': produtos_sem_custo,
+            'calculo_completo': produtos_sem_custo == 0,
         })
     return render(request, 'estoque/fechamentos.html', {
         'fechamentos_json': json.dumps(fechamentos_json),
@@ -838,7 +879,9 @@ def exportar_fechamento_xlsx(request, id):
     for item in itens:
         tipo = item.produto.get_tipo_produto_display() if item.produto else '-'
         fornecedor = item.produto.fornecedor.nome if (item.produto and item.produto.fornecedor) else '-'
-        unidade = item.produto.get_unidade_medida_display() if item.produto else 'Unidade'
+        unidade = item.produto.unidade_simbolo if item.produto else ''
+        preco_custo = item.preco_custo
+        preco_venda = item.preco_venda
         
         row_data = [
             item.descricao,
@@ -846,10 +889,10 @@ def exportar_fechamento_xlsx(request, id):
             fornecedor,
             unidade,
             float(item.quantidade),
-            float(item.preco_custo),
-            float(item.preco_venda),
-            f"=E{ws.max_row+1}*F{ws.max_row+1}",
-            f"=E{ws.max_row+1}*G{ws.max_row+1}",
+            float(preco_custo) if preco_custo is not None else None,
+            float(preco_venda) if preco_venda is not None else None,
+            f"=E{ws.max_row+1}*F{ws.max_row+1}" if preco_custo is not None else None,
+            f"=E{ws.max_row+1}*G{ws.max_row+1}" if preco_venda is not None else None,
         ]
         
         ws.append(row_data)
@@ -876,7 +919,7 @@ def exportar_fechamento_xlsx(request, id):
     end_row = ws.max_row
     ws.append([
         "TOTAL GERAL", "", "", "", 
-        f"=SUM(E{start_row}:E{end_row})", "", "", 
+        "Quantidades por unidade não são somadas", "", "",
         f"=SUM(H{start_row}:H{end_row})", 
         f"=SUM(I{start_row}:I{end_row})"
     ])
@@ -891,7 +934,7 @@ def exportar_fechamento_xlsx(request, id):
         cell.border = border_thin
         
         if col_idx in (5, 8, 9):
-            cell.alignment = Alignment(horizontal='center' if col_idx == 5 else 'right', vertical='center')
+            cell.alignment = Alignment(horizontal='left' if col_idx == 5 else 'right', vertical='center')
             if col_idx in (8, 9):
                 cell.number_format = 'R$ #,##0.00'
             else:
@@ -974,7 +1017,9 @@ def exportar_atual_xlsx(request):
     for p in produtos:
         tipo = p.get_tipo_produto_display()
         fornecedor = p.fornecedor.nome if p.fornecedor else '-'
-        unidade = p.get_unidade_medida_display()
+        unidade = p.unidade_simbolo
+        preco_custo = p.preco_custo
+        preco_venda = p.preco_venda
         
         row_data = [
             p.descricao,
@@ -982,10 +1027,10 @@ def exportar_atual_xlsx(request):
             fornecedor,
             unidade,
             float(p.quantidade_base),
-            float(p.preco_custo),
-            float(p.preco_venda),
-            f"=E{ws.max_row+1}*F{ws.max_row+1}",
-            f"=E{ws.max_row+1}*G{ws.max_row+1}",
+            float(preco_custo) if preco_custo is not None else None,
+            float(preco_venda) if preco_venda is not None else None,
+            f"=E{ws.max_row+1}*F{ws.max_row+1}" if preco_custo is not None else None,
+            f"=E{ws.max_row+1}*G{ws.max_row+1}" if preco_venda is not None else None,
         ]
         
         ws.append(row_data)
@@ -1012,7 +1057,7 @@ def exportar_atual_xlsx(request):
     end_row = ws.max_row
     ws.append([
         "TOTAL GERAL", "", "", "", 
-        f"=SUM(E{start_row}:E{end_row})", "", "", 
+        "Quantidades por unidade não são somadas", "", "",
         f"=SUM(H{start_row}:H{end_row})", 
         f"=SUM(I{start_row}:I{end_row})"
     ])
@@ -1027,7 +1072,7 @@ def exportar_atual_xlsx(request):
         cell.border = border_thin
         
         if col_idx in (5, 8, 9):
-            cell.alignment = Alignment(horizontal='center' if col_idx == 5 else 'right', vertical='center')
+            cell.alignment = Alignment(horizontal='left' if col_idx == 5 else 'right', vertical='center')
             if col_idx in (8, 9):
                 cell.number_format = 'R$ #,##0.00'
             else:
@@ -1067,8 +1112,8 @@ def busca_rapida(request):
             'id': p.id,
             'descricao': p.descricao,
             'tipo_produto': p.get_tipo_produto_display(),
-            'quantidade': float(p.quantidade_base),
-            'unidade': p.get_unidade_medida_display() or '',
+            'quantidade': p.quantidade_formatada,
+            'unidade': p.unidade_simbolo,
         }
         for p in produtos
     ]

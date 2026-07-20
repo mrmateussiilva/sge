@@ -485,8 +485,7 @@
         }
 
         function productMetaText(p) {
-            var unidade = p.unidade || '';
-            return p.tipo_produto + ' | Estoque: ' + p.quantidade + (unidade ? ' ' + unidade : '');
+            return p.tipo_produto + ' | Estoque: ' + p.quantidade;
         }
 
         function renderProductLinkResults(container, produtos) {

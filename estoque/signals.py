@@ -1,7 +1,10 @@
+from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save, pre_save
+from django.core.exceptions import ValidationError
 from django.dispatch import receiver
 
 from .models import HistoricoPreco, Produto
+from .services.usernames import normalize_username, validate_username_available
 
 
 @receiver(pre_save, sender=Produto)
@@ -39,3 +42,21 @@ def salvar_historico_preco(sender, instance, created, **kwargs):
         preco_venda_antigo=old_preco_venda if preco_venda_mudou else None,
         preco_venda_novo=instance.preco_venda if preco_venda_mudou else None,
     )
+
+
+@receiver(pre_save, sender=get_user_model())
+def normalizar_username_usuario(sender, instance, **kwargs):
+    original = instance.username or ''
+    normalized = normalize_username(original)
+    if not normalized:
+        raise ValidationError('Usuário é obrigatório.')
+
+    if instance.pk:
+        try:
+            old_username = sender.objects.only('username').get(pk=instance.pk).username
+        except sender.DoesNotExist:
+            old_username = None
+        if old_username == original:
+            return
+
+    instance.username = validate_username_available(normalized, instance.pk)

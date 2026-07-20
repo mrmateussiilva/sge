@@ -25,7 +25,7 @@
                         <th>Data Realização</th>
                         <th>Executado por</th>
                         <th>Qtd. Itens</th>
-                        <th>Valor Total (Custo)</th>
+                        <th>Valor Conhecido (Custo)</th>
                         <th>Observação</th>
                         <th class="pe-4 text-end">Planilha XLSX</th>
                     </tr>
@@ -42,7 +42,12 @@
                             <span class="text-secondary small"><i class="bi bi-user me-1"></i>[[ f.usuario ]]</span>
                         </td>
                         <td data-label="Qtd. Itens">[[ f.total_itens ]] itens</td>
-                        <td class="fw-semibold text-primary" data-label="Valor Total (Custo)">R$ [[ formatDinheiro(f.valor_total) ]]</td>
+                        <td class="fw-semibold text-primary" data-label="Valor Conhecido (Custo)">
+                            R$ [[ formatDinheiro(f.valor_total) ]]
+                            <div class="small text-warning" v-if="!f.calculo_completo">
+                                [[ f.produtos_sem_custo ]] produto(s) sem custo no snapshot
+                            </div>
+                        </td>
                         <td data-label="Observação">
                             <span class="text-muted small" v-if="f.observacao">[[ f.observacao ]]</span>
                             <span class="text-muted small" v-else>—</span>

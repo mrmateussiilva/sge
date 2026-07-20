@@ -63,9 +63,14 @@
     <div class="col-6 col-lg-3">
         <div class="card border-0 border-start border-success border-4 shadow-sm h-100">
             <div class="card-body">
-                <small class="text-muted fw-semibold text-uppercase">Valor em estoque</small>
+                <small class="text-muted fw-semibold text-uppercase">{% if valuation.calculo_completo %}Valor em estoque{% else %}Valor conhecido{% endif %}</small>
                 <div class="d-flex align-items-center justify-content-between mt-2">
-                    <h5 class="mb-0 fw-bold text-success valor-sensivel">R$ {{ valor_total|floatformat:2 }}</h5>
+                    <div>
+                        <h5 class="mb-0 fw-bold text-success valor-sensivel">{{ valor_total_formatado }}</h5>
+                        {% if not valuation.calculo_completo %}
+                        <small class="text-warning">{{ valuation.produtos_sem_custo }} produto(s) sem custo</small>
+                        {% endif %}
+                    </div>
                     <i class="bi bi-coin fs-3 text-success"></i>
                 </div>
             </div>
@@ -98,8 +103,8 @@
                                     <a href="{% url 'detalhe_produto' p.id %}" class="text-decoration-none fw-medium text-dark">{{ p.descricao }}</a>
                                     <div class="small text-muted">{{ p.fornecedor.nome|default:"Sem fornecedor" }}</div>
                                 </td>
-                                <td data-label="Atual"><span class="badge bg-warning bg-opacity-10 text-warning">{{ p.quantidade_base }}</span></td>
-                                <td data-label="Mínimo">{{ p.estoque_minimo }}</td>
+                                <td data-label="Atual"><span class="badge bg-warning bg-opacity-10 text-warning">{{ p.quantidade_formatada }}</span></td>
+                                <td data-label="Mínimo">{{ p.estoque_minimo }} {{ p.unidade_simbolo }}</td>
                                 <td class="pe-4 text-end" data-label="Ação">
                                     <button type="button" class="btn btn-sm btn-primary" onclick="openGlobalMoveModal({{ p.id }}, '{{ p.descricao|escapejs }}')">
                                         <i class="bi bi-box-arrow-in-down me-1"></i>Entrada
@@ -136,9 +141,9 @@
                             <div class="small text-muted">{{ m.data|date:"d/m/Y H:i" }} · {{ m.usuario.username|default:"Sistema" }}</div>
                         </div>
                         {% if m.tipo == 'ENTRADA' %}
-                        <span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-arrow-up me-1"></i>{{ m.quantidade }}</span>
+                        <span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-arrow-up me-1"></i>{{ m.quantidade }} {{ m.produto.unidade_simbolo }}</span>
                         {% else %}
-                        <span class="badge bg-danger bg-opacity-10 text-danger"><i class="bi bi-arrow-down me-1"></i>{{ m.quantidade }}</span>
+                        <span class="badge bg-danger bg-opacity-10 text-danger"><i class="bi bi-arrow-down me-1"></i>{{ m.quantidade }} {{ m.produto.unidade_simbolo }}</span>
                         {% endif %}
                     </a>
                     {% empty %}

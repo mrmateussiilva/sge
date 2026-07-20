@@ -97,9 +97,9 @@ class Produto(models.Model):
         help_text="Quantos litros vem em um vidro/garrafa padrão?"
     )
 
-    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    preco_venda = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    estoque_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
+    preco_venda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
+    estoque_minimo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
 
     def __str__(self):
         if self.tipo_produto == 'TINTA':
@@ -117,6 +117,26 @@ class Produto(models.Model):
         if self.tipo_produto == 'TINTA' and self.litros_por_vidro and self.litros_por_vidro > 0:
             return round(self.quantidade_base / self.litros_por_vidro, 2)
         return 0
+
+    @property
+    def unidade_base_codigo(self):
+        from .services.units import unidade_base_codigo
+        return unidade_base_codigo(self)
+
+    @property
+    def unidade_simbolo(self):
+        from .services.units import unidade_simbolo
+        return unidade_simbolo(self)
+
+    @property
+    def quantidade_formatada(self):
+        from .services.units import formatar_quantidade_produto
+        return formatar_quantidade_produto(self)
+
+    @property
+    def status_estoque(self):
+        from .services.estoque_status import classificar_estoque
+        return classificar_estoque(self).codigo
 
 
 
@@ -257,8 +277,8 @@ class ItemFechamento(models.Model):
     produto = models.ForeignKey(Produto, on_delete=models.SET_NULL, null=True, blank=True)
     descricao = models.CharField(max_length=255)
     quantidade = models.DecimalField(max_digits=10, decimal_places=2)
-    preco_custo = models.DecimalField(max_digits=10, decimal_places=2)
-    preco_venda = models.DecimalField(max_digits=10, decimal_places=2)
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    preco_venda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return f'{self.descricao} ({self.quantidade})'
