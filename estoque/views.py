@@ -1433,9 +1433,10 @@ def importar_nota_omie(request, n_cod: int):
     if not itens:
         return json_erro('Nenhum item para importar.')
 
-    # Validar que todos os itens têm produto_id
+    # Validar que todos os itens têm produto_id selecionado ou flag de criar novo
     for item in itens:
-        if not item.get('produto_id'):
+        pid = str(item.get('produto_id', ''))
+        if not pid or (pid != 'novo' and not item.get('criar_novo') and not pid.isdigit()):
             descricao = item.get('descricao', '?')
             return json_erro(
                 f'O item "{descricao}" não tem produto do SGE selecionado.',
@@ -1448,12 +1449,40 @@ def importar_nota_omie(request, n_cod: int):
     try:
         with transaction.atomic():
             for item in itens:
-                produto = Produto.objects.select_for_update().get(pk=item['produto_id'])
+                pid = str(item.get('produto_id', ''))
+                valor_unitario = item.get('valor_unitario', '0')
+
+                if pid == 'novo' or item.get('criar_novo'):
+                    nova_desc = (item.get('novo_descricao') or item.get('descricao') or 'Novo Produto').strip()
+                    tipo_prod = item.get('novo_tipo_produto', 'OUTRO')
+                    unid = item.get('novo_unidade_medida', 'UN')
+                    val_unit_dec = Decimal(str(valor_unitario)) if valor_unitario and Decimal(str(valor_unitario)) > 0 else Decimal('0.00')
+                    est_min_raw = item.get('novo_estoque_minimo', '0')
+                    est_min_dec = Decimal(str(est_min_raw)) if est_min_raw else Decimal('0.00')
+
+                    produto = Produto.objects.create(
+                        descricao=nova_desc,
+                        tipo_produto=tipo_prod,
+                        unidade_medida=unid,
+                        quantidade_base=Decimal('0.00'),
+                        preco_custo=val_unit_dec,
+                        preco_venda=Decimal('0.00'),
+                        estoque_minimo=est_min_dec,
+                    )
+                    log_acao(
+                        request.user,
+                        'CRIAR',
+                        f'Produto "{produto.descricao}" cadastrado via importação NF-e Omie #{n_cod}',
+                        'Produto',
+                        produto.id,
+                    )
+                else:
+                    produto = Produto.objects.select_for_update().get(pk=item['produto_id'])
+
                 quantidade = Decimal(str(item.get('quantidade', '0')))
                 if quantidade <= 0:
                     raise ValidationError(f'Quantidade inválida para "{produto.descricao}".')
 
-                valor_unitario = item.get('valor_unitario', '0')
                 obs = (
                     f'Importado da NF-e Omie #{n_cod} | '
                     f'{item.get("descricao", "")} | '
@@ -1468,10 +1497,11 @@ def importar_nota_omie(request, n_cod: int):
                     quantidade=quantidade,
                     observacao=obs[:255],
                 )
-                # Atualizar preço de custo se informado
-                if valor_unitario and Decimal(str(valor_unitario)) > 0:
-                    produto.preco_custo = Decimal(str(valor_unitario))
-                    produto.save(update_fields=['preco_custo'])
+                # Atualizar preço de custo se produto existente e preço informado
+                if str(item.get('produto_id', '')) != 'novo' and not item.get('criar_novo'):
+                    if valor_unitario and Decimal(str(valor_unitario)) > 0:
+                        produto.preco_custo = Decimal(str(valor_unitario))
+                        produto.save(update_fields=['preco_custo'])
 
                 movimentacoes_criadas += 1
                 descricoes_importadas.append(produto.descricao)

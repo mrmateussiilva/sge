@@ -612,3 +612,50 @@ class ConfiguracaoOmieTestCase(TestCase):
         client = OmieClient()
         self.assertEqual(client.app_key, 'KEY_DO_BANCO')
         self.assertEqual(client.app_secret, 'SECRET_DO_BANCO')
+
+    def test_importar_nota_omie_criando_novo_produto(self):
+        self.client.login(username='adminomie', password='password123')
+        n_cod = 99999
+        payload = {
+            'itens': [
+                {
+                    'cod_item_int': '101',
+                    'produto_id': 'novo',
+                    'criar_novo': True,
+                    'novo_descricao': 'PAO FRANCES INTEGRAL',
+                    'novo_tipo_produto': 'OUTRO',
+                    'novo_unidade_medida': 'UN',
+                    'novo_estoque_minimo': '50.00',
+                    'quantidade': '100.00',
+                    'valor_unitario': '0.75',
+                    'descricao': 'PAO FRANCES INTEGRAL',
+                }
+            ],
+            'fornecedor_nome': 'PANIFICADORA TESTE',
+            'numero_nfe': '999',
+            'cod_int_nota_ent': 'INT999',
+        }
+
+        response = self.client.post(
+            reverse('importar_nota_omie', args=[n_cod]),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+
+        # Verificar se o produto foi criado
+        from .models import ImportacaoNFe, Movimentacao, Produto
+        prod = Produto.objects.get(descricao='PAO FRANCES INTEGRAL')
+        self.assertEqual(prod.unidade_medida, 'UN')
+        self.assertEqual(prod.preco_custo, Decimal('0.75'))
+        self.assertEqual(prod.quantidade_base, Decimal('100.00'))
+
+        # Verificar movimentacao
+        mov = Movimentacao.objects.get(produto=prod)
+        self.assertEqual(mov.tipo, 'ENTRADA')
+        self.assertEqual(mov.quantidade, Decimal('100.00'))
+
+        # Verificar idempotencia
+        self.assertTrue(ImportacaoNFe.objects.filter(n_cod_nota_ent=n_cod).exists())

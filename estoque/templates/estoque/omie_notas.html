@@ -379,17 +379,20 @@ function renderizarItensModal(itens) {
     }
 
     itens.forEach((item, i) => {
+        const unidDefault = normalizarUnidadeItem(item.unidade);
         const div = document.createElement('div');
         div.className = 'card border-0 bg-light rounded-3 mb-3';
         div.innerHTML = `
             <div class="card-body py-3 px-3">
                 <div class="row align-items-start g-3">
                     <div class="col-12 col-md-5">
-                        <div class="fw-semibold small text-truncate">${escapeHtml(item.descricao)}</div>
-                        <div class="small text-muted d-flex gap-3 mt-1">
-                            <span><i class="bi bi-box me-1"></i>${escapeHtml(item.quantidade)}</span>
+                        <div class="fw-semibold small text-truncate" title="${escapeHtml(item.descricao)}">
+                            ${escapeHtml(item.descricao)}
+                        </div>
+                        <div class="small text-muted d-flex gap-3 mt-1 flex-wrap">
+                            <span><i class="bi bi-box me-1"></i>${escapeHtml(item.quantidade)} ${escapeHtml(item.unidade || '')}</span>
                             <span><i class="bi bi-tag me-1"></i>R$ ${escapeHtml(item.valor_unitario)}</span>
-                            ${item.codigo_produto ? `<span class="text-secondary">${escapeHtml(item.codigo_produto)}</span>` : ''}
+                            ${item.codigo_produto ? `<span class="text-secondary"><i class="bi bi-barcode me-1"></i>${escapeHtml(item.codigo_produto)}</span>` : ''}
                         </div>
                     </div>
                     <div class="col-12 col-md-7">
@@ -399,13 +402,58 @@ function renderizarItensModal(itens) {
                         <select class="form-select form-select-sm sge-produto-select"
                             id="select-produto-${i}"
                             data-idx="${i}"
+                            onchange="togglePainelNovoProduto(this, ${i})"
                             required>
                             <option value="">— Selecionar produto —</option>
+                            <option value="novo" class="fw-bold text-primary">➕ [Criar Novo Produto no SGE]</option>
                             ${PRODUTOS_SGE.map(p =>
                                 `<option value="${p.id}">${escapeHtml(p.descricao)} (${escapeHtml(p.unidade_medida)})</option>`
                             ).join('')}
                         </select>
-                        <div class="invalid-feedback">Selecione o produto correspondente.</div>
+                        <div class="invalid-feedback">Selecione ou crie um produto correspondente.</div>
+
+                        <!-- Painel dinâmico para cadastro de novo produto -->
+                        <div id="painel-novo-produto-${i}" class="d-none mt-3 p-3 bg-white rounded-3 border border-primary border-opacity-25 shadow-sm">
+                            <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold small">
+                                <i class="bi bi-plus-circle-fill"></i> Cadastro do Novo Produto
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="form-label mb-1 extra-small text-muted">Descrição no SGE</label>
+                                    <input type="text" class="form-control form-control-sm" id="novo-desc-${i}" value="${escapeHtml(item.descricao)}" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1 extra-small text-muted">Tipo de Produto</label>
+                                    <select class="form-select form-select-sm" id="novo-tipo-${i}">
+                                        <option value="OUTRO" selected>Outro</option>
+                                        <option value="TECIDO">Tecido</option>
+                                        <option value="PAPEL">Papel</option>
+                                        <option value="TINTA">Tinta</option>
+                                        <option value="AVIAMENTO">Aviamento</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1 extra-small text-muted">Unidade de Medida</label>
+                                    <select class="form-select form-select-sm" id="novo-unid-${i}">
+                                        <option value="UN" ${unidDefault === 'UN' ? 'selected' : ''}>Unidade (un)</option>
+                                        <option value="M" ${unidDefault === 'M' ? 'selected' : ''}>Metros (m)</option>
+                                        <option value="KG" ${unidDefault === 'KG' ? 'selected' : ''}>Quilogramas (kg)</option>
+                                        <option value="L" ${unidDefault === 'L' ? 'selected' : ''}>Litros (L)</option>
+                                        <option value="RL" ${unidDefault === 'RL' ? 'selected' : ''}>Rolo (rl)</option>
+                                        <option value="CX" ${unidDefault === 'CX' ? 'selected' : ''}>Caixa (cx)</option>
+                                        <option value="PC" ${unidDefault === 'PC' ? 'selected' : ''}>Peça (pc)</option>
+                                        <option value="G" ${unidDefault === 'G' ? 'selected' : ''}>Gramas (g)</option>
+                                        <option value="ML" ${unidDefault === 'ML' ? 'selected' : ''}>Mililitros (ml)</option>
+                                        <option value="OUTRO" ${unidDefault === 'OUTRO' ? 'selected' : ''}>Outro</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label mb-1 extra-small text-muted">Estoque Mínimo</label>
+                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" id="novo-estmin-${i}" value="0.00">
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -415,6 +463,32 @@ function renderizarItensModal(itens) {
         // Tentar pré-selecionar produto pelo código ou descrição
         autoMatchProduto(item, i);
     });
+}
+
+// ── Alternar exibição do painel de novo produto ───────────────────────────
+function togglePainelNovoProduto(selectEl, idx) {
+    const painel = document.getElementById('painel-novo-produto-' + idx);
+    if (!painel) return;
+    if (selectEl.value === 'novo') {
+        painel.classList.remove('d-none');
+    } else {
+        painel.classList.add('d-none');
+    }
+}
+
+// ── Normalizar unidade vinda do Omie ──────────────────────────────────────
+function normalizarUnidadeItem(unidStr) {
+    if (!unidStr) return 'UN';
+    const u = String(unidStr).toUpperCase().trim();
+    if (u === 'M' || u.includes('METR')) return 'M';
+    if (u === 'KG' || u.includes('KILO') || u.includes('QUILO')) return 'KG';
+    if (u === 'L' || u.includes('LITR')) return 'L';
+    if (u === 'CX' || u.includes('CAIX')) return 'CX';
+    if (u === 'RL' || u.includes('ROLO')) return 'RL';
+    if (u === 'PC' || u.includes('PEC') || u.includes('PEÇ')) return 'PC';
+    if (u === 'G' || u.includes('GRAM')) return 'G';
+    if (u === 'ML') return 'ML';
+    return 'UN';
 }
 
 // ── Auto-match por descrição (melhor esforço) ─────────────────────────────
@@ -452,17 +526,44 @@ function confirmarImportacao() {
             valido = false;
             return;
         }
-        itensPayload.push({
-            cod_item_int: item.cod_item_int || '',
-            produto_id: parseInt(sel.value),
-            quantidade: item.quantidade,
-            valor_unitario: item.valor_unitario.replace(',', '.'),
-            descricao: item.descricao,
-        });
+
+        if (sel.value === 'novo') {
+            const descEl = document.getElementById('novo-desc-' + i);
+            const tipoEl = document.getElementById('novo-tipo-' + i);
+            const unidEl = document.getElementById('novo-unid-' + i);
+            const estMinEl = document.getElementById('novo-estmin-' + i);
+
+            if (!descEl || !descEl.value.trim()) {
+                descEl?.classList.add('is-invalid');
+                valido = false;
+                return;
+            }
+
+            itensPayload.push({
+                cod_item_int: item.cod_item_int || '',
+                produto_id: 'novo',
+                criar_novo: true,
+                novo_descricao: descEl.value.trim(),
+                novo_tipo_produto: tipoEl ? tipoEl.value : 'OUTRO',
+                novo_unidade_medida: unidEl ? unidEl.value : 'UN',
+                novo_estoque_minimo: estMinEl ? estMinEl.value : '0.00',
+                quantidade: item.quantidade,
+                valor_unitario: item.valor_unitario.replace(',', '.'),
+                descricao: item.descricao,
+            });
+        } else {
+            itensPayload.push({
+                cod_item_int: item.cod_item_int || '',
+                produto_id: parseInt(sel.value),
+                quantidade: item.quantidade,
+                valor_unitario: item.valor_unitario.replace(',', '.'),
+                descricao: item.descricao,
+            });
+        }
     });
 
     if (!valido) {
-        showToast('Selecione o produto SGE para todos os itens.', 'danger');
+        showToast('Preencha os campos obrigatórios para todos os itens da nota.', 'danger');
         return;
     }
 
