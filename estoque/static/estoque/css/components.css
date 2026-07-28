@@ -1,7 +1,8 @@
 .nav-link-custom {
     position: relative;
     border-left: 3px solid transparent;
-    color: #aab4c3;
+    color: #94a3b8;
+    font-size: var(--sge-font-sm);
     font-weight: 500;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -26,14 +27,15 @@
 }
 
 .nav-link-custom:hover {
-    background: rgb(255 255 255 / 7%);
-    color: #fff;
+    background: rgb(255 255 255 / 6%);
+    color: #f8fafc;
 }
 
 .nav-link-custom.active {
-    border-left-color: #60a5fa;
-    background: rgb(37 99 235 / 16%);
-    color: #fff;
+    border-left-color: #3b82f6;
+    background: rgb(37 99 235 / 18%);
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .card,
@@ -46,23 +48,24 @@
 
 .card-header,
 .content-panel__header {
-    padding: var(--sge-space-4) var(--sge-space-5);
+    padding: var(--sge-space-3) var(--sge-space-4);
     border-bottom: 1px solid var(--sge-border);
     background: transparent;
+    font-size: var(--sge-font-sm);
     font-weight: 600;
 }
 
 .content-panel__body {
-    padding: var(--sge-space-5);
+    padding: var(--sge-space-4);
 }
 
 .metric-card {
     display: flex;
-    min-height: 116px;
+    min-height: 76px;
     height: 100%;
     align-items: center;
-    gap: var(--sge-space-4);
-    padding: var(--sge-space-4);
+    gap: var(--sge-space-3);
+    padding: 0.6rem 0.85rem;
     border: 1px solid var(--sge-border);
     border-radius: var(--sge-radius-lg);
     background: var(--sge-surface);
@@ -82,14 +85,14 @@
 
 .metric-card__icon {
     display: grid;
-    flex: 0 0 2.75rem;
-    width: 2.75rem;
-    height: 2.75rem;
+    flex: 0 0 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
     place-items: center;
     border-radius: var(--sge-radius-md);
     background: var(--sge-surface-subtle);
     color: var(--sge-primary);
-    font-size: 1.25rem;
+    font-size: 1.1rem;
 }
 
 .metric-card__body {
@@ -98,26 +101,27 @@
 
 .metric-card__label {
     display: block;
-    margin-bottom: var(--sge-space-1);
+    margin-bottom: 0.1rem;
     color: var(--sge-text-muted);
-    font-size: var(--sge-font-xs);
+    font-size: 0.6875rem;
     font-weight: 700;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
 }
 
 .metric-card__value {
     margin: 0;
     color: var(--sge-text);
-    font-size: var(--sge-font-xl);
+    font-size: 1.25rem;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.15;
 }
 
 .metric-card__helper {
     display: block;
-    margin-top: var(--sge-space-1);
+    margin-top: 0.1rem;
     color: var(--sge-text-muted);
-    font-size: var(--sge-font-xs);
+    font-size: 0.6875rem;
 }
 
 .metric-card--success .metric-card__icon,
@@ -155,6 +159,7 @@
 .metric-card--info .metric-card__icon {
     background: var(--sge-info-soft);
 }
+
 
 .filter-bar {
     display: grid;

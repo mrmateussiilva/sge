@@ -21,16 +21,16 @@ body {
 
 #sidebar-wrapper {
     z-index: 1045;
-    width: 260px;
-    min-width: 260px;
+    width: 240px;
+    min-width: 240px;
     min-height: 100dvh;
-    background: #111827;
-    border-right: 1px solid rgb(255 255 255 / 8%);
+    background: #131924;
+    border-right: 1px solid rgb(255 255 255 / 6%);
     transition: margin-left 0.2s ease;
 }
 
 [data-bs-theme="dark"] #sidebar-wrapper {
-    background: #090e16;
+    background: #0b0f17;
 }
 
 #page-content-wrapper {
@@ -66,15 +66,15 @@ body {
 
 .page-content {
     display: grid;
-    gap: var(--sge-space-5);
+    gap: var(--sge-space-4);
 }
 
 .page-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: var(--sge-space-5);
-    margin-bottom: var(--sge-space-5);
+    gap: var(--sge-space-3);
+    margin-bottom: var(--sge-space-3);
 }
 
 .page-header__content {
@@ -84,32 +84,32 @@ body {
 .page-header__title {
     display: flex;
     align-items: center;
-    gap: var(--sge-space-3);
+    gap: var(--sge-space-2);
 }
 
 .page-header__icon {
     display: grid;
-    flex: 0 0 2.25rem;
-    width: 2.25rem;
-    height: 2.25rem;
+    flex: 0 0 1.85rem;
+    width: 1.85rem;
+    height: 1.85rem;
     place-items: center;
-    border-radius: var(--sge-radius-md);
+    border-radius: var(--sge-radius-sm);
     background: color-mix(in srgb, var(--sge-primary) 12%, transparent);
     color: var(--sge-primary);
-    font-size: 1.1rem;
+    font-size: 0.95rem;
 }
 
 .page-header__title h1 {
     margin: 0;
     color: var(--sge-text);
-    font-size: var(--sge-font-2xl);
+    font-size: var(--sge-font-xl);
     font-weight: 700;
     line-height: 1.2;
 }
 
 .page-header__description {
     max-width: 720px;
-    margin: var(--sge-space-2) 0 0 3rem;
+    margin: 0.1rem 0 0 2.35rem;
     color: var(--sge-text-muted);
     font-size: var(--sge-font-sm);
 }
@@ -119,6 +119,7 @@ body {
     display: flex;
     flex: 0 0 auto;
     flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
     gap: var(--sge-space-2);
 }
@@ -197,8 +198,9 @@ body {
 }
 
 .chart-frame {
-    height: 220px;
+    height: 180px;
 }
+
 
 .min-width-0,
 .min-w-0 {
