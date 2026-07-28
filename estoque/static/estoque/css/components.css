@@ -163,7 +163,7 @@
 
 .filter-bar {
     display: grid;
-    grid-template-columns: minmax(260px, 1.5fr) minmax(220px, 1fr) minmax(220px, 1fr) auto;
+    grid-template-columns: minmax(200px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
     gap: var(--sge-space-3);
     align-items: end;
     padding: var(--sge-space-4);
@@ -171,19 +171,24 @@
     border-radius: var(--sge-radius-lg);
     background: var(--sge-surface);
     box-shadow: var(--sge-shadow-sm);
+    width: 100%;
 }
 
 .filter-bar--compact {
-    grid-template-columns: minmax(260px, 520px) auto;
+    grid-template-columns: 1fr auto;
+    width: 100%;
 }
 
 .filter-bar--dates {
-    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+    grid-template-columns: 1fr 1fr auto;
+    width: 100%;
 }
 
 .filter-bar--activity {
-    grid-template-columns: minmax(260px, 2fr) minmax(180px, 1fr) auto;
+    grid-template-columns: 2fr 1fr auto;
+    width: 100%;
 }
+
 
 .filter-bar__search,
 .filter-bar__fields,

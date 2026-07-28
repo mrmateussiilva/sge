@@ -21,16 +21,16 @@ body {
 
 #sidebar-wrapper {
     z-index: 1045;
-    width: 240px;
-    min-width: 240px;
+    width: 260px;
+    min-width: 260px;
     min-height: 100dvh;
-    background: #131924;
-    border-right: 1px solid rgb(255 255 255 / 6%);
+    background: #111827;
+    border-right: 1px solid rgb(255 255 255 / 8%);
     transition: margin-left 0.2s ease;
 }
 
 [data-bs-theme="dark"] #sidebar-wrapper {
-    background: #0b0f17;
+    background: #090e16;
 }
 
 #page-content-wrapper {
@@ -65,16 +65,18 @@ body {
 }
 
 .page-content {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: var(--sge-space-4);
+    width: 100%;
 }
 
 .page-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: var(--sge-space-3);
-    margin-bottom: var(--sge-space-3);
+    gap: var(--sge-space-4);
+    margin-bottom: var(--sge-space-4);
 }
 
 .page-header__content {
@@ -84,32 +86,32 @@ body {
 .page-header__title {
     display: flex;
     align-items: center;
-    gap: var(--sge-space-2);
+    gap: var(--sge-space-3);
 }
 
 .page-header__icon {
     display: grid;
-    flex: 0 0 1.85rem;
-    width: 1.85rem;
-    height: 1.85rem;
+    flex: 0 0 2.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
     place-items: center;
-    border-radius: var(--sge-radius-sm);
+    border-radius: var(--sge-radius-md);
     background: color-mix(in srgb, var(--sge-primary) 12%, transparent);
     color: var(--sge-primary);
-    font-size: 0.95rem;
+    font-size: 1.1rem;
 }
 
 .page-header__title h1 {
     margin: 0;
     color: var(--sge-text);
-    font-size: var(--sge-font-xl);
+    font-size: var(--sge-font-2xl);
     font-weight: 700;
     line-height: 1.2;
 }
 
 .page-header__description {
     max-width: 720px;
-    margin: 0.1rem 0 0 2.35rem;
+    margin: var(--sge-space-1) 0 0 3rem;
     color: var(--sge-text-muted);
     font-size: var(--sge-font-sm);
 }
@@ -201,7 +203,6 @@ body {
     height: 180px;
 }
 
-
 .min-width-0,
 .min-w-0 {
     min-width: 0;
@@ -236,6 +237,7 @@ body {
         display: none;
     }
 }
+
 
 @media (max-width: 767.98px) {
     .page-header {
