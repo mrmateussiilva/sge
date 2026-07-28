@@ -300,8 +300,8 @@
 {% block scripts %}
 <script>
 // ── Dados ──────────────────────────────────────────────────────────────────
-const PRODUTOS_SGE = {{ produtos_sge_json|safe }};
-let notaAtual = null; // dados da nota sendo importada no modal
+var PRODUTOS_SGE = {{ produtos_sge_json|safe }};
+var notaAtual = window.notaAtual || null;
 
 // ── Modal Configuração Omie ────────────────────────────────────────────────
 function abrirModalConfiguracaoOmie() {

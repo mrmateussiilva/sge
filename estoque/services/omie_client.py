@@ -156,7 +156,7 @@ class OmieClient:
         ordenar_decrescente: bool = True,
     ) -> dict:
         """
-        Lista notas de entrada no Omie com suporte a filtros e ordenação por data.
+        Lista notas de entrada no Omie com suporte a filtros.
 
         Retorna o dict bruto da API:
           {
@@ -169,7 +169,6 @@ class OmieClient:
         param: dict[str, Any] = {
             'nPagina': pagina,
             'nRegistrosPorPagina': registros_por_pagina,
-            'cOrdenacao': 'DESC' if ordenar_decrescente else 'ASC',
         }
         if cnpj_fornecedor:
             param['cCnpjForn'] = cnpj_fornecedor.strip()
@@ -319,6 +318,8 @@ class OmieClient:
 
         prod_cache: dict[int, dict] = {}
         notas = [self.parse_nota(c, prod_cache=prod_cache) for c in notas_raw]
+        if ordenar_decrescente:
+            notas.sort(key=lambda n: n.n_cod_nota_ent, reverse=True)
         return notas, total_paginas, total_registros
 
     def consultar_nota_parseada(self, n_cod_nota_ent: int) -> NotaEntrada:

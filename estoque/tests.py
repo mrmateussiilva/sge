@@ -682,7 +682,6 @@ class ConfiguracaoOmieTestCase(TestCase):
             {
                 'nPagina': 1,
                 'nRegistrosPorPagina': 20,
-                'cOrdenacao': 'DESC',
                 'cCnpjForn': '12345678000199',
                 'dEmiInicial': '01/01/2026',
                 'dEmiFinal': '28/07/2026',
