@@ -69,6 +69,22 @@ class NotaEntrada:
     chave_nfe: str = ''
 
 
+def obter_credenciais_omie() -> tuple[str, str]:
+    """
+    Retorna (app_key, app_secret) do banco de dados (ConfiguracaoOmie) se configurado,
+    ou fallback para as variáveis de ambiente (settings.OMIE_APP_KEY / settings.OMIE_APP_SECRET).
+    """
+    try:
+        from estoque.models import ConfiguracaoOmie
+        cfg = ConfiguracaoOmie.objects.first()
+        if cfg and cfg.app_key and cfg.app_secret:
+            return cfg.app_key, cfg.app_secret
+    except Exception as exc:
+        logger.warning('Não foi possível carregar ConfiguracaoOmie do banco: %s', exc)
+
+    return getattr(settings, 'OMIE_APP_KEY', ''), getattr(settings, 'OMIE_APP_SECRET', '')
+
+
 class OmieClient:
     """
     Cliente simplificado para a API Omie (Notas de Entrada).
@@ -81,12 +97,13 @@ class OmieClient:
     ENDPOINT_NOTA_ENTRADA = 'produtos/notaentrada/'
 
     def __init__(self, app_key: str | None = None, app_secret: str | None = None):
-        self.app_key = app_key or settings.OMIE_APP_KEY
-        self.app_secret = app_secret or settings.OMIE_APP_SECRET
+        db_key, db_secret = obter_credenciais_omie()
+        self.app_key = app_key or db_key
+        self.app_secret = app_secret or db_secret
         if not self.app_key or not self.app_secret:
             raise OmieConfigError(
                 'Credenciais Omie não configuradas. '
-                'Defina OMIE_APP_KEY e OMIE_APP_SECRET no arquivo .env.'
+                'Cadastre o App Key e App Secret na tela de integração do Omie ou no arquivo .env.'
             )
 
     def _chamar(self, endpoint: str, metodo: str, param: dict[str, Any]) -> dict:

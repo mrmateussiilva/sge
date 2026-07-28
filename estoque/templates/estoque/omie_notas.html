@@ -14,6 +14,9 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="abrirModalConfiguracaoOmie()">
+            <i class="bi bi-gear-fill me-1"></i> Configurar API Omie
+        </button>
         <a href="?pagina={{ pagina }}" class="btn btn-outline-secondary btn-sm" id="btn-atualizar">
             <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
         </a>
@@ -27,11 +30,12 @@
         <strong>Erro ao conectar ao Omie</strong><br>
         <span class="small">{{ erro }}</span>
         {% if 'Credenciais' in erro %}
-        <div class="mt-2 small">
-            Configure <code>OMIE_APP_KEY</code> e <code>OMIE_APP_SECRET</code> no arquivo <code>.env</code>
-            e reinicie o servidor.
-            <a href="https://developer.omie.com.br/my-apps/" target="_blank" class="ms-1">
-                <i class="bi bi-box-arrow-up-right"></i> Criar app Omie
+        <div class="mt-2 small d-flex gap-2 align-items-center flex-wrap">
+            <button type="button" class="btn btn-sm btn-primary py-1" onclick="abrirModalConfiguracaoOmie()">
+                <i class="bi bi-gear-fill me-1"></i> Configurar Chaves Agora
+            </button>
+            <a href="https://developer.omie.com.br/my-apps/" target="_blank" class="btn btn-sm btn-link text-decoration-none p-0">
+                <i class="bi bi-box-arrow-up-right me-1"></i> Portal Omie
             </a>
         </div>
         {% endif %}
@@ -216,6 +220,53 @@
         </div>
     </div>
 </div>
+
+<!-- ═══ Modal de Configuração de API Omie ═══════════════════════════════════ -->
+<div class="modal fade" id="modalConfiguracaoOmie" tabindex="-1" aria-labelledby="modalConfiguracaoOmieLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalConfiguracaoOmieLabel">
+                        <i class="bi bi-gear-fill text-primary me-2"></i>
+                        Configurar API Omie
+                    </h5>
+                    <p class="small text-muted mb-0">Insira as credenciais cadastradas no portal do Omie.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formConfiguracaoOmie" onsubmit="salvarConfiguracaoOmie(event)">
+                <div class="modal-body py-3">
+                    {% if not user.is_superuser %}
+                    <div class="alert alert-warning small border-0 mb-3">
+                        <i class="bi bi-shield-lock me-1"></i> Apenas administradores podem alterar estas configurações.
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="omie-app-key" class="form-label small fw-semibold text-muted mb-1">App Key <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="omie-app-key" value="{{ config_omie.app_key }}" required placeholder="Ex: 383332717904" {% if not user.is_superuser %}disabled{% endif %}>
+                    </div>
+                    <div class="mb-3">
+                        <label for="omie-app-secret" class="form-label small fw-semibold text-muted mb-1">App Secret <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="omie-app-secret" value="{{ config_omie.app_secret }}" required placeholder="Ex: 4725...5821" {% if not user.is_superuser %}disabled{% endif %}>
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" id="toggleSecretVis" onclick="toggleSecretVisibility()">
+                            <label class="form-check-label small text-muted" for="toggleSecretVis">Mostrar chave</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    {% if user.is_superuser %}
+                    <button type="submit" class="btn btn-primary px-4" id="btn-salvar-config-omie">
+                        <i class="bi bi-save me-1"></i>Salvar Credenciais
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -224,7 +275,62 @@
 const PRODUTOS_SGE = {{ produtos_sge_json|safe }};
 let notaAtual = null; // dados da nota sendo importada no modal
 
-// ── Abrir modal ────────────────────────────────────────────────────────────
+// ── Modal Configuração Omie ────────────────────────────────────────────────
+function abrirModalConfiguracaoOmie() {
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalConfiguracaoOmie'));
+    modal.show();
+}
+
+function toggleSecretVisibility() {
+    const input = document.getElementById('omie-app-secret');
+    if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+}
+
+function salvarConfiguracaoOmie(e) {
+    e.preventDefault();
+    const appKey = document.getElementById('omie-app-key').value.trim();
+    const appSecret = document.getElementById('omie-app-secret').value.trim();
+
+    if (!appKey || !appSecret) {
+        showToast('App Key e App Secret são obrigatórios.', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('btn-salvar-config-omie');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || getCookie('csrftoken');
+
+    fetch('/omie/configuracao/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify({ app_key: appKey, app_secret: appSecret }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            showToast(data.mensagem || 'Credenciais salvas com sucesso!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('modalConfiguracaoOmie'))?.hide();
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            showToast(data.erro || 'Erro ao salvar configurações.', 'danger');
+        }
+    })
+    .catch(() => showToast('Erro de rede ao salvar configurações.', 'danger'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save me-1"></i>Salvar Credenciais';
+    });
+}
+
+// ── Abrir modal de importação ──────────────────────────────────────────────
 function abrirModalImportacao(nCod, codInt, numeroNfe, fornecedorNome) {
     // Busca os itens da nota diretamente no DOM para reuso
     const cardEl = document.getElementById('nota-card-' + nCod);

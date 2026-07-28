@@ -559,3 +559,56 @@ class FluxosOperacionaisTestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_superuser)
+
+
+class ConfiguracaoOmieTestCase(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(username='adminomie', password='password123')
+        self.user = User.objects.create_user(username='useromie', password='password123')
+
+    def test_salvar_configuracao_omie_como_admin(self):
+        self.client.login(username='adminomie', password='password123')
+        response = self.client.post(
+            reverse('salvar_configuracao_omie'),
+            data=json.dumps({
+                'app_key': 'KEY_TESTE_123',
+                'app_secret': 'SECRET_TESTE_456',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+
+        from .models import ConfiguracaoOmie
+        config = ConfiguracaoOmie.objects.first()
+        self.assertIsNotNone(config)
+        self.assertEqual(config.app_key, 'KEY_TESTE_123')
+        self.assertEqual(config.app_secret, 'SECRET_TESTE_456')
+        self.assertEqual(config.usuario, self.admin)
+
+    def test_salvar_configuracao_omie_requer_admin(self):
+        self.client.login(username='useromie', password='password123')
+        response = self.client.post(
+            reverse('salvar_configuracao_omie'),
+            data=json.dumps({
+                'app_key': 'KEY_TESTE',
+                'app_secret': 'SECRET_TESTE',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_omie_client_usa_credenciais_do_banco(self):
+        from .models import ConfiguracaoOmie
+        from .services.omie_client import OmieClient
+
+        ConfiguracaoOmie.objects.create(
+            app_key='KEY_DO_BANCO',
+            app_secret='SECRET_DO_BANCO',
+        )
+
+        client = OmieClient()
+        self.assertEqual(client.app_key, 'KEY_DO_BANCO')
+        self.assertEqual(client.app_secret, 'SECRET_DO_BANCO')

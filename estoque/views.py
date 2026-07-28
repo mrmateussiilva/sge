@@ -1292,7 +1292,7 @@ def buscar_notas_omie(request):
 
     GET: Lista notas do Omie (com paginação), marcando quais já foram importadas.
     """
-    from .models import ImportacaoNFe
+    from .models import ConfiguracaoOmie, ImportacaoNFe
     from .services.omie_client import OmieClient, OmieAPIError, OmieConfigError
 
     pagina = int(request.GET.get('pagina', 1))
@@ -1301,6 +1301,7 @@ def buscar_notas_omie(request):
     total_paginas = 1
     total_registros = 0
     ja_importados = set()
+    config_omie = ConfiguracaoOmie.objects.first()
 
     try:
         client = OmieClient()
@@ -1335,7 +1336,51 @@ def buscar_notas_omie(request):
         'total_paginas': total_paginas,
         'total_registros': total_registros,
         'produtos_sge_json': json.dumps(produtos_sge),
+        'config_omie': config_omie,
     })
+
+
+@login_required
+def salvar_configuracao_omie(request):
+    """
+    POST: Salva ou atualiza a App Key e o App Secret do Omie no banco de dados (ConfiguracaoOmie).
+    Apenas administradores podem alterar.
+    """
+    from .models import ConfiguracaoOmie
+
+    if request.method != 'POST':
+        return json_erro('Método não permitido.', status=405)
+
+    perm_error = exigir_admin_json(request)
+    if perm_error:
+        return perm_error
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return json_erro('JSON inválido.')
+
+    app_key = data.get('app_key', '').strip()
+    app_secret = data.get('app_secret', '').strip()
+
+    if not app_key or not app_secret:
+        return json_erro('App Key e App Secret são obrigatórios.')
+
+    config, _ = ConfiguracaoOmie.objects.get_or_create(id=1)
+    config.app_key = app_key
+    config.app_secret = app_secret
+    config.usuario = request.user
+    config.save()
+
+    log_acao(
+        request.user,
+        'EDITAR',
+        'Atualizou credenciais de API do Omie (App Key e App Secret)',
+        'ConfiguracaoOmie',
+        config.id,
+    )
+
+    return json_ok(mensagem='Credenciais do Omie salvas com sucesso!')
 
 
 @login_required

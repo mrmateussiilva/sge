@@ -44,4 +44,5 @@ urlpatterns = [
     # Integração Omie — NF-e
     path('omie/notas/', views.buscar_notas_omie, name='buscar_notas_omie'),
     path('omie/notas/<int:n_cod>/importar/', views.importar_nota_omie, name='importar_nota_omie'),
+    path('omie/configuracao/', views.salvar_configuracao_omie, name='salvar_configuracao_omie'),
 ]

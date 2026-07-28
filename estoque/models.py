@@ -320,3 +320,27 @@ class ImportacaoNFe(models.Model):
 
     def __str__(self):
         return f'NF-e Omie #{self.n_cod_nota_ent} — {self.fornecedor_nome} ({self.data_importacao:%d/%m/%Y})'
+
+
+class ConfiguracaoOmie(models.Model):
+    """
+    Guarda as credenciais da API Omie (App Key e App Secret) configuradas via interface.
+    """
+
+    app_key = models.CharField(max_length=100, blank=True, default='', verbose_name='App Key Omie')
+    app_secret = models.CharField(max_length=100, blank=True, default='', verbose_name='App Secret Omie')
+    atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Atualizado por',
+    )
+
+    class Meta:
+        verbose_name = 'Configuração Omie'
+        verbose_name_plural = 'Configurações Omie'
+
+    def __str__(self):
+        return f'Configuração Omie (App Key: {self.app_key[:6]}...)'
