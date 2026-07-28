@@ -41,4 +41,7 @@ urlpatterns = [
     path('categorias/<int:id>/editar/', views.salvar_categoria, name='editar_categoria'),
     path('categorias/<int:id>/excluir/', views.excluir_categoria, name='excluir_categoria'),
     path('busca-rapida/', views.busca_rapida, name='busca_rapida'),
+    # Integração Omie — NF-e
+    path('omie/notas/', views.buscar_notas_omie, name='buscar_notas_omie'),
+    path('omie/notas/<int:n_cod>/importar/', views.importar_nota_omie, name='importar_nota_omie'),
 ]

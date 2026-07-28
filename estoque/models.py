@@ -282,3 +282,41 @@ class ItemFechamento(models.Model):
 
     def __str__(self):
         return f'{self.descricao} ({self.quantidade})'
+
+
+class ImportacaoNFe(models.Model):
+    """
+    Controle de idempotência para importação de Notas de Entrada do Omie.
+
+    Garante que uma nota não seja importada mais de uma vez.
+    O campo `n_cod_nota_ent` corresponde ao ID interno do Omie (nCodNotaEnt).
+    """
+
+    n_cod_nota_ent = models.BigIntegerField(
+        unique=True,
+        verbose_name='ID da Nota no Omie',
+        help_text='Corresponde ao campo nCodNotaEnt retornado pela API do Omie.',
+    )
+    cod_int_nota_ent = models.CharField(
+        max_length=60, blank=True, default='',
+        verbose_name='Código de Integração',
+    )
+    numero_nfe = models.CharField(max_length=20, blank=True, default='', verbose_name='Número NF-e')
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default='', verbose_name='Fornecedor')
+    data_importacao = models.DateTimeField(auto_now_add=True, verbose_name='Data da Importação')
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Importado por',
+    )
+    observacao = models.CharField(max_length=500, blank=True, default='')
+
+    class Meta:
+        ordering = ['-data_importacao']
+        verbose_name = 'Importação de NF-e'
+        verbose_name_plural = 'Importações de NF-e'
+
+    def __str__(self):
+        return f'NF-e Omie #{self.n_cod_nota_ent} — {self.fornecedor_nome} ({self.data_importacao:%d/%m/%Y})'

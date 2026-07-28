@@ -1278,3 +1278,190 @@ def busca_rapida(request):
         for p in produtos
     ]
     return JsonResponse({'resultados': resultados})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INTEGRAÇÃO OMIE — Importação de Notas de Entrada
+# ─────────────────────────────────────────────────────────────────────────────
+
+@login_required
+def buscar_notas_omie(request):
+    """
+    Exibe a lista de Notas de Entrada do Omie e permite ao usuário
+    importá-las como movimentações de ENTRADA no estoque.
+
+    GET: Lista notas do Omie (com paginação), marcando quais já foram importadas.
+    """
+    from .models import ImportacaoNFe
+    from .services.omie_client import OmieClient, OmieAPIError, OmieConfigError
+
+    pagina = int(request.GET.get('pagina', 1))
+    erro = None
+    notas = []
+    total_paginas = 1
+    total_registros = 0
+    ja_importados = set()
+
+    try:
+        client = OmieClient()
+        notas, total_paginas, total_registros = client.listar_notas_parseadas(
+            pagina=pagina,
+            registros_por_pagina=20,
+        )
+        # Identificar notas já importadas
+        ids_notas = {n.n_cod_nota_ent for n in notas}
+        ja_importados = set(
+            ImportacaoNFe.objects.filter(
+                n_cod_nota_ent__in=ids_notas
+            ).values_list('n_cod_nota_ent', flat=True)
+        )
+    except OmieConfigError as exc:
+        erro = f'Credenciais Omie não configuradas: {exc}'
+    except OmieAPIError as exc:
+        erro = f'Erro na API Omie [{exc.codigo}]: {exc.descricao}'
+    except Exception as exc:
+        erro = f'Erro inesperado ao conectar ao Omie: {exc}'
+
+    # Montar lista de produtos SGE para o dropdown de seleção manual
+    produtos_sge = list(
+        Produto.objects.order_by('descricao').values('id', 'descricao', 'unidade_medida')
+    )
+
+    return render(request, 'estoque/omie_notas.html', {
+        'notas': notas,
+        'ja_importados': ja_importados,
+        'erro': erro,
+        'pagina': pagina,
+        'total_paginas': total_paginas,
+        'total_registros': total_registros,
+        'produtos_sge_json': json.dumps(produtos_sge),
+    })
+
+
+@login_required
+def importar_nota_omie(request, n_cod: int):
+    """
+    POST: Importa uma nota de entrada do Omie gerando Movimentacoes de ENTRADA.
+
+    Body JSON esperado:
+    {
+      "itens": [
+        {
+          "cod_item_int": "IT...",
+          "produto_id": 42,        // ID do produto no SGE
+          "quantidade": "10.5",
+          "descricao": "Nome no Omie",
+          "valor_unitario": "12.50"
+        },
+        ...
+      ],
+      "fornecedor_nome": "Fornecedor X",
+      "numero_nfe": "123456",
+      "cod_int_nota_ent": "NE..."
+    }
+    """
+    from .models import ImportacaoNFe
+    from .services.omie_client import OmieConfigError
+
+    if request.method != 'POST':
+        return json_erro('Método não permitido.', status=405)
+
+    # Verificar idempotência
+    if ImportacaoNFe.objects.filter(n_cod_nota_ent=n_cod).exists():
+        return json_erro(
+            f'A nota Omie #{n_cod} já foi importada anteriormente.',
+            codigo='JA_IMPORTADO',
+        )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return json_erro('JSON inválido.')
+
+    itens = data.get('itens', [])
+    if not itens:
+        return json_erro('Nenhum item para importar.')
+
+    # Validar que todos os itens têm produto_id
+    for item in itens:
+        if not item.get('produto_id'):
+            descricao = item.get('descricao', '?')
+            return json_erro(
+                f'O item "{descricao}" não tem produto do SGE selecionado.',
+                codigo='PRODUTO_NAO_SELECIONADO',
+            )
+
+    movimentacoes_criadas = 0
+    descricoes_importadas = []
+
+    try:
+        with transaction.atomic():
+            for item in itens:
+                produto = Produto.objects.select_for_update().get(pk=item['produto_id'])
+                quantidade = Decimal(str(item.get('quantidade', '0')))
+                if quantidade <= 0:
+                    raise ValidationError(f'Quantidade inválida para "{produto.descricao}".')
+
+                valor_unitario = item.get('valor_unitario', '0')
+                obs = (
+                    f'Importado da NF-e Omie #{n_cod} | '
+                    f'{item.get("descricao", "")} | '
+                    f'Qtde: {quantidade} | '
+                    f'Valor unit.: R$ {valor_unitario}'
+                )
+
+                Movimentacao.objects.create(
+                    produto=produto,
+                    usuario=request.user,
+                    tipo='ENTRADA',
+                    quantidade=quantidade,
+                    observacao=obs[:255],
+                )
+                # Atualizar preço de custo se informado
+                if valor_unitario and Decimal(str(valor_unitario)) > 0:
+                    produto.preco_custo = Decimal(str(valor_unitario))
+                    produto.save(update_fields=['preco_custo'])
+
+                movimentacoes_criadas += 1
+                descricoes_importadas.append(produto.descricao)
+
+            # Registrar importação para idempotência
+            ImportacaoNFe.objects.create(
+                n_cod_nota_ent=n_cod,
+                cod_int_nota_ent=data.get('cod_int_nota_ent', ''),
+                numero_nfe=data.get('numero_nfe', ''),
+                fornecedor_nome=data.get('fornecedor_nome', ''),
+                usuario=request.user,
+                observacao=f'{movimentacoes_criadas} itens importados',
+            )
+
+        # Auditoria
+        log_acao(
+            request.user,
+            'ENTRADA',
+            (
+                f'Importação NF-e Omie #{n_cod} — '
+                f'{movimentacoes_criadas} movimentação(ões) criada(s): '
+                f'{", ".join(descricoes_importadas[:5])}'
+                + ('...' if len(descricoes_importadas) > 5 else '')
+            ),
+            'ImportacaoNFe',
+        )
+
+        return json_ok(
+            mensagem=f'{movimentacoes_criadas} entrada(s) registrada(s) com sucesso!',
+            movimentacoes_criadas=movimentacoes_criadas,
+        )
+
+    except Produto.DoesNotExist:
+        return json_erro('Produto SGE não encontrado.', status=404)
+    except ValidationError as exc:
+        return json_erro('; '.join(exc.messages), codigo='VALIDACAO')
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        return json_erro(f'Valor inválido: {exc}', codigo='VALIDACAO')
+    except OmieConfigError as exc:
+        return json_erro(str(exc), codigo='CONFIG_ERROR', status=500)
+    except Exception as exc:
+        logger_omie = __import__('logging').getLogger(__name__)
+        logger_omie.exception('Erro ao importar nota Omie #%s', n_cod)
+        return json_erro(f'Erro interno: {exc}', status=500)

@@ -1,0 +1,447 @@
+{% extends 'estoque/base.html' %}
+{% load static %}
+
+{% block title %}Importar NF-e do Omie — S.G.E{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 fw-bold mb-1">
+            <i class="bi bi-cloud-download text-primary me-2"></i>Importar NF-e do Omie
+        </h1>
+        <p class="text-muted small mb-0">
+            Selecione as notas de entrada do Omie e mapeie os produtos para dar entrada no estoque.
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="?pagina={{ pagina }}" class="btn btn-outline-secondary btn-sm" id="btn-atualizar">
+            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+        </a>
+    </div>
+</div>
+
+{% if erro %}
+<div class="alert alert-danger d-flex align-items-start gap-3 rounded-3 border-0 shadow-sm mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+    <div>
+        <strong>Erro ao conectar ao Omie</strong><br>
+        <span class="small">{{ erro }}</span>
+        {% if 'Credenciais' in erro %}
+        <div class="mt-2 small">
+            Configure <code>OMIE_APP_KEY</code> e <code>OMIE_APP_SECRET</code> no arquivo <code>.env</code>
+            e reinicie o servidor.
+            <a href="https://developer.omie.com.br/my-apps/" target="_blank" class="ms-1">
+                <i class="bi bi-box-arrow-up-right"></i> Criar app Omie
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if not erro %}
+<!-- Contador de resultados -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <span class="small text-muted">
+        <strong>{{ total_registros }}</strong> nota(s) encontrada(s) no Omie
+        — Página <strong>{{ pagina }}</strong> de <strong>{{ total_paginas }}</strong>
+    </span>
+    <div class="d-flex gap-2 align-items-center">
+        {% if pagina > 1 %}
+        <a href="?pagina={{ pagina|add:'-1' }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-chevron-left"></i> Anterior
+        </a>
+        {% endif %}
+        {% if pagina < total_paginas %}
+        <a href="?pagina={{ pagina|add:'1' }}" class="btn btn-sm btn-outline-secondary">
+            Próxima <i class="bi bi-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if notas %}
+<div class="d-flex flex-column gap-3" id="lista-notas">
+{% for nota in notas %}
+{% with ja_importada=nota.n_cod_nota_ent|stringformat:"s" %}
+<div class="card border-0 shadow-sm rounded-3 nota-card" id="nota-card-{{ nota.n_cod_nota_ent }}">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2 py-3 px-4 rounded-top-3
+        {% if nota.n_cod_nota_ent in ja_importados %}bg-success bg-opacity-10 border-bottom border-success border-opacity-25{% else %}border-bottom{% endif %}">
+        <div class="d-flex align-items-center gap-3">
+            {% if nota.n_cod_nota_ent in ja_importados %}
+            <span class="badge bg-success rounded-pill">
+                <i class="bi bi-check-circle-fill me-1"></i>Importada
+            </span>
+            {% else %}
+            <span class="badge bg-warning text-dark rounded-pill">
+                <i class="bi bi-clock me-1"></i>Pendente
+            </span>
+            {% endif %}
+            <div>
+                <span class="fw-semibold">
+                    {% if nota.numero_nfe %}NF-e {{ nota.numero_nfe }}{% else %}Nota #{{ nota.n_cod_nota_ent }}{% endif %}
+                    {% if nota.serie %}<span class="text-muted fw-normal">/ Série {{ nota.serie }}</span>{% endif %}
+                </span>
+                {% if nota.fornecedor_nome %}
+                <div class="small text-muted mt-1">
+                    <i class="bi bi-building me-1"></i>{{ nota.fornecedor_nome }}
+                    {% if nota.fornecedor_cnpj %}<span class="ms-2 opacity-75">{{ nota.fornecedor_cnpj }}</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            {% if nota.data_previsao %}
+            <span class="small text-muted">
+                <i class="bi bi-calendar3 me-1"></i>{{ nota.data_previsao }}
+            </span>
+            {% endif %}
+            <span class="small text-muted">
+                <i class="bi bi-box me-1"></i>{{ nota.itens|length }} item(s)
+            </span>
+            {% if not nota.n_cod_nota_ent in ja_importados %}
+            <button
+                type="button"
+                class="btn btn-primary btn-sm px-3"
+                onclick="abrirModalImportacao({{ nota.n_cod_nota_ent }}, '{{ nota.cod_int_nota_ent }}', '{{ nota.numero_nfe }}', '{{ nota.fornecedor_nome|escapejs }}')"
+                id="btn-importar-{{ nota.n_cod_nota_ent }}"
+                {% if not nota.itens %}disabled title="Nota sem itens"{% endif %}
+            >
+                <i class="bi bi-cloud-download me-1"></i> Importar
+            </button>
+            {% else %}
+            <span class="text-success small fw-semibold">
+                <i class="bi bi-check-lg me-1"></i>Já importada
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if nota.itens %}
+    <div class="card-body px-4 py-3">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0 small">
+                <thead class="text-muted">
+                    <tr>
+                        <th class="fw-semibold">Produto (Omie)</th>
+                        <th class="fw-semibold text-center" style="width:100px">Qtde</th>
+                        <th class="fw-semibold text-end" style="width:120px">Valor Unit.</th>
+                        <th class="fw-semibold text-center" style="width:60px">CFOP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in nota.itens %}
+                    <tr>
+                        <td>
+                            <span class="fw-medium">{{ item.descricao }}</span>
+                            {% if item.codigo_produto %}
+                            <span class="badge bg-secondary bg-opacity-15 text-secondary ms-1 small">{{ item.codigo_produto }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {{ item.quantidade }}
+                            {% if item.unidade %}<span class="text-muted">{{ item.unidade }}</span>{% endif %}
+                        </td>
+                        <td class="text-end">R$ {{ item.valor_unitario }}</td>
+                        <td class="text-center text-muted">{{ item.cfop }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endwith %}
+{% endfor %}
+</div>
+
+<!-- Paginação inferior -->
+{% if total_paginas > 1 %}
+<div class="d-flex justify-content-center gap-2 mt-4">
+    {% if pagina > 1 %}
+    <a href="?pagina={{ pagina|add:'-1' }}" class="btn btn-outline-secondary">
+        <i class="bi bi-chevron-left me-1"></i> Anterior
+    </a>
+    {% endif %}
+    <span class="btn btn-light disabled">{{ pagina }} / {{ total_paginas }}</span>
+    {% if pagina < total_paginas %}
+    <a href="?pagina={{ pagina|add:'1' }}" class="btn btn-outline-secondary">
+        Próxima <i class="bi bi-chevron-right ms-1"></i>
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% elif not erro %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+    <h5 class="fw-semibold">Nenhuma nota de entrada encontrada</h5>
+    <p class="small">O Omie não retornou nenhuma nota de entrada para esta página.</p>
+</div>
+{% endif %}
+
+<!-- ═══ Modal de Importação ════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalImportacao" tabindex="-1" aria-labelledby="modalImportacaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalImportacaoLabel">
+                        <i class="bi bi-cloud-download text-primary me-2"></i>
+                        Importar Nota de Entrada
+                    </h5>
+                    <p class="small text-muted mb-0" id="modal-nota-info"></p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="alert alert-info border-0 rounded-3 small mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Para cada item da nota, selecione o produto correspondente no SGE.
+                    O estoque será atualizado automaticamente ao confirmar.
+                </div>
+
+                <div id="modal-itens-container">
+                    <!-- Itens injetados via JS -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary px-4" id="btn-confirmar-importacao" onclick="confirmarImportacao()">
+                    <i class="bi bi-check-lg me-1"></i>Confirmar Entrada
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Dados ──────────────────────────────────────────────────────────────────
+const PRODUTOS_SGE = {{ produtos_sge_json|safe }};
+let notaAtual = null; // dados da nota sendo importada no modal
+
+// ── Abrir modal ────────────────────────────────────────────────────────────
+function abrirModalImportacao(nCod, codInt, numeroNfe, fornecedorNome) {
+    // Busca os itens da nota diretamente no DOM para reuso
+    const cardEl = document.getElementById('nota-card-' + nCod);
+    if (!cardEl) return;
+
+    // Coletar itens da tabela exibida
+    const rows = cardEl.querySelectorAll('tbody tr');
+    const itens = [];
+    rows.forEach((tr, idx) => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length < 3) return;
+        const descricaoEl = cells[0].querySelector('.fw-medium');
+        const codigoEl = cells[0].querySelector('.badge');
+        itens.push({
+            idx: idx,
+            descricao: descricaoEl ? descricaoEl.textContent.trim() : '',
+            codigo_produto: codigoEl ? codigoEl.textContent.trim() : '',
+            quantidade: cells[1].textContent.trim().split(' ')[0],
+            valor_unitario: cells[2].textContent.replace('R$', '').trim(),
+            cfop: cells[3] ? cells[3].textContent.trim() : '',
+        });
+    });
+
+    notaAtual = { nCod, codInt, numeroNfe, fornecedorNome, itens };
+
+    // Info no cabeçalho
+    document.getElementById('modal-nota-info').textContent =
+        (numeroNfe ? 'NF-e ' + numeroNfe : 'Nota #' + nCod) +
+        (fornecedorNome ? ' — ' + fornecedorNome : '');
+
+    // Renderizar itens
+    renderizarItensModal(itens);
+
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalImportacao'));
+    modal.show();
+}
+
+// ── Renderizar itens do modal ──────────────────────────────────────────────
+function renderizarItensModal(itens) {
+    const container = document.getElementById('modal-itens-container');
+    container.innerHTML = '';
+
+    if (!itens.length) {
+        container.innerHTML = '<p class="text-muted text-center py-3">Nenhum item nesta nota.</p>';
+        return;
+    }
+
+    itens.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'card border-0 bg-light rounded-3 mb-3';
+        div.innerHTML = `
+            <div class="card-body py-3 px-3">
+                <div class="row align-items-start g-3">
+                    <div class="col-12 col-md-5">
+                        <div class="fw-semibold small text-truncate">${escapeHtml(item.descricao)}</div>
+                        <div class="small text-muted d-flex gap-3 mt-1">
+                            <span><i class="bi bi-box me-1"></i>${escapeHtml(item.quantidade)}</span>
+                            <span><i class="bi bi-tag me-1"></i>R$ ${escapeHtml(item.valor_unitario)}</span>
+                            ${item.codigo_produto ? `<span class="text-secondary">${escapeHtml(item.codigo_produto)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <label class="form-label small fw-semibold text-muted mb-1">
+                            Produto SGE <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select form-select-sm sge-produto-select"
+                            id="select-produto-${i}"
+                            data-idx="${i}"
+                            required>
+                            <option value="">— Selecionar produto —</option>
+                            ${PRODUTOS_SGE.map(p =>
+                                `<option value="${p.id}">${escapeHtml(p.descricao)} (${escapeHtml(p.unidade_medida)})</option>`
+                            ).join('')}
+                        </select>
+                        <div class="invalid-feedback">Selecione o produto correspondente.</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+
+        // Tentar pré-selecionar produto pelo código ou descrição
+        autoMatchProduto(item, i);
+    });
+}
+
+// ── Auto-match por descrição (melhor esforço) ─────────────────────────────
+function autoMatchProduto(item, idx) {
+    if (!item.descricao) return;
+    const select = document.getElementById('select-produto-' + idx);
+    if (!select) return;
+
+    const descLower = item.descricao.toLowerCase();
+    const match = PRODUTOS_SGE.find(p => {
+        const pDesc = p.descricao.toLowerCase();
+        return pDesc === descLower ||
+               pDesc.includes(descLower) ||
+               descLower.includes(pDesc.split(' ')[0]);
+    });
+
+    if (match) {
+        select.value = String(match.id);
+    }
+}
+
+// ── Confirmar importação ───────────────────────────────────────────────────
+function confirmarImportacao() {
+    if (!notaAtual) return;
+
+    const selects = document.querySelectorAll('.sge-produto-select');
+    const itensPayload = [];
+    let valido = true;
+
+    selects.forEach((sel, i) => {
+        sel.classList.remove('is-invalid');
+        const item = notaAtual.itens[i];
+        if (!sel.value) {
+            sel.classList.add('is-invalid');
+            valido = false;
+            return;
+        }
+        itensPayload.push({
+            cod_item_int: item.cod_item_int || '',
+            produto_id: parseInt(sel.value),
+            quantidade: item.quantidade,
+            valor_unitario: item.valor_unitario.replace(',', '.'),
+            descricao: item.descricao,
+        });
+    });
+
+    if (!valido) {
+        showToast('Selecione o produto SGE para todos os itens.', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-importacao');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importando...';
+
+    const payload = {
+        itens: itensPayload,
+        fornecedor_nome: notaAtual.fornecedorNome,
+        numero_nfe: notaAtual.numeroNfe,
+        cod_int_nota_ent: notaAtual.codInt,
+    };
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || getCookie('csrftoken');
+
+    fetch(`/omie/notas/${notaAtual.nCod}/importar/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            showToast(data.mensagem || 'Importação realizada com sucesso!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('modalImportacao'))?.hide();
+            // Atualizar visualmente o card
+            marcarNotaImportada(notaAtual.nCod);
+        } else {
+            showToast(data.erro || 'Erro ao importar nota.', 'danger');
+        }
+    })
+    .catch(() => showToast('Erro de rede ao importar.', 'danger'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirmar Entrada';
+    });
+}
+
+// ── Marcar card como importado sem reload ─────────────────────────────────
+function marcarNotaImportada(nCod) {
+    const card = document.getElementById('nota-card-' + nCod);
+    if (!card) return;
+
+    // Atualizar header
+    const header = card.querySelector('.card-header');
+    if (header) {
+        header.classList.remove('bg-warning', 'bg-opacity-10');
+        header.classList.add('bg-success', 'bg-opacity-10', 'border-success', 'border-opacity-25');
+    }
+
+    // Trocar badge e botão
+    const badgePendente = card.querySelector('.badge.bg-warning');
+    if (badgePendente) {
+        badgePendente.className = 'badge bg-success rounded-pill';
+        badgePendente.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Importada';
+    }
+
+    const btnImportar = document.getElementById('btn-importar-' + nCod);
+    if (btnImportar) {
+        const span = document.createElement('span');
+        span.className = 'text-success small fw-semibold';
+        span.innerHTML = '<i class="bi bi-check-lg me-1"></i>Já importada';
+        btnImportar.replaceWith(span);
+    }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function escapeHtml(v) {
+    return String(v || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getCookie(name) {
+    const val = `; ${document.cookie}`;
+    const parts = val.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+</script>
+{% endblock %}

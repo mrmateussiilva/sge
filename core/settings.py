@@ -113,3 +113,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ── Integração Omie ──────────────────────────────────────────────────────────
+OMIE_APP_KEY = os.getenv('OMIE_APP_KEY', '')
+OMIE_APP_SECRET = os.getenv('OMIE_APP_SECRET', '')
