@@ -659,3 +659,33 @@ class ConfiguracaoOmieTestCase(TestCase):
 
         # Verificar idempotencia
         self.assertTrue(ImportacaoNFe.objects.filter(n_cod_nota_ent=n_cod).exists())
+
+    def test_listar_notas_entrada_com_filtros_e_ordenacao(self):
+        from unittest.mock import MagicMock
+        from .services.omie_client import OmieClient
+
+        client = OmieClient(app_key='K', app_secret='S')
+        client._chamar = MagicMock(return_value={'notas': [], 'nTotPaginas': 1, 'nTotRegistros': 0})
+
+        client.listar_notas_entrada(
+            pagina=1,
+            registros_por_pagina=20,
+            cnpj_fornecedor='12345678000199',
+            data_inicio='01/01/2026',
+            data_fim='28/07/2026',
+            ordenar_decrescente=True,
+        )
+
+        client._chamar.assert_called_once_with(
+            'produtos/notaentrada/',
+            'ListarNotaEnt',
+            {
+                'nPagina': 1,
+                'nRegistrosPorPagina': 20,
+                'cOrdenacao': 'DESC',
+                'cCnpjForn': '12345678000199',
+                'dEmiInicial': '01/01/2026',
+                'dEmiFinal': '28/07/2026',
+            }
+        )
+

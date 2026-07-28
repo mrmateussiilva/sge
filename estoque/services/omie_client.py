@@ -150,24 +150,47 @@ class OmieClient:
         self,
         pagina: int = 1,
         registros_por_pagina: int = 20,
-        apenas_importado: bool = False,
+        cnpj_fornecedor: str = '',
+        data_inicio: str = '',
+        data_fim: str = '',
+        ordenar_decrescente: bool = True,
     ) -> dict:
         """
-        Lista notas de entrada no Omie.
+        Lista notas de entrada no Omie com suporte a filtros e ordenação por data.
 
         Retorna o dict bruto da API:
           {
             "nPagina": 1,
             "nTotPaginas": 5,
             "nRegistros": 100,
-            "cadastros": [ {...}, ... ]
+            "notas": [ {...}, ... ]
           }
         """
         param: dict[str, Any] = {
             'nPagina': pagina,
             'nRegistrosPorPagina': registros_por_pagina,
+            'cOrdenacao': 'DESC' if ordenar_decrescente else 'ASC',
         }
+        if cnpj_fornecedor:
+            param['cCnpjForn'] = cnpj_fornecedor.strip()
+        if data_inicio:
+            param['dEmiInicial'] = data_inicio.strip()
+        if data_fim:
+            param['dEmiFinal'] = data_fim.strip()
+
         return self._chamar(self.ENDPOINT_NOTA_ENTRADA, 'ListarNotaEnt', param)
+
+    def listar_nfe_recebidas(
+        self,
+        pagina: int = 1,
+        registros_por_pagina: int = 20,
+    ) -> dict:
+        """Lista NF-e Recebidas no Omie (capturadas via distribuição DF-e/SEFAZ)."""
+        param = {
+            'nPagina': pagina,
+            'nRegistrosPorPagina': registros_por_pagina,
+        }
+        return self._chamar('produtos/nferecebida/', 'ListarNFeRecebidas', param)
 
     def consultar_nota_entrada(self, n_cod_nota_ent: int) -> dict:
         """Consulta o detalhe completo de uma nota de entrada pelo ID Omie."""
@@ -260,7 +283,7 @@ class OmieClient:
             serie=str(serie),
             fornecedor_nome=str(fornecedor_nome),
             fornecedor_cnpj=str(fornecedor_cnpj),
-            data_previsao=cabec.get('dPrevisao', ''),
+            data_previsao=cabec.get('dPrevisao', cabec.get('dEmi', '')),
             status=str(raw.get('status', cabec.get('cStatus', ''))),
             itens=itens,
             chave_nfe=str(chave),
@@ -270,6 +293,10 @@ class OmieClient:
         self,
         pagina: int = 1,
         registros_por_pagina: int = 20,
+        cnpj_fornecedor: str = '',
+        data_inicio: str = '',
+        data_fim: str = '',
+        ordenar_decrescente: bool = True,
     ) -> tuple[list[NotaEntrada], int, int]:
         """
         Retorna notas de entrada já parseadas e enriquecidas com seus itens.
@@ -277,7 +304,14 @@ class OmieClient:
         Returns:
             (notas, total_paginas, total_registros)
         """
-        raw = self.listar_notas_entrada(pagina, registros_por_pagina)
+        raw = self.listar_notas_entrada(
+            pagina=pagina,
+            registros_por_pagina=registros_por_pagina,
+            cnpj_fornecedor=cnpj_fornecedor,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            ordenar_decrescente=ordenar_decrescente,
+        )
         notas_raw = raw.get('notas', raw.get('cadastros', []))
 
         total_paginas = int(raw.get('nTotalPaginas') or raw.get('nTotPaginas') or 1)

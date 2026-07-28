@@ -1290,12 +1290,17 @@ def buscar_notas_omie(request):
     Exibe a lista de Notas de Entrada do Omie e permite ao usuário
     importá-las como movimentações de ENTRADA no estoque.
 
-    GET: Lista notas do Omie (com paginação), marcando quais já foram importadas.
+    GET: Lista notas do Omie (com paginação e busca por fornecedor/data), marcando quais já foram importadas.
     """
     from .models import ConfiguracaoOmie, ImportacaoNFe
     from .services.omie_client import OmieClient, OmieAPIError, OmieConfigError
 
     pagina = int(request.GET.get('pagina', 1))
+    busca = request.GET.get('q', '').strip()
+    cnpj_fornecedor = request.GET.get('cnpj', '').strip()
+    data_inicio = request.GET.get('data_inicio', '').strip()
+    data_fim = request.GET.get('data_fim', '').strip()
+
     erro = None
     notas = []
     total_paginas = 1
@@ -1308,7 +1313,23 @@ def buscar_notas_omie(request):
         notas, total_paginas, total_registros = client.listar_notas_parseadas(
             pagina=pagina,
             registros_por_pagina=20,
+            cnpj_fornecedor=cnpj_fornecedor,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            ordenar_decrescente=True,
         )
+
+        # Se o usuário digitou algo no campo de busca 'q', faz o filtro complementar
+        if busca:
+            q_lower = busca.lower()
+            notas = [
+                n for n in notas
+                if q_lower in n.fornecedor_nome.lower()
+                or q_lower in n.fornecedor_cnpj.lower()
+                or q_lower in n.numero_nfe.lower()
+                or any(q_lower in item.descricao.lower() for item in n.itens)
+            ]
+
         # Identificar notas já importadas
         ids_notas = {n.n_cod_nota_ent for n in notas}
         ja_importados = set(
@@ -1333,6 +1354,10 @@ def buscar_notas_omie(request):
         'ja_importados': ja_importados,
         'erro': erro,
         'pagina': pagina,
+        'busca': busca,
+        'cnpj_fornecedor': cnpj_fornecedor,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
         'total_paginas': total_paginas,
         'total_registros': total_registros,
         'produtos_sge_json': json.dumps(produtos_sge),

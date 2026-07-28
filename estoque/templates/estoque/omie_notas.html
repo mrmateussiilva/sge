@@ -43,21 +43,49 @@
 </div>
 {% endif %}
 
+<form method="GET" class="filter-bar filter-bar--activity mb-4" role="search" aria-label="Filtro de notas Omie">
+    <div class="filter-bar__search">
+        <label class="form-label small fw-medium text-muted mb-1">Buscar Fornecedor ou N.º NF-e</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Nome, CNPJ ou N.º da nota..." value="{{ busca }}">
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <div>
+            <label class="form-label small fw-medium text-muted mb-1">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+        </div>
+        <div>
+            <label class="form-label small fw-medium text-muted mb-1">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+        </div>
+    </div>
+    <div class="filter-bar__actions">
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-funnel me-1"></i>Buscar Notas
+        </button>
+        {% if busca or data_inicio or data_fim %}
+        <a href="{% url 'buscar_notas_omie' %}" class="btn btn-outline-secondary btn-sm">Limpar</a>
+        {% endif %}
+    </div>
+</form>
+
 {% if not erro %}
 <!-- Contador de resultados -->
 <div class="d-flex align-items-center justify-content-between mb-3">
     <span class="small text-muted">
-        <strong>{{ total_registros }}</strong> nota(s) encontrada(s) no Omie
+        <strong>{{ total_registros }}</strong> nota(s) encontrada(s) no Omie (mais recentes primeiro)
         — Página <strong>{{ pagina }}</strong> de <strong>{{ total_paginas }}</strong>
     </span>
     <div class="d-flex gap-2 align-items-center">
         {% if pagina > 1 %}
-        <a href="?pagina={{ pagina|add:'-1' }}" class="btn btn-sm btn-outline-secondary">
+        <a href="?pagina={{ pagina|add:'-1' }}{% if busca %}&q={{ busca }}{% endif %}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-chevron-left"></i> Anterior
         </a>
         {% endif %}
         {% if pagina < total_paginas %}
-        <a href="?pagina={{ pagina|add:'1' }}" class="btn btn-sm btn-outline-secondary">
+        <a href="?pagina={{ pagina|add:'1' }}{% if busca %}&q={{ busca }}{% endif %}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}" class="btn btn-sm btn-outline-secondary">
             Próxima <i class="bi bi-chevron-right"></i>
         </a>
         {% endif %}
