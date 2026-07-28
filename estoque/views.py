@@ -1360,11 +1360,17 @@ def salvar_configuracao_omie(request):
     except json.JSONDecodeError:
         return json_erro('JSON inválido.')
 
-    app_key = data.get('app_key', '').strip()
-    app_secret = data.get('app_secret', '').strip()
+    app_key = data.get('app_key', '').strip().strip('"\':')
+    app_secret = data.get('app_secret', '').strip().strip('"\':')
 
     if not app_key or not app_secret:
         return json_erro('App Key e App Secret são obrigatórios.')
+
+    # Tratar digitação acidental da letra 'O' no lugar do número '0' em chaves hexadecimais do Omie
+    if len(app_secret) == 32 and app_secret[0] in ('O', 'o'):
+        import re
+        if re.match(r'^[0-9a-fA-F]{31}$', app_secret[1:]):
+            app_secret = '0' + app_secret[1:]
 
     config, _ = ConfiguracaoOmie.objects.get_or_create(id=1)
     config.app_key = app_key
