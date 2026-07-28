@@ -177,35 +177,74 @@ class OmieClient:
         }
         return self._chamar(self.ENDPOINT_NOTA_ENTRADA, 'ConsultarNotaEnt', param)
 
+    def consultar_produto(self, n_cod_prod: int) -> dict:
+        """Consulta dados do produto no Omie pelo nCodProd."""
+        param = {'codigo_produto': n_cod_prod}
+        return self._chamar('geral/produtos/', 'ConsultarProduto', param)
+
     # ─── Helpers de parsing ──────────────────────────────────────────────────
 
-    @staticmethod
-    def parse_nota(raw: dict) -> NotaEntrada:
+    def parse_nota(self, raw: dict, prod_cache: dict[int, dict] | None = None) -> NotaEntrada:
         """
-        Converte o dict bruto de ListarNotaEnt em um NotaEntrada estruturado.
+        Converte o dict bruto de ListarNotaEnt / ConsultarNotaEnt em um NotaEntrada estruturado.
+        """
+        if prod_cache is None:
+            prod_cache = {}
 
-        O payload da listagem pode variar; campos ausentes são tratados com default.
-        """
         cabec = raw.get('cabec', raw)
+        n_cod_nota_ent = int(cabec.get('nCodNotaEnt', raw.get('nCodNotaEnt', 0)))
+
+        # Se a nota da listagem não contiver a lista de produtos, busca o detalhe completo
         produtos_raw = raw.get('produtos', [])
+        if not produtos_raw and n_cod_nota_ent:
+            try:
+                det = self.consultar_nota_entrada(n_cod_nota_ent)
+                produtos_raw = det.get('produtos', [])
+                if 'totais' in det and 'totais' not in raw:
+                    raw['totais'] = det['totais']
+            except Exception as exc:
+                logger.warning('Erro ao consultar detalhe da nota #%s: %s', n_cod_nota_ent, exc)
 
         itens = []
         for p in produtos_raw:
+            n_cod_prod = int(p.get('nCodProd', 0))
+            descricao = p.get('cDescricao', p.get('descricao', ''))
+            codigo_produto = p.get('cCodigo', p.get('codigo', ''))
+            unidade = p.get('cUnid', p.get('unidade', ''))
+
+            # Se a descrição do produto não veio no payload da nota, busca no cadastro de produtos Omie
+            if not descricao and n_cod_prod:
+                if n_cod_prod not in prod_cache:
+                    try:
+                        p_info = self.consultar_produto(n_cod_prod)
+                        prod_cache[n_cod_prod] = p_info
+                    except Exception as exc:
+                        logger.warning('Erro ao consultar produto #%s no Omie: %s', n_cod_prod, exc)
+                        prod_cache[n_cod_prod] = {}
+
+                p_info = prod_cache.get(n_cod_prod, {})
+                descricao = p_info.get('descricao', f'Produto #{n_cod_prod}')
+                codigo_produto = p_info.get('codigo', '')
+                unidade = p_info.get('unidade', '')
+
             itens.append(ItemNotaEntrada(
-                cod_item_int=p.get('cCodItInt', ''),
-                n_cod_prod=int(p.get('nCodProd', 0)),
-                codigo_produto=p.get('cCodigo', ''),
-                descricao=p.get('cDescricao', p.get('descricao', '')),
+                cod_item_int=p.get('cCodItInt', str(p.get('nCodIt', ''))),
+                n_cod_prod=n_cod_prod,
+                codigo_produto=str(codigo_produto),
+                descricao=str(descricao),
                 quantidade=float(p.get('nQtde', 0)),
                 valor_unitario=float(p.get('nValUnit', 0)),
-                cfop=p.get('cCFOP', ''),
-                unidade=p.get('cUnid', ''),
+                cfop=str(p.get('cCFOP', '')),
+                unidade=str(unidade),
             ))
 
         # Dados de NFe emitida (pode estar aninhado)
         lista_nfe = raw.get('lista_nfe', [])
         chave = lista_nfe[0].get('cChaveNFe', '') if lista_nfe else ''
-        numero_nfe = lista_nfe[0].get('cNumNFe', '') if lista_nfe else cabec.get('cNumNFe', '')
+        numero_nfe = (
+            lista_nfe[0].get('cNumNFe', '') if lista_nfe
+            else cabec.get('cNumeroNotaEnt', cabec.get('cNumNFe', ''))
+        )
         serie = lista_nfe[0].get('cSerieNFe', '') if lista_nfe else cabec.get('cSerie', '')
 
         # Fornecedor / emitente
@@ -215,16 +254,16 @@ class OmieClient:
         fornecedor_cnpj = emit.get('CNPJ', ide.get('CNPJ', cabec.get('cCnpjForn', '')))
 
         return NotaEntrada(
-            n_cod_nota_ent=int(cabec.get('nCodNotaEnt', raw.get('nCodNotaEnt', 0))),
+            n_cod_nota_ent=n_cod_nota_ent,
             cod_int_nota_ent=cabec.get('cCodIntNotaEnt', ''),
-            numero_nfe=numero_nfe,
-            serie=serie,
-            fornecedor_nome=fornecedor_nome,
-            fornecedor_cnpj=fornecedor_cnpj,
+            numero_nfe=str(numero_nfe),
+            serie=str(serie),
+            fornecedor_nome=str(fornecedor_nome),
+            fornecedor_cnpj=str(fornecedor_cnpj),
             data_previsao=cabec.get('dPrevisao', ''),
-            status=raw.get('status', cabec.get('cStatus', '')),
+            status=str(raw.get('status', cabec.get('cStatus', ''))),
             itens=itens,
-            chave_nfe=chave,
+            chave_nfe=str(chave),
         )
 
     def listar_notas_parseadas(
@@ -233,15 +272,20 @@ class OmieClient:
         registros_por_pagina: int = 20,
     ) -> tuple[list[NotaEntrada], int, int]:
         """
-        Retorna notas de entrada já parseadas.
+        Retorna notas de entrada já parseadas e enriquecidas com seus itens.
 
         Returns:
             (notas, total_paginas, total_registros)
         """
         raw = self.listar_notas_entrada(pagina, registros_por_pagina)
-        cadastros = raw.get('cadastros', [])
-        notas = [self.parse_nota(c) for c in cadastros]
-        return notas, int(raw.get('nTotPaginas', 1)), int(raw.get('nRegistros', len(notas)))
+        notas_raw = raw.get('notas', raw.get('cadastros', []))
+
+        total_paginas = int(raw.get('nTotalPaginas') or raw.get('nTotPaginas') or 1)
+        total_registros = int(raw.get('nTotalRegistros') or raw.get('nRegistros') or len(notas_raw))
+
+        prod_cache: dict[int, dict] = {}
+        notas = [self.parse_nota(c, prod_cache=prod_cache) for c in notas_raw]
+        return notas, total_paginas, total_registros
 
     def consultar_nota_parseada(self, n_cod_nota_ent: int) -> NotaEntrada:
         """Consulta e retorna uma única nota já parseada com seus itens completos."""
