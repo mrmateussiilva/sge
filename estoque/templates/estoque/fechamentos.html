@@ -1,5 +1,5 @@
 {% extends 'estoque/base.html' %}
-{% block title %}S.G.E - Fechamentos Mensais{% endblock %}
+{% block title %}S.G.E - Fechamentos de Estoque{% endblock %}
 
 {% block content %}
 <div class="page-container page-container--wide">
@@ -7,9 +7,9 @@
     <header class="page-header">
         <div class="page-header__content">
             <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-archive"></i></span><h1>Fechamentos de estoque</h1></div>
-            <p class="page-header__description">Revise e registre snapshots mensais para consulta histórica e contabilidade.</p>
+            <p class="page-header__description">Congele a posição atual do estoque para um período e preserve o relatório histórico.</p>
         </div>
-        <div class="page-header__actions"><button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento mensal</button></div>
+        <div class="page-header__actions"><button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento</button></div>
     </header>
 
     <!-- Histórico de Fechamentos -->
@@ -23,20 +23,20 @@
             <table class="data-table table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th class="ps-4">Mês/Ano de Ref.</th>
+                        <th class="ps-4">Período</th>
                         <th>Data Realização</th>
                         <th>Executado por</th>
                         <th>Qtd. Itens</th>
                         <th>Valor Conhecido (Custo)</th>
                         <th>Observação</th>
-                        <th class="pe-4 text-end">Planilha XLSX</th>
+                        <th class="pe-4 text-end">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="f in fechamentos" :key="f.id">
-                        <td class="ps-4" data-label="Mês/Ano de Ref.">
+                        <td class="ps-4" data-label="Período">
                             <span class="status-badge status-badge--completed">
-                                [[ f.referencia_mes_ano ]]
+                                [[ f.periodo_formatado ]]
                             </span>
                         </td>
                         <td data-label="Data Realização">[[ f.data_fechamento ]]</td>
@@ -54,14 +54,17 @@
                             <span class="text-muted small" v-if="f.observacao">[[ f.observacao ]]</span>
                             <span class="text-muted small" v-else>—</span>
                         </td>
-                        <td class="pe-4 text-end" data-label="Planilha XLSX">
+                        <td class="pe-4 text-end" data-label="Ações">
+                            <a :href="'/fechamentos/' + f.id + '/'" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-eye me-1"></i>Visualizar
+                            </a>
                             <a :href="'/fechamentos/' + f.id + '/xlsx/'" class="btn btn-sm btn-outline-success">
-                                <i class="bi bi-file-earmark-excel me-1"></i>Baixar Excel
+                                <i class="bi bi-file-earmark-excel me-1"></i>XLSX
                             </a>
                         </td>
                     </tr>
                     <tr v-if="fechamentos.length === 0">
-                        <td colspan="7"><div class="empty-state"><i class="bi bi-folder-x empty-state__icon"></i><p class="empty-state__title">Nenhum fechamento realizado</p><p class="empty-state__description">Revise o estoque e registre o primeiro snapshot mensal.</p><button class="btn btn-primary empty-state__action" type="button" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento</button></div></td>
+                        <td colspan="7"><div class="empty-state"><i class="bi bi-folder-x empty-state__icon"></i><p class="empty-state__title">Nenhum fechamento realizado</p><p class="empty-state__description">Revise o estoque e registre o primeiro snapshot por período.</p><button class="btn btn-primary empty-state__action" type="button" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento</button></div></td>
                     </tr>
                 </tbody>
             </table>
@@ -82,19 +85,25 @@
                     <div class="modal-body py-3">
                         <div class="alert alert-warning border-0 small mb-3">
                             <i class="bi bi-exclamation-triangle me-2"></i>
-                            Primeiro revise os indicadores do estoque. A confirmação final criará o snapshot histórico.
+                            As datas identificam a competência. A confirmação congelará o estoque existente neste momento, sem calcular movimentações.
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold text-secondary small text-uppercase">Mês/Ano de Referência</label>
-                            <input type="text" class="form-control form-control-lg" v-model="novo.referencia_mes_ano" placeholder="Ex: 06/2026" required pattern="^(0[1-9]|1[0-2])\/[0-9]{4}$" title="Formato esperado: MM/AAAA (ex: 06/2026)">
-                            <div class="form-text">Insira o mês e o ano no formato MM/AAAA.</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label fw-semibold text-secondary small text-uppercase">Data inicial</label>
+                                <input type="date" class="form-control form-control-lg" v-model="novo.data_inicio" @change="revisao = null" required>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label fw-semibold text-secondary small text-uppercase">Data final</label>
+                                <input type="date" class="form-control form-control-lg" v-model="novo.data_fim" @change="revisao = null" required>
+                            </div>
+                            <div class="col-12"><div class="form-text">O período será a identificação contábil do snapshot.</div></div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold text-secondary small text-uppercase">Observação (Opcional)</label>
                             <textarea class="form-control" rows="3" v-model="novo.observacao" placeholder="Ex: Fechamento oficial do mês enviado para a contabilidade."></textarea>
                         </div>
                         <div class="financial-summary p-3" v-if="revisao">
-                            <h6 class="fw-bold mb-3">Fechamento de [[ revisao.referencia_mes_ano ]]</h6>
+                            <h6 class="fw-bold mb-3">Fechamento de [[ revisao.periodo_formatado ]]</h6>
                             <div class="row g-2 small">
                                 <div class="col-6">Produtos: <strong>[[ revisao.total_produtos ]]</strong></div>
                                 <div class="col-6">Zerados: <strong>[[ revisao.produtos_zerados ]]</strong></div>
@@ -134,11 +143,16 @@
     const { createApp } = Vue;
     const csrfToken = '{{ csrf_token }}';
     
-    // Obtém mês/ano atual para sugestão
+    // Sugere o mês atual completo como competência.
     const agora = new Date();
-    const mes = String(agora.getMonth() + 1).padStart(2, '0');
-    const ano = agora.getFullYear();
-    const refSugerida = `${mes}/${ano}`;
+    const formatarDataISO = (data) => {
+        const ano = data.getFullYear();
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const dia = String(data.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    };
+    const inicioSugerido = formatarDataISO(new Date(agora.getFullYear(), agora.getMonth(), 1));
+    const fimSugerido = formatarDataISO(new Date(agora.getFullYear(), agora.getMonth() + 1, 0));
 
     createApp({
         compilerOptions: {
@@ -148,7 +162,8 @@
             return {
                 fechamentos: {{ fechamentos_json|safe }},
                 novo: {
-                    referencia_mes_ano: refSugerida,
+                    data_inicio: inicioSugerido,
+                    data_fim: fimSugerido,
                     observacao: ''
                 },
                 salvando: false,
@@ -163,7 +178,11 @@
             async revisarFechamento() {
                 this.revisao = null;
                 try {
-                    const resp = await fetch(`{% url "revisar_fechamento" %}?referencia_mes_ano=${encodeURIComponent(this.novo.referencia_mes_ano)}`);
+                    const params = new URLSearchParams({
+                        data_inicio: this.novo.data_inicio,
+                        data_fim: this.novo.data_fim
+                    });
+                    const resp = await fetch(`{% url "revisar_fechamento" %}?${params.toString()}`);
                     const data = await resp.json();
                     if (data.ok) {
                         this.revisao = data.resumo;
@@ -176,11 +195,11 @@
                 }
             },
             async salvarFechamento() {
-                if (!this.revisao) {
+                if (!this.revisao || this.revisao.data_inicio !== this.novo.data_inicio || this.revisao.data_fim !== this.novo.data_fim) {
                     showToast('Revise o fechamento antes de confirmar.', 'danger');
                     return;
                 }
-                if (!confirm(`Confirmar fechamento de ${this.novo.referencia_mes_ano}?\n\nUm snapshot histórico será criado e não deve ser repetido para o mesmo período.`)) return;
+                if (!confirm(`Confirmar fechamento de ${this.revisao.periodo_formatado}?\n\nO estoque atual será congelado para este período.`)) return;
                 this.salvando = true;
                 try {
                     const resp = await fetch('{% url "realizar_fechamento" %}', {
@@ -193,7 +212,7 @@
                     });
                     const data = await resp.json();
                     if (data.ok) {
-                        showToast('Fechamento mensal realizado com sucesso!');
+                        showToast('Fechamento de estoque realizado com sucesso!');
                         setTimeout(() => {
                             window.location.reload();
                         }, 800);

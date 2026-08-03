@@ -1,0 +1,100 @@
+{% extends 'estoque/base.html' %}
+{% block title %}S.G.E - Fechamento {{ fechamento.periodo_formatado }}{% endblock %}
+
+{% block content %}
+<div class="page-container page-container--wide">
+    <header class="page-header">
+        <div class="page-header__content">
+            <div class="page-header__title">
+                <span class="page-header__icon"><i class="bi bi-lock-fill"></i></span>
+                <h1>Fechamento {{ fechamento.periodo_formatado }}</h1>
+            </div>
+            <p class="page-header__description">
+                Snapshot criado em {{ fechamento.data_fechamento|date:"d/m/Y H:i" }}
+                por {{ fechamento.usuario.username|default:"—" }}. Estes dados não dependem mais do cadastro atual dos produtos.
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a href="{% url 'lista_fechamentos' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Voltar
+            </a>
+            <a href="{% url 'exportar_fechamento_xlsx' fechamento.id %}" class="btn btn-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Exportar XLSX
+            </a>
+        </div>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            {% include 'estoque/components/metric_card.html' with metric_label='Produtos congelados' metric_value=itens|length metric_icon='bi-boxes' metric_variant='info' %}
+        </div>
+        <div class="col-md-3">
+            {% include 'estoque/components/metric_card.html' with metric_label='Valor conhecido (custo)' metric_value=valor_total_formatado metric_icon='bi-cash-stack' metric_variant='success' %}
+        </div>
+        <div class="col-md-3">
+            {% include 'estoque/components/metric_card.html' with metric_label='Valor conhecido (venda)' metric_value=valor_total_venda_formatado metric_icon='bi-graph-up-arrow' metric_variant='info' %}
+        </div>
+        <div class="col-md-3">
+            {% include 'estoque/components/metric_card.html' with metric_label='Produtos sem custo' metric_value=produtos_sem_custo metric_icon='bi-exclamation-triangle' metric_variant='warning' %}
+        </div>
+    </div>
+
+    {% if fechamento.observacao %}
+    <div class="alert alert-secondary border-0 mb-4">
+        <strong>Observação:</strong> {{ fechamento.observacao }}
+    </div>
+    {% endif %}
+
+    <section class="content-panel">
+        <div class="content-panel__header">
+            <h5 class="mb-0 fw-semibold"><i class="bi bi-archive me-1"></i>Estoque congelado</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="data-table table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Produto</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
+                            <th>Fornecedor</th>
+                            <th>Unid.</th>
+                            <th class="text-end">Quantidade</th>
+                            <th class="text-end">Custo unitário</th>
+                            <th class="text-end">Valor em custo</th>
+                            <th class="text-end">Preço de venda</th>
+                            <th class="text-end pe-4">Valor em venda</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td class="ps-4 fw-medium" data-label="Produto">{{ item.descricao }}</td>
+                            <td data-label="Tipo">{{ item.tipo }}</td>
+                            <td data-label="Categoria">{{ item.categoria }}</td>
+                            <td data-label="Fornecedor">{{ item.fornecedor }}</td>
+                            <td data-label="Unidade">{{ item.unidade }}</td>
+                            <td class="text-end" data-label="Quantidade">{{ item.quantidade|floatformat:2 }}</td>
+                            <td class="text-end" data-label="Custo unitário">
+                                {% if item.preco_custo is not None %}R$ {{ item.preco_custo|floatformat:2 }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end fw-semibold" data-label="Valor em custo">
+                                {% if item.valor_custo is not None %}R$ {{ item.valor_custo|floatformat:2 }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end" data-label="Preço de venda">
+                                {% if item.preco_venda is not None %}R$ {{ item.preco_venda|floatformat:2 }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end pe-4 fw-semibold" data-label="Valor em venda">
+                                {% if item.valor_venda is not None %}R$ {{ item.valor_venda|floatformat:2 }}{% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% include 'estoque/components/empty_state.html' with table_colspan=10 empty_icon='bi-box' empty_title='Nenhum produto congelado' empty_description='O estoque estava vazio quando este fechamento foi criado.' %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 import csv
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
@@ -13,11 +13,12 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from .log_utils import log_acao
-from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto, FechamentoMensal, ItemFechamento
+from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto, FechamentoMensal
 from .services.estoque_metrics import agrupar_quantidade_por_unidade, serializar_totais_unidade, valor_por_tipo
 from .services.estoque_status import filtro_baixo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
-from .services.units import decimal_br, dinheiro_br, formatar_capacidade_embalagem, formatar_quantidade, unidade_base_codigo, unidade_info
+from .services.fechamentos import criar_fechamento_periodo, validar_periodo
+from .services.units import UNIDADES, decimal_br, dinheiro_br, formatar_capacidade_embalagem, formatar_quantidade, unidade_base_codigo, unidade_info
 from .services.usernames import validate_username_available
 
 import openpyxl
@@ -29,6 +30,13 @@ def decimal_ou_none(value):
     if value in (None, ''):
         return None
     return Decimal(str(value))
+
+
+def data_iso(value, nome_campo):
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        raise ValidationError(f'{nome_campo} inválida. Use o formato AAAA-MM-DD.')
 
 
 PERFIS_NEGOCIO = {
@@ -75,12 +83,15 @@ def produto_operacional_json(produto):
     }
 
 
-def resumo_fechamento(referencia):
+def resumo_fechamento(data_inicio, data_fim):
+    validar_periodo(data_inicio, data_fim)
     produtos = list(Produto.objects.select_related('fornecedor').all())
     valuation = calcular_valor_estoque(produtos)
     sem_fornecedor = sum(1 for p in produtos if not p.fornecedor_id)
     return {
-        'referencia_mes_ano': referencia,
+        'data_inicio': data_inicio.isoformat(),
+        'data_fim': data_fim.isoformat(),
+        'periodo_formatado': f'{data_inicio:%d/%m/%Y} a {data_fim:%d/%m/%Y}',
         'total_produtos': len(produtos),
         'produtos_zerados': Produto.objects.filter(filtro_zerado()).count(),
         'produtos_baixos': Produto.objects.filter(filtro_baixo()).count(),
@@ -89,7 +100,10 @@ def resumo_fechamento(referencia):
         'valor_conhecido': float(valuation.valor_conhecido),
         'valor_conhecido_formatado': dinheiro_br(valuation.valor_conhecido),
         'calculo_completo': valuation.calculo_completo,
-        'duplicado': FechamentoMensal.objects.filter(referencia_mes_ano=referencia).exists(),
+        'duplicado': FechamentoMensal.objects.filter(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+        ).exists(),
     }
 
 
@@ -409,8 +423,6 @@ def excluir_produto(request, id):
             return json_erro('O produto não pode ser excluído porque possui movimentações vinculadas.', codigo='VINCULO_IMPEDITIVO')
         if ItemOrdemCompra.objects.filter(produto=produto).exists():
             return json_erro('O produto não pode ser excluído porque possui ordens de compra vinculadas.', codigo='VINCULO_IMPEDITIVO')
-        if ItemFechamento.objects.filter(produto=produto).exists():
-            return json_erro('O produto não pode ser excluído porque possui fechamentos históricos vinculados.', codigo='VINCULO_IMPEDITIVO')
         descricao = produto.descricao
         produto.delete()
         log_acao(request.user, 'EXCLUIR', f'Excluiu produto {descricao}', 'Produto', id)
@@ -921,7 +933,9 @@ def lista_fechamentos(request):
             'id': f.id,
             'data_fechamento': f.data_fechamento.strftime('%d/%m/%Y %H:%M'),
             'usuario': f.usuario.username if f.usuario else '-',
-            'referencia_mes_ano': f.referencia_mes_ano,
+            'data_inicio': f.data_inicio.isoformat(),
+            'data_fim': f.data_fim.isoformat(),
+            'periodo_formatado': f.periodo_formatado,
             'observacao': f.observacao,
             'total_itens': total_itens,
             'valor_total': float(valor_total),
@@ -934,14 +948,65 @@ def lista_fechamentos(request):
 
 
 @login_required
+def detalhe_fechamento(request, id):
+    fechamento = get_object_or_404(
+        FechamentoMensal.objects.select_related('usuario'),
+        id=id,
+    )
+    itens = []
+    valor_total = Decimal('0.00')
+    valor_total_venda = Decimal('0.00')
+    produtos_sem_custo = 0
+    for item in fechamento.itens.all().order_by('descricao'):
+        valor_custo = None
+        if item.preco_custo is None:
+            if item.quantidade > 0:
+                produtos_sem_custo += 1
+        else:
+            valor_custo = item.quantidade * item.preco_custo
+            valor_total += valor_custo
+        valor_venda = None
+        if item.preco_venda is not None:
+            valor_venda = item.quantidade * item.preco_venda
+            valor_total_venda += valor_venda
+        unidade = UNIDADES.get(item.unidade_medida, UNIDADES['OUTRO'])
+        itens.append({
+            'descricao': item.descricao,
+            'tipo': item.get_tipo_produto_display() or '—',
+            'categoria': item.categoria_nome or '—',
+            'fornecedor': item.fornecedor_nome or '—',
+            'unidade': unidade.simbolo or '—',
+            'quantidade': item.quantidade,
+            'preco_custo': item.preco_custo,
+            'preco_venda': item.preco_venda,
+            'valor_custo': valor_custo,
+            'valor_venda': valor_venda,
+        })
+    return render(request, 'estoque/detalhe_fechamento.html', {
+        'fechamento': fechamento,
+        'itens': itens,
+        'valor_total': valor_total,
+        'valor_total_formatado': dinheiro_br(valor_total),
+        'valor_total_venda': valor_total_venda,
+        'valor_total_venda_formatado': dinheiro_br(valor_total_venda),
+        'produtos_sem_custo': produtos_sem_custo,
+    })
+
+
+@login_required
 def revisar_fechamento(request):
-    referencia = request.GET.get('referencia_mes_ano', '').strip()
-    if not referencia:
-        return json_erro('Mês/Ano de referência é obrigatório.')
-    resumo = resumo_fechamento(referencia)
-    if resumo['duplicado']:
-        return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
-    return json_ok(resumo=resumo)
+    try:
+        inicio = data_iso(request.GET.get('data_inicio'), 'Data inicial')
+        fim = data_iso(request.GET.get('data_fim'), 'Data final')
+        resumo = resumo_fechamento(inicio, fim)
+        if resumo['duplicado']:
+            return json_erro(
+                f'Já existe um fechamento para {resumo["periodo_formatado"]}.',
+                codigo='FECHAMENTO_DUPLICADO',
+            )
+        return json_ok(resumo=resumo)
+    except ValidationError as exc:
+        return json_erro('; '.join(exc.messages))
 
 
 @login_required
@@ -950,46 +1015,34 @@ def realizar_fechamento(request):
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
     try:
         data = json.loads(request.body)
-        referencia = data.get('referencia_mes_ano', '').strip()
+        inicio = data_iso(data.get('data_inicio'), 'Data inicial')
+        fim = data_iso(data.get('data_fim'), 'Data final')
         observacao = data.get('observacao', '').strip()
-        if not referencia:
-            return JsonResponse({'ok': False, 'erro': 'Mês/Ano de referência é obrigatório.'}, status=400)
-            
-        if FechamentoMensal.objects.filter(referencia_mes_ano=referencia).exists():
-            return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
-            
-        with transaction.atomic():
-            if FechamentoMensal.objects.select_for_update().filter(referencia_mes_ano=referencia).exists():
-                return json_erro(f'Já existe um fechamento para {referencia}.', codigo='FECHAMENTO_DUPLICADO')
-            fechamento = FechamentoMensal.objects.create(
-                usuario=request.user,
-                referencia_mes_ano=referencia,
-                observacao=observacao,
-            )
-            produtos = Produto.objects.all()
-            for p in produtos:
-                ItemFechamento.objects.create(
-                    fechamento=fechamento,
-                    produto=p,
-                    descricao=p.descricao,
-                    quantidade=p.quantidade_base,
-                    preco_custo=p.preco_custo,
-                    preco_venda=p.preco_venda,
-                )
-        log_acao(request.user, 'CRIAR', f'Realizou fechamento de estoque para o mês {referencia}', 'FechamentoMensal', fechamento.id)
-        return json_ok(mensagem='Fechamento mensal realizado com sucesso.')
-    except Exception as e:
-        return json_erro(f'Erro ao realizar fechamento: {str(e)}', status=500)
+        fechamento = criar_fechamento_periodo(
+            data_inicio=inicio,
+            data_fim=fim,
+            usuario=request.user,
+            observacao=observacao,
+        )
+        return json_ok(
+            mensagem='Fechamento de estoque realizado com sucesso.',
+            id=fechamento.id,
+        )
+    except json.JSONDecodeError:
+        return json_erro('JSON inválido.')
+    except ValidationError as exc:
+        codigo = 'FECHAMENTO_DUPLICADO' if 'Já existe' in '; '.join(exc.messages) else 'VALIDACAO'
+        return json_erro('; '.join(exc.messages), codigo=codigo)
 
 
 @login_required
 def exportar_fechamento_xlsx(request, id):
     fechamento = get_object_or_404(FechamentoMensal, id=id)
-    itens = fechamento.itens.select_related('produto', 'produto__fornecedor').all().order_by('descricao')
+    itens = fechamento.itens.all().order_by('descricao')
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"Fechamento {fechamento.referencia_mes_ano.replace('/', '_')}"
+    ws.title = f"Fechamento {fechamento.data_fim:%Y-%m-%d}"
 
     font_title = Font(name='Segoe UI', size=16, bold=True, color='1E293B')
     font_header = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
@@ -1006,21 +1059,21 @@ def exportar_fechamento_xlsx(request, id):
         bottom=Side(style='thin', color='CBD5E1')
     )
     
-    ws.merge_cells('A1:I1')
-    ws['A1'] = f"S.G.E - Fechamento de Estoque ({fechamento.referencia_mes_ano})"
+    ws.merge_cells('A1:J1')
+    ws['A1'] = f"S.G.E - Fechamento de Estoque ({fechamento.periodo_formatado})"
     ws['A1'].font = font_title
     ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
     ws.row_dimensions[1].height = 40
 
-    ws.merge_cells('A2:I2')
+    ws.merge_cells('A2:J2')
     ws['A2'] = f"Realizado em: {fechamento.data_fechamento.strftime('%d/%m/%Y %H:%M')} por {fechamento.usuario.username if fechamento.usuario else '-'}"
     ws['A2'].font = Font(name='Segoe UI', size=10, italic=True)
     ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
     ws.row_dimensions[2].height = 20
 
     headers = [
-        "Descrição do Material", "Tipo", "Fornecedor", 
-        "Unid.", "Quantidade", "Preço Custo", 
+        "Descrição do Material", "Tipo", "Categoria", "Fornecedor",
+        "Unid.", "Quantidade", "Preço Custo",
         "Preço Venda", "Total Custo", "Total Venda"
     ]
     
@@ -1032,70 +1085,73 @@ def exportar_fechamento_xlsx(request, id):
         cell.value = header
         cell.font = font_header
         cell.fill = fill_header
-        cell.alignment = Alignment(horizontal='center' if col_num > 3 else 'left', vertical='center')
+        cell.alignment = Alignment(horizontal='center' if col_num > 4 else 'left', vertical='center')
         cell.border = border_thin
 
     start_row = 5
     for item in itens:
-        tipo = item.produto.get_tipo_produto_display() if item.produto else '-'
-        fornecedor = item.produto.fornecedor.nome if (item.produto and item.produto.fornecedor) else '-'
-        unidade = item.produto.unidade_simbolo if item.produto else ''
+        tipo = item.get_tipo_produto_display() or '-'
+        fornecedor = item.fornecedor_nome or '-'
+        unidade_info_snapshot = UNIDADES.get(item.unidade_medida, UNIDADES['OUTRO'])
+        unidade = unidade_info_snapshot.simbolo
         preco_custo = item.preco_custo
         preco_venda = item.preco_venda
+        next_row = ws.max_row + 1
         
         row_data = [
             item.descricao,
             tipo,
+            item.categoria_nome or '-',
             fornecedor,
             unidade,
             float(item.quantidade),
             float(preco_custo) if preco_custo is not None else None,
             float(preco_venda) if preco_venda is not None else None,
-            f"=E{ws.max_row+1}*F{ws.max_row+1}" if preco_custo is not None else None,
-            f"=E{ws.max_row+1}*G{ws.max_row+1}" if preco_venda is not None else None,
+            f"=F{next_row}*G{next_row}" if preco_custo is not None else None,
+            f"=F{next_row}*H{next_row}" if preco_venda is not None else None,
         ]
         
         ws.append(row_data)
         current_row = ws.max_row
         ws.row_dimensions[current_row].height = 20
         
-        for col_idx in range(1, 10):
+        for col_idx in range(1, 11):
             cell = ws.cell(row=current_row, column=col_idx)
             cell.font = font_data
             cell.border = border_thin
             
-            if col_idx in (4, 5):
+            if col_idx in (5, 6):
                 cell.alignment = Alignment(horizontal='center', vertical='center')
-            elif col_idx in (6, 7, 8, 9):
+            elif col_idx in (7, 8, 9, 10):
                 cell.alignment = Alignment(horizontal='right', vertical='center')
             else:
                 cell.alignment = Alignment(horizontal='left', vertical='center')
                 
-            if col_idx in (6, 7, 8, 9):
+            if col_idx in (7, 8, 9, 10):
                 cell.number_format = 'R$ #,##0.00'
-            elif col_idx == 5:
+            elif col_idx == 6:
                 cell.number_format = '#,##0.00'
 
     end_row = ws.max_row
     ws.append([
-        "TOTAL GERAL", "", "", "", 
+        "TOTAL GERAL", "", "", "", "",
         "Quantidades por unidade não são somadas", "", "",
-        f"=SUM(H{start_row}:H{end_row})", 
-        f"=SUM(I{start_row}:I{end_row})"
+        f"=SUM(I{start_row}:I{end_row})",
+        f"=SUM(J{start_row}:J{end_row})"
     ])
     
     total_row = ws.max_row
     ws.row_dimensions[total_row].height = 26
     
-    for col_idx in range(1, 10):
+    for col_idx in range(1, 11):
         cell = ws.cell(row=total_row, column=col_idx)
         cell.font = font_total
         cell.fill = fill_total
         cell.border = border_thin
         
-        if col_idx in (5, 8, 9):
-            cell.alignment = Alignment(horizontal='left' if col_idx == 5 else 'right', vertical='center')
-            if col_idx in (8, 9):
+        if col_idx in (6, 9, 10):
+            cell.alignment = Alignment(horizontal='left' if col_idx == 6 else 'right', vertical='center')
+            if col_idx in (9, 10):
                 cell.number_format = 'R$ #,##0.00'
             else:
                 cell.number_format = '#,##0.00'
@@ -1116,7 +1172,10 @@ def exportar_fechamento_xlsx(request, id):
         ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="fechamento_estoque_{fechamento.referencia_mes_ano.replace("/", "_")}.xlsx"'
+    response['Content-Disposition'] = (
+        f'attachment; filename="fechamento_{fechamento.data_inicio:%d-%m-%Y}'
+        f'_a_{fechamento.data_fim:%d-%m-%Y}.xlsx"'
+    )
     wb.save(response)
     return response
 

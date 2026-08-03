@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -6,7 +7,9 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import Group, User
 import json
-from io import StringIO
+from io import BytesIO, StringIO
+
+import openpyxl
 
 from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, LogAcao, Movimentacao, Produto
 from .services.estoque_metrics import agrupar_quantidade_por_unidade
@@ -356,11 +359,11 @@ class FechamentoTestCase(TestCase):
         )
 
     def test_realizar_e_listar_fechamentos(self):
-        # 1. Create a closure
         response = self.client.post(
             reverse('realizar_fechamento'),
             data=json.dumps({
-                'referencia_mes_ano': '06/2026',
+                'data_inicio': '2026-06-01',
+                'data_fim': '2026-06-30',
                 'observacao': 'Fechamento de teste'
             }),
             content_type='application/json'
@@ -372,27 +375,35 @@ class FechamentoTestCase(TestCase):
         # Check database records
         self.assertEqual(FechamentoMensal.objects.count(), 1)
         fechamento = FechamentoMensal.objects.first()
+        self.assertEqual(fechamento.data_inicio, date(2026, 6, 1))
+        self.assertEqual(fechamento.data_fim, date(2026, 6, 30))
         self.assertEqual(fechamento.referencia_mes_ano, '06/2026')
         self.assertEqual(fechamento.itens.count(), 1)
         item = fechamento.itens.first()
         self.assertEqual(item.descricao, 'PRODUTO TESTE')
         self.assertEqual(item.quantidade, 10.0)
+        self.assertEqual(item.tipo_produto, 'OUTRO')
+        self.assertEqual(item.unidade_medida, 'UN')
+        self.assertEqual(item.fornecedor_nome, 'FORNECEDOR TESTE')
 
-        # 2. List closures
         response = self.client.get(reverse('lista_fechamentos'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '06/2026')
+        self.assertContains(response, '01/06/2026 a 30/06/2026')
 
     def test_exportar_fechamento_xlsx(self):
         # Create closure
         fechamento = FechamentoMensal.objects.create(
-            referencia_mes_ano='06/2026',
+            data_inicio=date(2026, 6, 1),
+            data_fim=date(2026, 6, 30),
             usuario=self.user
         )
         ItemFechamento.objects.create(
             fechamento=fechamento,
             produto=self.produto,
             descricao=self.produto.descricao,
+            tipo_produto=self.produto.tipo_produto,
+            unidade_medida='UN',
+            fornecedor_nome=self.fornecedor.nome,
             quantidade=self.produto.quantidade_base,
             preco_custo=self.produto.preco_custo,
             preco_venda=self.produto.preco_venda
@@ -401,6 +412,67 @@ class FechamentoTestCase(TestCase):
         response = self.client.get(reverse('exportar_fechamento_xlsx', args=[fechamento.id]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        self.assertIn('fechamento_01-06-2026_a_30-06-2026.xlsx', response['Content-Disposition'])
+        ws = openpyxl.load_workbook(BytesIO(response.content), data_only=False).active
+        self.assertEqual(
+            [ws.cell(row=4, column=col).value for col in range(1, 11)],
+            [
+                'Descrição do Material', 'Tipo', 'Categoria', 'Fornecedor',
+                'Unid.', 'Quantidade', 'Preço Custo', 'Preço Venda',
+                'Total Custo', 'Total Venda',
+            ],
+        )
+        self.assertEqual(ws['A5'].value, 'PRODUTO TESTE')
+        self.assertEqual(ws['D5'].value, 'FORNECEDOR TESTE')
+
+    def test_snapshot_permanece_igual_apos_produto_mudar_ou_ser_excluido(self):
+        response = self.client.post(
+            reverse('realizar_fechamento'),
+            data=json.dumps({'data_inicio': '2026-07-10', 'data_fim': '2026-07-20'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        fechamento = FechamentoMensal.objects.get(pk=response.json()['id'])
+        item = fechamento.itens.get()
+
+        self.produto.descricao = 'PRODUTO ALTERADO'
+        self.produto.quantidade_base = Decimal('999.00')
+        self.produto.preco_custo = Decimal('99.00')
+        self.produto.save()
+
+        admin = User.objects.create_superuser(username='adminfechamento', password='password123')
+        self.client.force_login(admin)
+        exclusao = self.client.post(reverse('excluir_produto', args=[self.produto.id]))
+        self.assertEqual(exclusao.status_code, 200)
+
+        item.refresh_from_db()
+        self.assertIsNone(item.produto)
+        self.assertEqual(item.descricao, 'PRODUTO TESTE')
+        self.assertEqual(item.quantidade, Decimal('10.00'))
+        self.assertEqual(item.preco_custo, Decimal('5.50'))
+
+        detail = self.client.get(reverse('detalhe_fechamento', args=[fechamento.id]))
+        self.assertContains(detail, 'PRODUTO TESTE')
+        self.assertNotContains(detail, 'PRODUTO ALTERADO')
+
+    def test_periodo_invalido_e_duplicado_sao_bloqueados(self):
+        invalido = self.client.post(
+            reverse('realizar_fechamento'),
+            data=json.dumps({'data_inicio': '2026-08-31', 'data_fim': '2026-08-01'}),
+            content_type='application/json',
+        )
+        self.assertEqual(invalido.status_code, 400)
+
+        payload = {'data_inicio': '2026-08-01', 'data_fim': '2026-08-31'}
+        primeiro = self.client.post(
+            reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json'
+        )
+        duplicado = self.client.post(
+            reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json'
+        )
+        self.assertEqual(primeiro.status_code, 200)
+        self.assertEqual(duplicado.status_code, 400)
+        self.assertEqual(duplicado.json()['codigo'], 'FECHAMENTO_DUPLICADO')
 
     def test_exportar_atual_xlsx(self):
         response = self.client.get(reverse('exportar_atual_xlsx'))
@@ -507,23 +579,29 @@ class FluxosOperacionaisTestCase(TestCase):
         Produto.objects.create(descricao='SEM CUSTO', tipo_produto='OUTRO', quantidade_base=Decimal('5'), preco_custo=None)
         self.client.login(username='operadorop', password='password123')
 
-        response = self.client.get(reverse('revisar_fechamento'), {'referencia_mes_ano': '07/2026'})
+        response = self.client.get(reverse('revisar_fechamento'), {
+            'data_inicio': '2026-07-01',
+            'data_fim': '2026-07-31',
+        })
 
         self.assertEqual(response.status_code, 200)
         resumo = response.json()['resumo']
-        self.assertEqual(resumo['referencia_mes_ano'], '07/2026')
+        self.assertEqual(resumo['periodo_formatado'], '01/07/2026 a 31/07/2026')
         self.assertEqual(resumo['produtos_sem_custo'], 1)
         self.assertFalse(resumo['calculo_completo'])
 
     def test_fechamento_duplicado_e_bloqueado_e_snapshot_preservado(self):
         self.client.login(username='operadorop', password='password123')
-        payload = {'referencia_mes_ano': '07/2026', 'observacao': 'teste'}
+        payload = {'data_inicio': '2026-07-01', 'data_fim': '2026-07-31', 'observacao': 'teste'}
         first = self.client.post(reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json')
         second = self.client.post(reverse('realizar_fechamento'), data=json.dumps(payload), content_type='application/json')
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 400)
-        self.assertEqual(FechamentoMensal.objects.filter(referencia_mes_ano='07/2026').count(), 1)
+        self.assertEqual(FechamentoMensal.objects.filter(
+            data_inicio=date(2026, 7, 1),
+            data_fim=date(2026, 7, 31),
+        ).count(), 1)
         self.assertTrue(LogAcao.objects.filter(acao='CRIAR', modelo='FechamentoMensal').exists())
 
     def test_alteracao_de_perfil_requer_admin(self):
@@ -687,4 +765,3 @@ class ConfiguracaoOmieTestCase(TestCase):
                 'dEmiFinal': '28/07/2026',
             }
         )
-

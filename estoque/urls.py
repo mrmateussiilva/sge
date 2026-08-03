@@ -27,6 +27,7 @@ urlpatterns = [
     path('fechamentos/', views.lista_fechamentos, name='lista_fechamentos'),
     path('fechamentos/revisar/', views.revisar_fechamento, name='revisar_fechamento'),
     path('fechamentos/novo/', views.realizar_fechamento, name='realizar_fechamento'),
+    path('fechamentos/<int:id>/', views.detalhe_fechamento, name='detalhe_fechamento'),
     path('fechamentos/<int:id>/xlsx/', views.exportar_fechamento_xlsx, name='exportar_fechamento_xlsx'),
     path('log/', views.log_acoes, name='log_acoes'),
     path('usuarios/', views.lista_usuarios, name='lista_usuarios'),

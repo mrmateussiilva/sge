@@ -1,3 +1,4 @@
+import calendar
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -262,20 +263,68 @@ class LogAcao(models.Model):
 class FechamentoMensal(models.Model):
     data_fechamento = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    referencia_mes_ano = models.CharField(max_length=7, unique=True, help_text='MM/AAAA, ex: 06/2026')
+    data_inicio = models.DateField()
+    data_fim = models.DateField()
+    referencia_mes_ano = models.CharField(
+        max_length=7,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text='Referência legada MM/AAAA, preenchida para períodos mensais completos.',
+    )
     observacao = models.TextField(blank=True, default='')
 
     class Meta:
         ordering = ['-data_fechamento']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['data_inicio', 'data_fim'],
+                name='fechamento_periodo_unico',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(data_fim__gte=models.F('data_inicio')),
+                name='fechamento_periodo_datas_validas',
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.data_inicio and self.data_fim and self.data_inicio > self.data_fim:
+            raise ValidationError({'data_fim': 'A data final deve ser igual ou posterior à data inicial.'})
+
+    def save(self, *args, **kwargs):
+        if self.data_inicio and self.data_fim and self.data_inicio > self.data_fim:
+            raise ValidationError('A data final deve ser igual ou posterior à data inicial.')
+        if self.data_inicio and self.data_fim:
+            ultimo_dia = calendar.monthrange(self.data_inicio.year, self.data_inicio.month)[1]
+            periodo_mensal_completo = (
+                self.data_inicio.day == 1
+                and self.data_fim.year == self.data_inicio.year
+                and self.data_fim.month == self.data_inicio.month
+                and self.data_fim.day == ultimo_dia
+            )
+            if periodo_mensal_completo:
+                self.referencia_mes_ano = self.data_inicio.strftime('%m/%Y')
+            else:
+                self.referencia_mes_ano = None
+        super().save(*args, **kwargs)
+
+    @property
+    def periodo_formatado(self):
+        return f'{self.data_inicio:%d/%m/%Y} a {self.data_fim:%d/%m/%Y}'
 
     def __str__(self):
-        return f'Fechamento {self.referencia_mes_ano}'
+        return f'Fechamento {self.periodo_formatado}'
 
 
 class ItemFechamento(models.Model):
     fechamento = models.ForeignKey(FechamentoMensal, on_delete=models.CASCADE, related_name='itens')
     produto = models.ForeignKey(Produto, on_delete=models.SET_NULL, null=True, blank=True)
     descricao = models.CharField(max_length=255)
+    tipo_produto = models.CharField(max_length=20, choices=Produto.TIPO_PRODUTO_CHOICES, blank=True, default='')
+    unidade_medida = models.CharField(max_length=10, choices=Produto.UNIDADE_MEDIDA_CHOICES, blank=True, default='')
+    categoria_nome = models.CharField(max_length=100, blank=True, default='')
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default='')
     quantidade = models.DecimalField(max_digits=10, decimal_places=2)
     preco_custo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     preco_venda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

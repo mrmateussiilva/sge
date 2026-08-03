@@ -108,13 +108,15 @@ data (auto_now_add)
 ```
 
 ### `FechamentoMensal`
-Snapshot mensal do estoque para relatórios/auditoria.
+Snapshot do estoque para um período de competência, usado em relatórios/auditoria.
 ```
 data_fechamento (auto_now_add)
 usuario → FK User
-referencia_mes_ano (str, unique, formato "MM/AAAA")
+data_inicio / data_fim (date) ← identificam a competência do snapshot
+referencia_mes_ano (str, nullable) ← compatibilidade com fechamentos mensais antigos
 observacao (str)
 ```
+> As datas não filtram movimentações: o fechamento congela a posição atual do estoque no instante da confirmação.
 
 ### `ItemFechamento`
 Linha do snapshot — cópia dos dados do produto no momento do fechamento.
@@ -122,6 +124,8 @@ Linha do snapshot — cópia dos dados do produto no momento do fechamento.
 fechamento → FK FechamentoMensal (related_name='itens')
 produto → FK Produto (nullable — produto pode ser excluído depois)
 descricao (str) ← cópia da descrição no momento
+tipo_produto / unidade_medida (str)
+categoria_nome / fornecedor_nome (str)
 quantidade (Decimal)
 preco_custo (Decimal)
 preco_venda (Decimal)
@@ -138,7 +142,7 @@ preco_venda (Decimal)
 `Produto.save()` → signal `post_save` (`signals.py`) compara preços antigos com novos e, se houver mudança, cria `HistoricoPreco`.
 
 ### Fechamento mensal
-View `realizar_fechamento` → itera todos os Produtos ativos → cria `FechamentoMensal` + `ItemFechamento` por produto → exportável em XLSX.
+View `realizar_fechamento` → serviço transacional valida o período, lê todos os Produtos e cria `FechamentoMensal` + `ItemFechamento` por produto → consultável e exportável em XLSX sem depender do cadastro atual do produto.
 
 ### Ordem de compra
 - **PENDENTE** → usuário edita itens
