@@ -3,222 +3,50 @@
 
 {% block content %}
 <div class="page-container page-container--wide">
-<div id="app">
-<header class="page-header">
-    <div class="page-header__content">
-        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-truck"></i></span><h1>Fornecedores</h1></div>
-        <p class="page-header__description">Gerencie os fornecedores vinculados aos produtos do estoque.</p>
-    </div>
-    <div class="page-header__actions">
-    <button class="btn btn-primary" @click="abrirModal()" id="btnNovoFornecedor">
-        <i class="bi bi-plus-lg me-1"></i>Novo Fornecedor
-    </button>
-    </div>
-</header>
+    <header class="page-header">
+        <div class="page-header__content">
+            <div class="page-header__title">
+                <span class="page-header__icon"><i class="bi bi-truck"></i></span>
+                <h1>Fornecedores</h1>
+            </div>
+            <p class="page-header__description">Gerencie os fornecedores vinculados aos produtos do estoque.</p>
+        </div>
+        <div class="page-header__actions">
+            <button
+                type="button"
+                class="btn btn-primary"
+                hx-get="{% url 'criar_fornecedor' %}"
+                hx-include="#fornecedor-busca"
+                hx-target="#modal-fornecedor-container"
+            >
+                <i class="bi bi-plus-lg me-1"></i>Novo fornecedor
+            </button>
+        </div>
+    </header>
 
     <div class="filter-bar filter-bar--compact mb-4" role="search" aria-label="Filtro de fornecedores">
         <div class="filter-bar__search">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control border-start-0" placeholder="Buscar fornecedor..." v-model="busca">
-            </div>
-        </div>
-        <span class="filter-bar__summary">[[ filtrados.length ]] de [[ fornecedores.length ]] fornecedores</span>
-    </div>
-
-    <section class="content-panel">
-        <div class="card-body p-0">
-            <div class="table-responsive data-table-responsive">
-                <table class="data-table table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Nome</th>
-                        <th>CNPJ</th>
-                        <th>E-mail</th>
-                        <th>Telefone</th>
-                        <th>Produtos</th>
-                        <th class="pe-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="f in filtrados" :key="f.id">
-                        <td class="ps-4 fw-medium" data-label="Nome">[[ f.nome ]]</td>
-                        <td class="text-muted small" data-label="CNPJ">[[ f.cnpj || '—' ]]</td>
-                        <td class="text-muted small" data-label="E-mail">[[ f.email || '—' ]]</td>
-                        <td class="text-muted small" data-label="Telefone">[[ f.telefone || '—' ]]</td>
-                        <td data-label="Produtos">
-                            <span class="status-badge status-badge--info">[[ f.total_produtos ]] produto(s)</span>
-                        </td>
-                        <td class="pe-4" data-label="Ações">
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    Ações
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><button class="dropdown-item" type="button" @click="abrirModal(f)">Editar</button></li>
-                                    <li><button class="dropdown-item text-danger" type="button" @click="confirmarExcluir(f)">Excluir</button></li>
-                                </ul>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr v-if="filtrados.length === 0">
-                        <td colspan="6"><div class="empty-state"><i class="bi bi-truck empty-state__icon"></i><p class="empty-state__title">Nenhum fornecedor encontrado</p><p class="empty-state__description">Limpe a busca ou cadastre um novo fornecedor.</p><button class="btn btn-primary empty-state__action" type="button" @click="abrirModal()"><i class="bi bi-plus-lg me-1"></i>Cadastrar fornecedor</button></div></td>
-                    </tr>
-                </tbody>
-            </table>
-            </div>
-        </div>
-    </section>
-
-    <!-- Modal Criar/Editar -->
-    <div class="modal fade" id="modalFornecedor" tabindex="-1" aria-labelledby="modalFornecedorLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold" id="modalFornecedorLabel">
-                        <i class="bi bi-truck me-2 text-primary"></i>[[ editando ? 'Editar Fornecedor' : 'Novo Fornecedor' ]]
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label class="form-label fw-medium">Nome <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" v-model="form.nome" placeholder="Nome do fornecedor" id="inputNomeFornecedor">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-medium">CNPJ</label>
-                            <input type="text" class="form-control" v-model="form.cnpj" placeholder="00.000.000/0001-00">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">E-mail</label>
-                            <input type="email" class="form-control" v-model="form.email" placeholder="contato@empresa.com">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Telefone</label>
-                            <input type="text" class="form-control" v-model="form.telefone" placeholder="(00) 00000-0000">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-medium">Observação</label>
-                            <textarea class="form-control" v-model="form.observacao" rows="2" placeholder="Informações adicionais..."></textarea>
-                        </div>
-                    </div>
-                    <div class="alert alert-danger mt-3 py-2 small" v-if="erro">
-                        <i class="bi bi-exclamation-triangle me-1"></i>[[ erro ]]
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary px-4" @click="salvar" :disabled="salvando">
-                        <span v-if="salvando" class="spinner-border spinner-border-sm me-2"></span>
-                        <i v-else class="bi bi-check-lg me-1"></i>Salvar
-                    </button>
-                </div>
+                <input
+                    id="fornecedor-busca"
+                    type="search"
+                    name="q"
+                    class="form-control border-start-0"
+                    value="{{ busca }}"
+                    placeholder="Buscar por nome, CNPJ, e-mail ou telefone..."
+                    autocomplete="off"
+                    hx-get="{% url 'lista_fornecedores' %}"
+                    hx-trigger="input changed delay:350ms, search"
+                    hx-target="#fornecedores-resultados"
+                    hx-push-url="true"
+                    data-sge-loading="inline"
+                >
             </div>
         </div>
     </div>
-</div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-(function() {
-    const { createApp } = Vue;
-    const csrfToken = '{{ csrf_token }}';
-    const buscaInicial = new URLSearchParams(window.location.search).get('q') || '';
-
-    createApp({
-        compilerOptions: { delimiters: ['[[', ']]'] },
-        data() {
-            return {
-                fornecedores: {{ fornecedores_json|safe }},
-                busca: buscaInicial,
-                form: { id: null, nome: '', cnpj: '', email: '', telefone: '', observacao: '' },
-                editando: false,
-                salvando: false,
-                erro: null,
-                modal: null,
-            };
-        },
-        computed: {
-            filtrados() {
-                const q = this.busca.toLowerCase();
-                if (!q) return this.fornecedores;
-                return this.fornecedores.filter(f =>
-                    f.nome.toLowerCase().includes(q) ||
-                    (f.cnpj && f.cnpj.includes(q)) ||
-                    (f.email && f.email.toLowerCase().includes(q))
-                );
-            },
-        },
-        watch: {
-            busca(valor) {
-                const params = new URLSearchParams(window.location.search);
-                if (valor.trim()) params.set('q', valor.trim()); else params.delete('q');
-                const query = params.toString();
-                history.replaceState({}, '', window.location.pathname + (query ? '?' + query : ''));
-            },
-        },
-        mounted() {
-            this.modal = new bootstrap.Modal(document.getElementById('modalFornecedor'));
-        },
-        methods: {
-            abrirModal(f = null) {
-                this.erro = null;
-                if (f) {
-                    this.editando = true;
-                    this.form = { id: f.id, nome: f.nome, cnpj: f.cnpj, email: f.email, telefone: f.telefone, observacao: f.observacao };
-                } else {
-                    this.editando = false;
-                    this.form = { id: null, nome: '', cnpj: '', email: '', telefone: '', observacao: '' };
-                }
-                this.modal.show();
-            },
-            async salvar() {
-                if (!this.form.nome.trim()) { this.erro = 'Nome é obrigatório.'; return; }
-                this.salvando = true; this.erro = null;
-                const url = this.editando
-                    ? `/fornecedores/${this.form.id}/editar/`
-                    : '/fornecedores/novo/';
-                try {
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                        body: JSON.stringify(this.form),
-                    });
-                    const data = await resp.json();
-                    if (!data.ok) { this.erro = data.erro; return; }
-                    if (this.editando) {
-                        const idx = this.fornecedores.findIndex(f => f.id === this.form.id);
-                        if (idx >= 0) Object.assign(this.fornecedores[idx], this.form);
-                    } else {
-                        this.fornecedores.push({ ...this.form, id: data.id, total_produtos: 0 });
-                    }
-                    this.modal.hide();
-                    showToast(this.editando ? 'Fornecedor atualizado!' : 'Fornecedor criado!');
-                } catch (e) {
-                    this.erro = 'Erro de conexão.';
-                } finally {
-                    this.salvando = false;
-                }
-            },
-            confirmarExcluir(f) {
-                if (!confirm(`Excluir o fornecedor "${f.nome}"?\n\nProdutos vinculados: ${f.total_produtos}.\nA exclusão será bloqueada se houver vínculos.`)) return;
-                fetch(`/fornecedores/${f.id}/excluir/`, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken },
-                }).then(r => r.json()).then(data => {
-                    if (data.ok) {
-                        this.fornecedores = this.fornecedores.filter(x => x.id !== f.id);
-                        showToast(data.mensagem || 'Fornecedor excluído!');
-                    } else {
-                        showToast(data.erro || 'Erro ao excluir fornecedor.', 'danger');
-                    }
-                });
-            },
-        },
-    }).mount('#app');
-})();
-</script>
+    {% include 'estoque/fornecedores/_resultados.html' %}
+    <div id="modal-fornecedor-container"></div>
+</div>
 {% endblock %}

@@ -1,0 +1,29 @@
+{% if erro %}
+<div class="alert alert-danger border-0 mb-0" role="alert">
+    <i class="bi bi-exclamation-circle me-2"></i>{{ erro }}
+</div>
+{% elif resumo.duplicado %}
+<div class="alert alert-danger border-0 mb-0" role="alert">
+    <i class="bi bi-exclamation-circle me-2"></i>Já existe um fechamento para {{ resumo.periodo_formatado }}.
+</div>
+{% elif resumo %}
+<div class="financial-summary p-3">
+    <h6 class="fw-bold mb-3">Fechamento de {{ resumo.periodo_formatado }}</h6>
+    <div class="row g-2 small">
+        <div class="col-6">Produtos: <strong>{{ resumo.total_produtos }}</strong></div>
+        <div class="col-6">Zerados: <strong>{{ resumo.produtos_zerados }}</strong></div>
+        <div class="col-6">Estoque baixo: <strong>{{ resumo.produtos_baixos }}</strong></div>
+        <div class="col-6">Sem custo: <strong>{{ resumo.produtos_sem_custo }}</strong></div>
+        <div class="col-6">Sem fornecedor: <strong>{{ resumo.produtos_sem_fornecedor }}</strong></div>
+        <div class="col-12">Valor conhecido: <strong>{{ resumo.valor_conhecido_formatado }}</strong></div>
+    </div>
+    {% if not resumo.calculo_completo %}
+    <div class="alert alert-warning mt-3 mb-0 py-2 small">
+        Valor parcial: existem produtos com saldo e custo não cadastrado.
+    </div>
+    {% endif %}
+    <div class="alert alert-secondary mt-3 mb-0 py-2 small">
+        O fechamento criará um snapshot histórico. Esta ação não deve ser repetida para o mesmo período.
+    </div>
+</div>
+{% endif %}

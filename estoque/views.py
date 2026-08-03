@@ -1,15 +1,18 @@
+import calendar
 import csv
 import json
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .log_utils import log_acao
@@ -54,6 +57,10 @@ def json_ok(**kwargs):
 
 def json_erro(mensagem, status=400, codigo='VALIDACAO'):
     return JsonResponse({'ok': False, 'erro': mensagem, 'codigo': codigo}, status=status)
+
+
+def requisicao_htmx(request):
+    return request.headers.get('HX-Request') == 'true'
 
 
 def usuario_pode_alterar(request):
@@ -791,46 +798,94 @@ def importar_csv_produtos(request):
 
 @login_required
 def lista_fornecedores(request):
-    qs = Fornecedor.objects.annotate(total_produtos=Count('produto')).order_by('nome')
-    fornecedores_data = [
-        {
-            'id': f.id, 'nome': f.nome, 'cnpj': f.cnpj,
-            'email': f.email, 'telefone': f.telefone or '',
-            'observacao': f.observacao, 'total_produtos': f.total_produtos,
-        }
-        for f in qs
-    ]
-    return render(request, 'estoque/fornecedores/lista.html', {
-        'fornecedores': qs,
-        'fornecedores_json': json.dumps(fornecedores_data),
-    })
+    busca = request.GET.get('q', '').strip()
+    contexto = contexto_lista_fornecedores(busca)
+    if requisicao_htmx(request) and request.headers.get('HX-Target') == 'fornecedores-resultados':
+        return render(request, 'estoque/fornecedores/_resultados.html', contexto)
+    return render(request, 'estoque/fornecedores/lista.html', contexto)
+
+
+def contexto_lista_fornecedores(busca=''):
+    fornecedores = Fornecedor.objects.annotate(total_produtos=Count('produto')).order_by('nome')
+    total_fornecedores = fornecedores.count()
+    if busca:
+        fornecedores = fornecedores.filter(
+            Q(nome__icontains=busca)
+            | Q(cnpj__icontains=busca)
+            | Q(email__icontains=busca)
+            | Q(telefone__icontains=busca)
+        )
+    return {
+        'fornecedores': fornecedores,
+        'total_fornecedores': total_fornecedores,
+        'busca': busca,
+    }
+
+
+def resposta_erro_fornecedor(request, mensagem, status=400):
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/fornecedores/_form_feedback.html',
+            {'erro': mensagem},
+        )
+        response['HX-Retarget'] = '#fornecedor-form-feedback'
+        response['HX-Reswap'] = 'innerHTML'
+        return response
+    return json_erro(mensagem, status=status)
 
 
 @login_required
 def salvar_fornecedor(request, id=None):
-    """Cria (id=None) ou edita (id=int) um fornecedor via JSON."""
+    """Cria ou edita um fornecedor via formulário HTMX ou JSON."""
+    fornecedor = get_object_or_404(Fornecedor, id=id) if id else None
+    if request.method == 'GET':
+        return render(request, 'estoque/fornecedores/_form_modal.html', {
+            'fornecedor': fornecedor,
+            'busca': request.GET.get('q', '').strip(),
+        })
     if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
-    data = json.loads(request.body)
+        return json_erro('Método não permitido.', status=405)
+
+    try:
+        data = request.POST if requisicao_htmx(request) else json.loads(request.body)
+    except json.JSONDecodeError:
+        return resposta_erro_fornecedor(request, 'JSON inválido.')
+
     nome = data.get('nome', '').strip()
     if not nome:
-        return JsonResponse({'ok': False, 'erro': 'Nome é obrigatório.'}, status=400)
+        return resposta_erro_fornecedor(request, 'Nome é obrigatório.')
 
-    if id:
-        fornecedor = get_object_or_404(Fornecedor, id=id)
-        acao = 'EDITAR'
-    else:
-        fornecedor = Fornecedor()
-        acao = 'CRIAR'
+    acao = 'EDITAR' if fornecedor else 'CRIAR'
+    fornecedor = fornecedor or Fornecedor()
 
     fornecedor.nome = nome
-    fornecedor.cnpj = data.get('cnpj', '').strip()
-    fornecedor.email = data.get('email', '').strip()
-    fornecedor.telefone = data.get('telefone', '').strip()
-    fornecedor.observacao = data.get('observacao', '').strip()
-    fornecedor.save()
+    fornecedor.cnpj = (data.get('cnpj') or '').strip()
+    fornecedor.email = (data.get('email') or '').strip()
+    fornecedor.telefone = (data.get('telefone') or '').strip()
+    fornecedor.observacao = (data.get('observacao') or '').strip()
+    try:
+        fornecedor.full_clean()
+        fornecedor.save()
+    except ValidationError as exc:
+        return resposta_erro_fornecedor(request, '; '.join(exc.messages))
+
     log_acao(request.user, acao, f'{acao} fornecedor: {fornecedor.nome}', 'Fornecedor', fornecedor.id)
-    return JsonResponse({'ok': True, 'id': fornecedor.id})
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/fornecedores/_resultados.html',
+            contexto_lista_fornecedores(data.get('q', '').strip()),
+        )
+        response['HX-Trigger-After-Swap'] = json.dumps({
+            'sge:feedback': {
+                'message': 'Fornecedor atualizado com sucesso.' if id else 'Fornecedor criado com sucesso.',
+                'type': 'success',
+            },
+            'sge:modal-close': {'id': 'modalFornecedor'},
+        })
+        return response
+    return json_ok(id=fornecedor.id)
 
 
 @login_required
@@ -843,13 +898,31 @@ def excluir_fornecedor(request, id):
     fornecedor = get_object_or_404(Fornecedor, id=id)
     vinculados = Produto.objects.filter(fornecedor=fornecedor).count()
     if vinculados:
+        mensagem = f'O fornecedor não pode ser excluído porque possui {vinculados} produto(s) vinculado(s).'
+        if requisicao_htmx(request):
+            response = HttpResponse()
+            response['HX-Reswap'] = 'none'
+            response['HX-Trigger'] = json.dumps({
+                'sge:feedback': {'message': mensagem, 'type': 'danger'},
+            })
+            return response
         return json_erro(
-            f'O fornecedor não pode ser excluído porque possui {vinculados} produto(s) vinculado(s).',
+            mensagem,
             codigo='VINCULO_IMPEDITIVO',
         )
     nome = fornecedor.nome
     fornecedor.delete()
     log_acao(request.user, 'EXCLUIR', f'Excluiu fornecedor: {nome}', 'Fornecedor', id)
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/fornecedores/_resultados.html',
+            contexto_lista_fornecedores(request.POST.get('q', '').strip()),
+        )
+        response['HX-Trigger-After-Swap'] = json.dumps({
+            'sge:feedback': {'message': 'Fornecedor excluído com sucesso.', 'type': 'success'},
+        })
+        return response
     return json_ok(mensagem='Fornecedor excluído com sucesso.')
 
 
@@ -859,40 +932,97 @@ def excluir_fornecedor(request, id):
 
 @login_required
 def lista_categorias(request):
-    qs = Categoria.objects.annotate(total_produtos=Count('produtos')).order_by('nome')
-    categorias_data = [
-        {'id': c.id, 'nome': c.nome, 'descricao': c.descricao, 'cor': c.cor, 'total_produtos': c.total_produtos}
-        for c in qs
-    ]
-    return render(request, 'estoque/categorias/lista.html', {
-        'categorias': qs,
-        'categorias_json': json.dumps(categorias_data),
-    })
+    busca = request.GET.get('q', '').strip()
+    contexto = contexto_lista_categorias(busca)
+    if requisicao_htmx(request) and request.headers.get('HX-Target') == 'categorias-resultados':
+        return render(request, 'estoque/categorias/_resultados.html', contexto)
+    return render(request, 'estoque/categorias/lista.html', contexto)
+
+
+def contexto_lista_categorias(busca=''):
+    categorias = Categoria.objects.annotate(total_produtos=Count('produtos')).order_by('nome')
+    total_categorias = categorias.count()
+    if busca:
+        categorias = categorias.filter(
+            Q(nome__icontains=busca) | Q(descricao__icontains=busca)
+        )
+    return {
+        'categorias': categorias,
+        'total_categorias': total_categorias,
+        'busca': busca,
+    }
+
+
+def resposta_erro_categoria(request, mensagem, status=400):
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/categorias/_form_feedback.html',
+            {'erro': mensagem},
+        )
+        response['HX-Retarget'] = '#categoria-form-feedback'
+        response['HX-Reswap'] = 'innerHTML'
+        return response
+    return json_erro(mensagem, status=status)
 
 
 @login_required
 def salvar_categoria(request, id=None):
-    """Cria (id=None) ou edita (id=int) uma categoria via JSON."""
+    """Cria ou edita uma categoria via formulário HTMX ou JSON."""
+    categoria = get_object_or_404(Categoria, id=id) if id else None
+    if request.method == 'GET':
+        return render(request, 'estoque/categorias/_form_modal.html', {
+            'categoria': categoria,
+            'busca': request.GET.get('q', '').strip(),
+        })
     if request.method != 'POST':
-        return JsonResponse({'ok': False}, status=405)
-    data = json.loads(request.body)
+        return json_erro('Método não permitido.', status=405)
+
+    try:
+        data = request.POST if requisicao_htmx(request) else json.loads(request.body)
+    except json.JSONDecodeError:
+        return resposta_erro_categoria(request, 'JSON inválido.')
+
     nome = data.get('nome', '').strip()
     if not nome:
-        return JsonResponse({'ok': False, 'erro': 'Nome é obrigatório.'}, status=400)
+        return resposta_erro_categoria(request, 'Nome é obrigatório.')
 
-    if id:
-        categoria = get_object_or_404(Categoria, id=id)
-        acao = 'EDITAR'
-    else:
-        categoria = Categoria()
-        acao = 'CRIAR'
+    cor = (data.get('cor') or '#6c757d').strip()
+    if len(cor) != 7 or not cor.startswith('#') or not all(
+        caractere in '0123456789abcdefABCDEF' for caractere in cor[1:]
+    ):
+        return resposta_erro_categoria(request, 'Cor inválida. Use o formato hexadecimal #RRGGBB.')
+
+    acao = 'EDITAR' if categoria else 'CRIAR'
+    categoria = categoria or Categoria()
 
     categoria.nome = nome
-    categoria.descricao = data.get('descricao', '').strip()
-    categoria.cor = data.get('cor', '#6c757d').strip()
-    categoria.save()
+    categoria.descricao = (data.get('descricao') or '').strip()
+    categoria.cor = cor
+    try:
+        categoria.full_clean()
+        categoria.save()
+    except ValidationError as exc:
+        return resposta_erro_categoria(request, '; '.join(exc.messages))
+    except IntegrityError:
+        return resposta_erro_categoria(request, 'Já existe uma categoria com este nome.')
+
     log_acao(request.user, acao, f'{acao} categoria: {categoria.nome}', 'Categoria', categoria.id)
-    return JsonResponse({'ok': True, 'id': categoria.id})
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/categorias/_resultados.html',
+            contexto_lista_categorias(data.get('q', '').strip()),
+        )
+        response['HX-Trigger-After-Swap'] = json.dumps({
+            'sge:feedback': {
+                'message': 'Categoria atualizada com sucesso.' if id else 'Categoria criada com sucesso.',
+                'type': 'success',
+            },
+            'sge:modal-close': {'id': 'modalCategoria'},
+        })
+        return response
+    return json_ok(id=categoria.id)
 
 
 @login_required
@@ -905,20 +1035,50 @@ def excluir_categoria(request, id):
     categoria = get_object_or_404(Categoria, id=id)
     vinculados = categoria.produtos.count()
     if vinculados:
+        mensagem = f'A categoria não pode ser excluída porque possui {vinculados} produto(s) vinculado(s).'
+        if requisicao_htmx(request):
+            response = HttpResponse()
+            response['HX-Reswap'] = 'none'
+            response['HX-Trigger'] = json.dumps({
+                'sge:feedback': {'message': mensagem, 'type': 'danger'},
+            })
+            return response
         return json_erro(
-            f'A categoria não pode ser excluída porque possui {vinculados} produto(s) vinculado(s).',
+            mensagem,
             codigo='VINCULO_IMPEDITIVO',
         )
     nome = categoria.nome
     categoria.delete()
     log_acao(request.user, 'EXCLUIR', f'Excluiu categoria: {nome}', 'Categoria', id)
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/categorias/_resultados.html',
+            contexto_lista_categorias(request.POST.get('q', '').strip()),
+        )
+        response['HX-Trigger-After-Swap'] = json.dumps({
+            'sge:feedback': {'message': 'Categoria excluída com sucesso.', 'type': 'success'},
+        })
+        return response
     return json_ok(mensagem='Categoria excluída com sucesso.')
 
 
 @login_required
 def lista_fechamentos(request):
+    hoje = timezone.localdate()
+    data_inicio = hoje.replace(day=1)
+    data_fim = hoje.replace(day=calendar.monthrange(hoje.year, hoje.month)[1])
+    return render(request, 'estoque/fechamentos.html', {
+        **contexto_lista_fechamentos(),
+        'data_inicio_sugerida': data_inicio.isoformat(),
+        'data_fim_sugerida': data_fim.isoformat(),
+        'resumo_inicial': resumo_fechamento(data_inicio, data_fim),
+    })
+
+
+def contexto_lista_fechamentos():
     fechamentos = FechamentoMensal.objects.prefetch_related('itens').select_related('usuario').all()
-    fechamentos_json = []
+    fechamentos_data = []
     for f in fechamentos:
         itens = list(f.itens.all())
         total_itens = len(itens)
@@ -929,22 +1089,18 @@ def lista_fechamentos(request):
                 produtos_sem_custo += 1
             elif item.preco_custo is not None:
                 valor_total += item.quantidade * item.preco_custo
-        fechamentos_json.append({
+        fechamentos_data.append({
             'id': f.id,
             'data_fechamento': f.data_fechamento.strftime('%d/%m/%Y %H:%M'),
             'usuario': f.usuario.username if f.usuario else '-',
-            'data_inicio': f.data_inicio.isoformat(),
-            'data_fim': f.data_fim.isoformat(),
             'periodo_formatado': f.periodo_formatado,
             'observacao': f.observacao,
             'total_itens': total_itens,
-            'valor_total': float(valor_total),
+            'valor_total_formatado': dinheiro_br(valor_total),
             'produtos_sem_custo': produtos_sem_custo,
             'calculo_completo': produtos_sem_custo == 0,
         })
-    return render(request, 'estoque/fechamentos.html', {
-        'fechamentos_json': json.dumps(fechamentos_json),
-    })
+    return {'fechamentos': fechamentos_data}
 
 
 @login_required
@@ -1017,9 +1173,20 @@ def excluir_fechamento(request, id):
             id,
         )
 
-    return json_ok(
-        mensagem='Fechamento excluído. O período já pode receber um novo freeze.',
-    )
+    if requisicao_htmx(request):
+        response = render(
+            request,
+            'estoque/fechamentos/_lista.html',
+            contexto_lista_fechamentos(),
+        )
+        response['HX-Trigger-After-Swap'] = json.dumps({
+            'sge:feedback': {
+                'message': 'Fechamento excluído. O período já pode receber um novo freeze.',
+                'type': 'success',
+            },
+        })
+        return response
+    return json_ok(mensagem='Fechamento excluído. O período já pode receber um novo freeze.')
 
 
 @login_required
@@ -1029,12 +1196,23 @@ def revisar_fechamento(request):
         fim = data_iso(request.GET.get('data_fim'), 'Data final')
         resumo = resumo_fechamento(inicio, fim)
         if resumo['duplicado']:
+            mensagem = f'Já existe um fechamento para {resumo["periodo_formatado"]}.'
+            if requisicao_htmx(request):
+                return render(request, 'estoque/fechamentos/_revisao.html', {'erro': mensagem})
             return json_erro(
-                f'Já existe um fechamento para {resumo["periodo_formatado"]}.',
+                mensagem,
                 codigo='FECHAMENTO_DUPLICADO',
             )
+        if requisicao_htmx(request):
+            return render(request, 'estoque/fechamentos/_revisao.html', {'resumo': resumo})
         return json_ok(resumo=resumo)
     except ValidationError as exc:
+        if requisicao_htmx(request):
+            return render(
+                request,
+                'estoque/fechamentos/_revisao.html',
+                {'erro': '; '.join(exc.messages)},
+            )
         return json_erro('; '.join(exc.messages))
 
 
@@ -1043,25 +1221,30 @@ def realizar_fechamento(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
     try:
-        data = json.loads(request.body)
+        data = request.POST if requisicao_htmx(request) else json.loads(request.body)
         inicio = data_iso(data.get('data_inicio'), 'Data inicial')
         fim = data_iso(data.get('data_fim'), 'Data final')
-        observacao = data.get('observacao', '').strip()
+        observacao = (data.get('observacao') or '').strip()
         fechamento = criar_fechamento_periodo(
             data_inicio=inicio,
             data_fim=fim,
             usuario=request.user,
             observacao=observacao,
         )
-        return json_ok(
-            mensagem='Fechamento de estoque realizado com sucesso.',
-            id=fechamento.id,
-        )
+        if requisicao_htmx(request):
+            messages.success(request, 'Fechamento de estoque realizado com sucesso.')
+            response = HttpResponse()
+            response['HX-Redirect'] = reverse('lista_fechamentos')
+            return response
+        return json_ok(mensagem='Fechamento de estoque realizado com sucesso.', id=fechamento.id)
     except json.JSONDecodeError:
         return json_erro('JSON inválido.')
     except ValidationError as exc:
-        codigo = 'FECHAMENTO_DUPLICADO' if 'Já existe' in '; '.join(exc.messages) else 'VALIDACAO'
-        return json_erro('; '.join(exc.messages), codigo=codigo)
+        mensagem = '; '.join(exc.messages)
+        if requisicao_htmx(request):
+            return render(request, 'estoque/fechamentos/_revisao.html', {'erro': mensagem})
+        codigo = 'FECHAMENTO_DUPLICADO' if 'Já existe' in mensagem else 'VALIDACAO'
+        return json_erro(mensagem, codigo=codigo)
 
 
 @login_required

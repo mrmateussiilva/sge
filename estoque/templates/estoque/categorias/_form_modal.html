@@ -1,0 +1,47 @@
+<div class="modal fade" id="modalCategoria" tabindex="-1" aria-labelledby="modalCategoriaLabel" aria-hidden="true" data-sge-modal-autoshow>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalCategoriaLabel">
+                    <i class="bi bi-tags me-2 text-primary"></i>{% if categoria %}Editar categoria{% else %}Nova categoria{% endif %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form
+                method="post"
+                action="{% if categoria %}{% url 'editar_categoria' categoria.id %}{% else %}{% url 'criar_categoria' %}{% endif %}"
+                hx-post="{% if categoria %}{% url 'editar_categoria' categoria.id %}{% else %}{% url 'criar_categoria' %}{% endif %}"
+                hx-target="#categorias-resultados"
+                hx-swap="outerHTML"
+            >
+                {% csrf_token %}
+                <input type="hidden" name="q" value="{{ busca }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-8">
+                            <label for="categoria-nome" class="form-label fw-medium">Nome <span class="text-danger">*</span></label>
+                            <input id="categoria-nome" type="text" name="nome" class="form-control" value="{{ categoria.nome|default:'' }}" placeholder="Ex: Matéria-prima" maxlength="100" required autofocus>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label for="categoria-cor" class="form-label fw-medium">Cor</label>
+                            <input id="categoria-cor" type="color" name="cor" class="category-color-input form-control form-control-color" value="{{ categoria.cor|default:'#6c757d' }}">
+                        </div>
+                        <div class="col-12">
+                            <label for="categoria-descricao" class="form-label fw-medium">Descrição</label>
+                            <textarea id="categoria-descricao" name="descricao" class="form-control" rows="3" placeholder="Descrição opcional da categoria...">{{ categoria.descricao|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    <div id="categoria-form-feedback" class="mt-3">
+                        {% include 'estoque/categorias/_form_feedback.html' %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

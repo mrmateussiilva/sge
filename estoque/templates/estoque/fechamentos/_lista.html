@@ -1,0 +1,73 @@
+<section class="content-panel" id="fechamentos-lista">
+    <div class="content-panel__header">
+        <h5 class="mb-0 fw-semibold">
+            <i class="bi bi-clock-history me-1 text-secondary"></i>Fechamentos realizados para contabilidade
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="data-table table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Período</th>
+                        <th>Data da realização</th>
+                        <th>Executado por</th>
+                        <th>Qtd. itens</th>
+                        <th>Valor conhecido (custo)</th>
+                        <th>Observação</th>
+                        <th class="pe-4 text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fechamento in fechamentos %}
+                    <tr>
+                        <td class="ps-4" data-label="Período">
+                            <span class="status-badge status-badge--completed">{{ fechamento.periodo_formatado }}</span>
+                        </td>
+                        <td data-label="Data da realização">{{ fechamento.data_fechamento }}</td>
+                        <td data-label="Executado por">
+                            <span class="text-secondary small"><i class="bi bi-user me-1"></i>{{ fechamento.usuario }}</span>
+                        </td>
+                        <td data-label="Qtd. itens">{{ fechamento.total_itens }} itens</td>
+                        <td class="fw-semibold text-primary" data-label="Valor conhecido (custo)">
+                            {{ fechamento.valor_total_formatado }}
+                            {% if not fechamento.calculo_completo %}
+                            <div class="small text-warning">{{ fechamento.produtos_sem_custo }} produto(s) sem custo no snapshot</div>
+                            {% endif %}
+                        </td>
+                        <td data-label="Observação">
+                            <span class="text-muted small">{{ fechamento.observacao|default:'—' }}</span>
+                        </td>
+                        <td class="pe-4 text-end" data-label="Ações">
+                            <a href="{% url 'detalhe_fechamento' fechamento.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-eye me-1"></i>Visualizar
+                            </a>
+                            <a href="{% url 'exportar_fechamento_xlsx' fechamento.id %}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-file-earmark-excel me-1"></i>XLSX
+                            </a>
+                            {% if user.is_superuser %}
+                            <form
+                                method="post"
+                                action="{% url 'excluir_fechamento' fechamento.id %}"
+                                class="d-inline"
+                                hx-post="{% url 'excluir_fechamento' fechamento.id %}"
+                                hx-target="#fechamentos-lista"
+                                hx-swap="outerHTML"
+                                hx-confirm="Excluir definitivamente o fechamento de {{ fechamento.periodo_formatado }}? O snapshot será apagado e o período poderá receber um novo freeze."
+                            >
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                                    <i class="bi bi-trash me-1"></i>Excluir
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    {% include 'estoque/components/empty_state.html' with table_colspan=7 empty_icon='bi-folder-x' empty_title='Nenhum fechamento realizado' empty_description='Revise o estoque e registre o primeiro snapshot por período.' %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

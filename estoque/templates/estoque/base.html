@@ -16,6 +16,7 @@
     <link href="{% static 'estoque/css/tables.css' %}" rel="stylesheet">
     <link href="{% static 'estoque/css/style.css' %}" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script defer src="{% static 'estoque/js/htmx-feedback.js' %}"></script>
 </head>
 <body hx-boost="true" hx-target="#main-content" hx-select="#main-content" hx-swap="innerHTML">
     <div id="wrapper">
@@ -337,7 +338,9 @@
         }
 
         document.addEventListener('htmx:beforeRequest', function(evt) {
-            document.getElementById('loading-overlay').classList.add('show');
+            if (evt.detail.elt.dataset.sgeLoading !== 'inline') {
+                document.getElementById('loading-overlay').classList.add('show');
+            }
             setHtmxRequestState(evt.detail.elt, true);
         });
         document.addEventListener('htmx:afterRequest', function(evt) {

@@ -1,0 +1,71 @@
+<div id="fornecedores-resultados">
+    <div class="d-flex justify-content-end mb-3">
+        <span class="filter-bar__summary">{{ fornecedores|length }} de {{ total_fornecedores }} fornecedores</span>
+    </div>
+
+    <section class="content-panel">
+        <div class="card-body p-0">
+            <div class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Nome</th>
+                            <th>CNPJ</th>
+                            <th>E-mail</th>
+                            <th>Telefone</th>
+                            <th>Produtos</th>
+                            <th class="pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fornecedor in fornecedores %}
+                        <tr>
+                            <td class="ps-4 fw-medium" data-label="Nome">{{ fornecedor.nome }}</td>
+                            <td class="text-muted small" data-label="CNPJ">{{ fornecedor.cnpj|default:'—' }}</td>
+                            <td class="text-muted small" data-label="E-mail">{{ fornecedor.email|default:'—' }}</td>
+                            <td class="text-muted small" data-label="Telefone">{{ fornecedor.telefone|default:'—' }}</td>
+                            <td data-label="Produtos">
+                                <span class="status-badge status-badge--info">{{ fornecedor.total_produtos }} produto(s)</span>
+                            </td>
+                            <td class="pe-4" data-label="Ações">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Ações</button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <button
+                                                class="dropdown-item"
+                                                type="button"
+                                                hx-get="{% url 'editar_fornecedor' fornecedor.id %}"
+                                                hx-include="#fornecedor-busca"
+                                                hx-target="#modal-fornecedor-container"
+                                            >Editar</button>
+                                        </li>
+                                        {% if user.is_superuser %}
+                                        <li>
+                                            <form
+                                                method="post"
+                                                action="{% url 'excluir_fornecedor' fornecedor.id %}"
+                                                hx-post="{% url 'excluir_fornecedor' fornecedor.id %}"
+                                                hx-target="#fornecedores-resultados"
+                                                hx-swap="outerHTML"
+                                                hx-confirm="Excluir o fornecedor {{ fornecedor.nome }}? A exclusão será bloqueada se houver produtos vinculados."
+                                            >
+                                                {% csrf_token %}
+                                                <input type="hidden" name="q" value="{{ busca }}">
+                                                <button class="dropdown-item text-danger" type="submit">Excluir</button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-truck' empty_title='Nenhum fornecedor encontrado' empty_description='Limpe a busca ou cadastre um novo fornecedor.' %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>

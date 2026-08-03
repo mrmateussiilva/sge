@@ -146,6 +146,12 @@ View `realizar_fechamento` → serviço transacional valida o período, lê todo
 
 Os dados do snapshot não são editáveis. Um superusuário pode excluir definitivamente um fechamento, com auditoria, para permitir um novo freeze do mesmo período.
 
+A tela de fechamentos usa templates e partials Django com HTMX para revisar o período, criar o snapshot e atualizar a listagem após exclusão. Ela não depende de Vue nem de listas serializadas em JSON no HTML.
+
+A tela de categorias segue o mesmo padrão server-driven: busca, formulário em modal e atualização dos cards usam partials HTML e HTMX, mantendo JSON apenas como contrato de compatibilidade dos endpoints.
+
+A tela de fornecedores também usa partials Django e HTMX para busca, formulário em modal e atualização da tabela. A validação permanece no backend e os endpoints continuam aceitando JSON para compatibilidade.
+
 ### Ordem de compra
 - **PENDENTE** → usuário edita itens
 - **APROVADA** → bloqueada para edição

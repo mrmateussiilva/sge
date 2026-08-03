@@ -246,6 +246,223 @@ class DominioEstoqueTestCase(TestCase):
         self.assertContains(response, 'Zerado nesta categoria')
 
 
+class CategoriaHtmxTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='categoriasuser', password='password123')
+        self.client.force_login(self.user)
+        self.tecidos = Categoria.objects.create(
+            nome='Tecidos',
+            descricao='Materiais têxteis',
+            cor='#112233',
+        )
+        self.tintas = Categoria.objects.create(
+            nome='Tintas',
+            descricao='Tintas de impressão',
+            cor='#445566',
+        )
+
+    def test_pagina_renderiza_sem_vue_ou_json_embutido(self):
+        response = self.client.get(reverse('lista_categorias'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="categorias-resultados"')
+        self.assertContains(response, 'hx-get="/categorias/nova/"')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'categorias_json')
+
+    def test_busca_htmx_retorna_somente_partial_filtrado(self):
+        response = self.client.get(
+            reverse('lista_categorias'),
+            {'q': 'tecidos'},
+            HTTP_HX_REQUEST='true',
+            HTTP_HX_TARGET='categorias-resultados',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tecidos')
+        self.assertNotContains(response, 'Tintas')
+        self.assertNotContains(response, '<h1>Categorias</h1>', html=True)
+
+    def test_modal_htmx_de_edicao_vem_preenchido(self):
+        response = self.client.get(
+            reverse('editar_categoria', args=[self.tecidos.id]),
+            {'q': 'tec'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-sge-modal-autoshow')
+        self.assertContains(response, 'value="Tecidos"')
+        self.assertContains(response, 'name="q" value="tec"')
+
+    def test_criar_e_editar_categoria_com_htmx(self):
+        criacao = self.client.post(
+            reverse('criar_categoria'),
+            data={'nome': 'Papéis', 'descricao': 'Papéis especiais', 'cor': '#abcdef'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(criacao.status_code, 200)
+        self.assertContains(criacao, 'Papéis')
+        self.assertIn('sge:modal-close', criacao['HX-Trigger-After-Swap'])
+        categoria = Categoria.objects.get(nome='Papéis')
+        self.assertTrue(LogAcao.objects.filter(
+            acao='CRIAR', modelo='Categoria', objeto_id=categoria.id,
+        ).exists())
+
+        edicao = self.client.post(
+            reverse('editar_categoria', args=[categoria.id]),
+            data={'nome': 'Papéis premium', 'descricao': '', 'cor': '#fedcba'},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(edicao.status_code, 200)
+        categoria.refresh_from_db()
+        self.assertEqual(categoria.nome, 'Papéis premium')
+        self.assertEqual(categoria.cor, '#fedcba')
+
+    def test_validacao_htmx_permanece_no_modal(self):
+        response = self.client.post(
+            reverse('criar_categoria'),
+            data={'nome': '', 'cor': '#123456'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['HX-Retarget'], '#categoria-form-feedback')
+        self.assertContains(response, 'Nome é obrigatório')
+
+    def test_admin_exclui_categoria_com_htmx(self):
+        admin = User.objects.create_superuser(username='admincategoria', password='password123')
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('excluir_categoria', args=[self.tintas.id]),
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="categorias-resultados"')
+        self.assertNotContains(response, 'Tintas')
+        self.assertIn('sge:feedback', response['HX-Trigger-After-Swap'])
+        self.assertFalse(Categoria.objects.filter(pk=self.tintas.id).exists())
+
+
+class FornecedorHtmxTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='fornecedoresuser', password='password123')
+        self.client.force_login(self.user)
+        self.alpha = Fornecedor.objects.create(
+            nome='Fornecedor Alpha',
+            cnpj='11.111.111/0001-11',
+            email='alpha@example.com',
+            telefone='(11) 11111-1111',
+            observacao='Fornecedor principal',
+        )
+        self.beta = Fornecedor.objects.create(
+            nome='Fornecedor Beta',
+            cnpj='22.222.222/0001-22',
+            email='beta@example.com',
+        )
+
+    def test_pagina_renderiza_sem_vue_ou_json_embutido(self):
+        response = self.client.get(reverse('lista_fornecedores'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="fornecedores-resultados"')
+        self.assertContains(response, 'hx-get="/fornecedores/novo/"')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'fornecedores_json')
+
+    def test_busca_htmx_retorna_somente_partial_filtrado(self):
+        response = self.client.get(
+            reverse('lista_fornecedores'),
+            {'q': 'alpha'},
+            HTTP_HX_REQUEST='true',
+            HTTP_HX_TARGET='fornecedores-resultados',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fornecedor Alpha')
+        self.assertNotContains(response, 'Fornecedor Beta')
+        self.assertNotContains(response, '<h1>Fornecedores</h1>', html=True)
+
+    def test_modal_htmx_de_edicao_vem_preenchido(self):
+        response = self.client.get(
+            reverse('editar_fornecedor', args=[self.alpha.id]),
+            {'q': 'alpha'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-sge-modal-autoshow')
+        self.assertContains(response, 'value="Fornecedor Alpha"')
+        self.assertContains(response, 'Fornecedor principal')
+        self.assertContains(response, 'name="q" value="alpha"')
+
+    def test_criar_e_editar_fornecedor_com_htmx(self):
+        criacao = self.client.post(
+            reverse('criar_fornecedor'),
+            data={
+                'nome': 'Fornecedor Gama',
+                'cnpj': '33.333.333/0001-33',
+                'email': 'gama@example.com',
+                'telefone': '(33) 33333-3333',
+                'observacao': 'Criado via HTMX',
+            },
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(criacao.status_code, 200)
+        self.assertContains(criacao, 'Fornecedor Gama')
+        self.assertIn('sge:modal-close', criacao['HX-Trigger-After-Swap'])
+        fornecedor = Fornecedor.objects.get(nome='Fornecedor Gama')
+        self.assertTrue(LogAcao.objects.filter(
+            acao='CRIAR', modelo='Fornecedor', objeto_id=fornecedor.id,
+        ).exists())
+
+        edicao = self.client.post(
+            reverse('editar_fornecedor', args=[fornecedor.id]),
+            data={
+                'nome': 'Fornecedor Gama Atualizado',
+                'cnpj': fornecedor.cnpj,
+                'email': 'novo@example.com',
+                'telefone': '',
+                'observacao': '',
+            },
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(edicao.status_code, 200)
+        fornecedor.refresh_from_db()
+        self.assertEqual(fornecedor.nome, 'Fornecedor Gama Atualizado')
+        self.assertEqual(fornecedor.email, 'novo@example.com')
+
+    def test_validacao_htmx_permanece_no_modal(self):
+        response = self.client.post(
+            reverse('criar_fornecedor'),
+            data={'nome': 'E-mail inválido', 'email': 'email-invalido'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['HX-Retarget'], '#fornecedor-form-feedback')
+        self.assertContains(response, 'Informe um endereço de email válido')
+
+    def test_admin_exclui_fornecedor_com_htmx(self):
+        admin = User.objects.create_superuser(username='adminfornecedor', password='password123')
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('excluir_fornecedor', args=[self.beta.id]),
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="fornecedores-resultados"')
+        self.assertNotContains(response, 'Fornecedor Beta')
+        self.assertIn('sge:feedback', response['HX-Trigger-After-Swap'])
+        self.assertFalse(Fornecedor.objects.filter(pk=self.beta.id).exists())
+
+
 class UsernameDominioTestCase(TestCase):
     def test_criacao_normaliza_espacos_e_minusculas(self):
         user = User.objects.create_user(username='  Robson  ', password='password123')
@@ -389,6 +606,40 @@ class FechamentoTestCase(TestCase):
         response = self.client.get(reverse('lista_fechamentos'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '01/06/2026 a 30/06/2026')
+        self.assertContains(response, 'hx-post="/fechamentos/novo/"')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'fechamentos_json')
+
+    def test_revisao_htmx_retorna_fragmento_html(self):
+        response = self.client.get(
+            reverse('revisar_fechamento'),
+            {'data_inicio': '2026-10-01', 'data_fim': '2026-10-31'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fechamento de 01/10/2026 a 31/10/2026')
+        self.assertContains(response, 'Valor conhecido')
+        self.assertNotContains(response, '"ok"')
+
+    def test_criacao_htmx_aceita_formulario_e_redireciona(self):
+        response = self.client.post(
+            reverse('realizar_fechamento'),
+            data={
+                'data_inicio': '2026-11-01',
+                'data_fim': '2026-11-30',
+                'observacao': 'Criado com HTMX',
+            },
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['HX-Redirect'], reverse('lista_fechamentos'))
+        self.assertTrue(FechamentoMensal.objects.filter(
+            data_inicio=date(2026, 11, 1),
+            data_fim=date(2026, 11, 30),
+            observacao='Criado com HTMX',
+        ).exists())
 
     def test_exportar_fechamento_xlsx(self):
         # Create closure
@@ -508,6 +759,26 @@ class FechamentoTestCase(TestCase):
             content_type='application/json',
         )
         self.assertEqual(recriado.status_code, 200)
+
+    def test_exclusao_htmx_atualiza_partial_da_lista(self):
+        admin = User.objects.create_superuser(username='adminhtmx', password='password123')
+        self.client.force_login(admin)
+        fechamento = FechamentoMensal.objects.create(
+            data_inicio=date(2026, 12, 1),
+            data_fim=date(2026, 12, 31),
+            usuario=admin,
+        )
+
+        response = self.client.post(
+            reverse('excluir_fechamento', args=[fechamento.id]),
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="fechamentos-lista"')
+        self.assertContains(response, 'Nenhum fechamento realizado')
+        self.assertIn('sge:feedback', response['HX-Trigger-After-Swap'])
+        self.assertFalse(FechamentoMensal.objects.filter(pk=fechamento.id).exists())
 
     def test_exportar_atual_xlsx(self):
         response = self.client.get(reverse('exportar_atual_xlsx'))

@@ -3,90 +3,39 @@
 
 {% block content %}
 <div class="page-container page-container--wide">
-<div id="app">
     <header class="page-header">
         <div class="page-header__content">
-            <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-archive"></i></span><h1>Fechamentos de estoque</h1></div>
+            <div class="page-header__title">
+                <span class="page-header__icon"><i class="bi bi-archive"></i></span>
+                <h1>Fechamentos de estoque</h1>
+            </div>
             <p class="page-header__description">Congele a posição atual do estoque para um período e preserve o relatório histórico.</p>
         </div>
-        <div class="page-header__actions"><button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento</button></div>
+        <div class="page-header__actions">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fechamentoModal">
+                <i class="bi bi-lock me-1"></i>Novo fechamento
+            </button>
+        </div>
     </header>
 
-    <!-- Histórico de Fechamentos -->
-    <section class="content-panel">
-        <div class="content-panel__header">
-            <h5 class="mb-0 fw-semibold">
-                <i class="bi bi-clock-history me-1 text-secondary"></i>Fechamentos Realizados para Contabilidade
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            <table class="data-table table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Período</th>
-                        <th>Data Realização</th>
-                        <th>Executado por</th>
-                        <th>Qtd. Itens</th>
-                        <th>Valor Conhecido (Custo)</th>
-                        <th>Observação</th>
-                        <th class="pe-4 text-end">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="f in fechamentos" :key="f.id">
-                        <td class="ps-4" data-label="Período">
-                            <span class="status-badge status-badge--completed">
-                                [[ f.periodo_formatado ]]
-                            </span>
-                        </td>
-                        <td data-label="Data Realização">[[ f.data_fechamento ]]</td>
-                        <td data-label="Executado por">
-                            <span class="text-secondary small"><i class="bi bi-user me-1"></i>[[ f.usuario ]]</span>
-                        </td>
-                        <td data-label="Qtd. Itens">[[ f.total_itens ]] itens</td>
-                        <td class="fw-semibold text-primary" data-label="Valor Conhecido (Custo)">
-                            R$ [[ formatDinheiro(f.valor_total) ]]
-                            <div class="small text-warning" v-if="!f.calculo_completo">
-                                [[ f.produtos_sem_custo ]] produto(s) sem custo no snapshot
-                            </div>
-                        </td>
-                        <td data-label="Observação">
-                            <span class="text-muted small" v-if="f.observacao">[[ f.observacao ]]</span>
-                            <span class="text-muted small" v-else>—</span>
-                        </td>
-                        <td class="pe-4 text-end" data-label="Ações">
-                            <a :href="'/fechamentos/' + f.id + '/'" class="btn btn-sm btn-outline-primary me-1">
-                                <i class="bi bi-eye me-1"></i>Visualizar
-                            </a>
-                            <a :href="'/fechamentos/' + f.id + '/xlsx/'" class="btn btn-sm btn-outline-success">
-                                <i class="bi bi-file-earmark-excel me-1"></i>XLSX
-                            </a>
-                            {% if user.is_superuser %}
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-1" @click="excluirFechamento(f)" :disabled="excluindoId === f.id">
-                                <i class="bi bi-trash me-1"></i>[[ excluindoId === f.id ? 'Excluindo...' : 'Excluir' ]]
-                            </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr v-if="fechamentos.length === 0">
-                        <td colspan="7"><div class="empty-state"><i class="bi bi-folder-x empty-state__icon"></i><p class="empty-state__title">Nenhum fechamento realizado</p><p class="empty-state__description">Revise o estoque e registre o primeiro snapshot por período.</p><button class="btn btn-primary empty-state__action" type="button" data-bs-toggle="modal" data-bs-target="#fechamentoModal"><i class="bi bi-lock me-1"></i>Novo fechamento</button></div></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
+    {% include 'estoque/fechamentos/_lista.html' %}
 
-    <!-- Modal de Novo Fechamento -->
-    <div class="modal fade" id="fechamentoModal" tabindex="-1" aria-labelledby="fechamentoModalLabel" aria-hidden="true" ref="modalElement">
+    <div class="modal fade" id="fechamentoModal" tabindex="-1" aria-labelledby="fechamentoModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-3">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold" id="fechamentoModalLabel">
-                        <i class="bi bi-lock me-2 text-primary"></i>Novo Fechamento de Estoque
+                        <i class="bi bi-lock me-2 text-primary"></i>Novo fechamento de estoque
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <form @submit.prevent="salvarFechamento">
+                <form
+                    id="form-fechamento"
+                    hx-post="{% url 'realizar_fechamento' %}"
+                    hx-target="#revisao-fechamento"
+                    hx-swap="innerHTML"
+                >
+                    {% csrf_token %}
                     <div class="modal-body py-3">
                         <div class="alert alert-warning border-0 small mb-3">
                             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -94,44 +43,57 @@
                         </div>
                         <div class="row g-3 mb-3">
                             <div class="col-sm-6">
-                                <label class="form-label fw-semibold text-secondary small text-uppercase">Data inicial</label>
-                                <input type="date" class="form-control form-control-lg" v-model="novo.data_inicio" @change="revisao = null" required>
+                                <label for="fechamento-data-inicio" class="form-label fw-semibold text-secondary small text-uppercase">Data inicial</label>
+                                <input
+                                    id="fechamento-data-inicio"
+                                    type="date"
+                                    name="data_inicio"
+                                    class="form-control form-control-lg"
+                                    value="{{ data_inicio_sugerida }}"
+                                    hx-get="{% url 'revisar_fechamento' %}"
+                                    hx-trigger="change"
+                                    hx-include="#fechamento-data-inicio, #fechamento-data-fim"
+                                    hx-target="#revisao-fechamento"
+                                    data-sge-loading="inline"
+                                    required
+                                >
                             </div>
                             <div class="col-sm-6">
-                                <label class="form-label fw-semibold text-secondary small text-uppercase">Data final</label>
-                                <input type="date" class="form-control form-control-lg" v-model="novo.data_fim" @change="revisao = null" required>
+                                <label for="fechamento-data-fim" class="form-label fw-semibold text-secondary small text-uppercase">Data final</label>
+                                <input
+                                    id="fechamento-data-fim"
+                                    type="date"
+                                    name="data_fim"
+                                    class="form-control form-control-lg"
+                                    value="{{ data_fim_sugerida }}"
+                                    hx-get="{% url 'revisar_fechamento' %}"
+                                    hx-trigger="change"
+                                    hx-include="#fechamento-data-inicio, #fechamento-data-fim"
+                                    hx-target="#revisao-fechamento"
+                                    data-sge-loading="inline"
+                                    required
+                                >
                             </div>
-                            <div class="col-12"><div class="form-text">O período será a identificação contábil do snapshot.</div></div>
+                            <div class="col-12">
+                                <div class="form-text">O período identifica a competência contábil do snapshot.</div>
+                            </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold text-secondary small text-uppercase">Observação (Opcional)</label>
-                            <textarea class="form-control" rows="3" v-model="novo.observacao" placeholder="Ex: Fechamento oficial do mês enviado para a contabilidade."></textarea>
+                            <label for="fechamento-observacao" class="form-label fw-semibold text-secondary small text-uppercase">Observação (opcional)</label>
+                            <textarea id="fechamento-observacao" name="observacao" class="form-control" rows="3" placeholder="Ex: Fechamento oficial enviado para a contabilidade."></textarea>
                         </div>
-                        <div class="financial-summary p-3" v-if="revisao">
-                            <h6 class="fw-bold mb-3">Fechamento de [[ revisao.periodo_formatado ]]</h6>
-                            <div class="row g-2 small">
-                                <div class="col-6">Produtos: <strong>[[ revisao.total_produtos ]]</strong></div>
-                                <div class="col-6">Zerados: <strong>[[ revisao.produtos_zerados ]]</strong></div>
-                                <div class="col-6">Estoque baixo: <strong>[[ revisao.produtos_baixos ]]</strong></div>
-                                <div class="col-6">Sem custo: <strong>[[ revisao.produtos_sem_custo ]]</strong></div>
-                                <div class="col-6">Sem fornecedor: <strong>[[ revisao.produtos_sem_fornecedor ]]</strong></div>
-                                <div class="col-12">Valor conhecido: <strong>[[ revisao.valor_conhecido_formatado ]]</strong></div>
-                            </div>
-                            <div class="alert alert-warning mt-3 mb-0 py-2 small" v-if="!revisao.calculo_completo">
-                                Valor parcial: existem produtos com saldo e custo não cadastrado.
-                            </div>
-                            <div class="alert alert-secondary mt-3 mb-0 py-2 small">
-                                O fechamento criará um snapshot histórico do estoque. Esta ação não deve ser repetida para o mesmo período.
-                            </div>
+                        <div id="revisao-fechamento">
+                            {% include 'estoque/fechamentos/_revisao.html' with resumo=resumo_inicial %}
                         </div>
                     </div>
                     <div class="modal-footer border-0 pt-0">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-outline-primary" @click="revisarFechamento" :disabled="salvando">
-                            Revisar fechamento
-                        </button>
-                        <button type="submit" class="btn btn-primary" :disabled="salvando || !revisao">
-                            [[ salvando ? 'Gerando Fechamento...' : 'Confirmar fechamento' ]]
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                            hx-confirm="Confirmar o fechamento? O estoque atual será congelado para o período informado."
+                        >
+                            <i class="bi bi-lock me-1"></i>Confirmar freeze
                         </button>
                     </div>
                 </form>
@@ -139,126 +101,4 @@
         </div>
     </div>
 </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(function() {
-    const { createApp } = Vue;
-    const csrfToken = '{{ csrf_token }}';
-    
-    // Sugere o mês atual completo como competência.
-    const agora = new Date();
-    const formatarDataISO = (data) => {
-        const ano = data.getFullYear();
-        const mes = String(data.getMonth() + 1).padStart(2, '0');
-        const dia = String(data.getDate()).padStart(2, '0');
-        return `${ano}-${mes}-${dia}`;
-    };
-    const inicioSugerido = formatarDataISO(new Date(agora.getFullYear(), agora.getMonth(), 1));
-    const fimSugerido = formatarDataISO(new Date(agora.getFullYear(), agora.getMonth() + 1, 0));
-
-    createApp({
-        compilerOptions: {
-            delimiters: ['[[', ']]']
-        },
-        data() {
-            return {
-                fechamentos: {{ fechamentos_json|safe }},
-                novo: {
-                    data_inicio: inicioSugerido,
-                    data_fim: fimSugerido,
-                    observacao: ''
-                },
-                salvando: false,
-                excluindoId: null,
-                revisao: null
-            };
-        },
-        methods: {
-            formatDinheiro(val) {
-                if (val === null || val === undefined) return '0,00';
-                return parseFloat(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            },
-            async excluirFechamento(fechamento) {
-                const confirmado = confirm(
-                    `Excluir definitivamente o fechamento de ${fechamento.periodo_formatado}?\n\n` +
-                    'O snapshot será apagado e um novo freeze poderá ser criado para o mesmo período.'
-                );
-                if (!confirmado) return;
-
-                this.excluindoId = fechamento.id;
-                try {
-                    const resp = await fetch(`/fechamentos/${fechamento.id}/excluir/`, {
-                        method: 'POST',
-                        headers: {'X-CSRFToken': csrfToken}
-                    });
-                    const data = await resp.json();
-                    if (data.ok) {
-                        this.fechamentos = this.fechamentos.filter(f => f.id !== fechamento.id);
-                        showToast(data.mensagem || 'Fechamento excluído com sucesso!');
-                    } else {
-                        showToast(data.erro || 'Erro ao excluir fechamento.', 'danger');
-                    }
-                } catch (e) {
-                    showToast('Erro de conexão com o servidor.', 'danger');
-                } finally {
-                    this.excluindoId = null;
-                }
-            },
-            async revisarFechamento() {
-                this.revisao = null;
-                try {
-                    const params = new URLSearchParams({
-                        data_inicio: this.novo.data_inicio,
-                        data_fim: this.novo.data_fim
-                    });
-                    const resp = await fetch(`{% url "revisar_fechamento" %}?${params.toString()}`);
-                    const data = await resp.json();
-                    if (data.ok) {
-                        this.revisao = data.resumo;
-                        showToast('Revisão gerada. Confira os dados antes de confirmar.');
-                    } else {
-                        showToast(data.erro || 'Erro ao revisar fechamento.', 'danger');
-                    }
-                } catch (e) {
-                    showToast('Erro de conexão com o servidor.', 'danger');
-                }
-            },
-            async salvarFechamento() {
-                if (!this.revisao || this.revisao.data_inicio !== this.novo.data_inicio || this.revisao.data_fim !== this.novo.data_fim) {
-                    showToast('Revise o fechamento antes de confirmar.', 'danger');
-                    return;
-                }
-                if (!confirm(`Confirmar fechamento de ${this.revisao.periodo_formatado}?\n\nO estoque atual será congelado para este período.`)) return;
-                this.salvando = true;
-                try {
-                    const resp = await fetch('{% url "realizar_fechamento" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify(this.novo)
-                    });
-                    const data = await resp.json();
-                    if (data.ok) {
-                        showToast('Fechamento de estoque realizado com sucesso!');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 800);
-                    } else {
-                        showToast(data.erro || 'Erro ao realizar fechamento.', 'danger');
-                    }
-                } catch (e) {
-                    showToast('Erro de conexão com o servidor.', 'danger');
-                } finally {
-                    this.salvando = false;
-                }
-            }
-        }
-    }).mount('#app');
-})();
-</script>
 {% endblock %}
