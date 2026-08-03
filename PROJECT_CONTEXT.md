@@ -144,6 +144,8 @@ preco_venda (Decimal)
 ### Fechamento mensal
 View `realizar_fechamento` → serviço transacional valida o período, lê todos os Produtos e cria `FechamentoMensal` + `ItemFechamento` por produto → consultável e exportável em XLSX sem depender do cadastro atual do produto.
 
+Os dados do snapshot não são editáveis. Um superusuário pode excluir definitivamente um fechamento, com auditoria, para permitir um novo freeze do mesmo período.
+
 ### Ordem de compra
 - **PENDENTE** → usuário edita itens
 - **APROVADA** → bloqueada para edição

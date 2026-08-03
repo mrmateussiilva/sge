@@ -994,6 +994,35 @@ def detalhe_fechamento(request, id):
 
 
 @login_required
+def excluir_fechamento(request, id):
+    if request.method != 'POST':
+        return json_erro('Exclusão deve usar POST.', status=405)
+    perm_error = exigir_admin_json(request)
+    if perm_error:
+        return perm_error
+
+    with transaction.atomic():
+        fechamento = get_object_or_404(
+            FechamentoMensal.objects.select_for_update(),
+            id=id,
+        )
+        periodo = fechamento.periodo_formatado
+        total_itens = fechamento.itens.count()
+        fechamento.delete()
+        log_acao(
+            request.user,
+            'EXCLUIR',
+            f'Excluiu fechamento de estoque de {periodo} com {total_itens} item(ns)',
+            'FechamentoMensal',
+            id,
+        )
+
+    return json_ok(
+        mensagem='Fechamento excluído. O período já pode receber um novo freeze.',
+    )
+
+
+@login_required
 def revisar_fechamento(request):
     try:
         inicio = data_iso(request.GET.get('data_inicio'), 'Data inicial')

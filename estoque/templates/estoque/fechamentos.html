@@ -61,6 +61,11 @@
                             <a :href="'/fechamentos/' + f.id + '/xlsx/'" class="btn btn-sm btn-outline-success">
                                 <i class="bi bi-file-earmark-excel me-1"></i>XLSX
                             </a>
+                            {% if user.is_superuser %}
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-1" @click="excluirFechamento(f)" :disabled="excluindoId === f.id">
+                                <i class="bi bi-trash me-1"></i>[[ excluindoId === f.id ? 'Excluindo...' : 'Excluir' ]]
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     <tr v-if="fechamentos.length === 0">
@@ -167,6 +172,7 @@
                     observacao: ''
                 },
                 salvando: false,
+                excluindoId: null,
                 revisao: null
             };
         },
@@ -174,6 +180,32 @@
             formatDinheiro(val) {
                 if (val === null || val === undefined) return '0,00';
                 return parseFloat(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+            async excluirFechamento(fechamento) {
+                const confirmado = confirm(
+                    `Excluir definitivamente o fechamento de ${fechamento.periodo_formatado}?\n\n` +
+                    'O snapshot será apagado e um novo freeze poderá ser criado para o mesmo período.'
+                );
+                if (!confirmado) return;
+
+                this.excluindoId = fechamento.id;
+                try {
+                    const resp = await fetch(`/fechamentos/${fechamento.id}/excluir/`, {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': csrfToken}
+                    });
+                    const data = await resp.json();
+                    if (data.ok) {
+                        this.fechamentos = this.fechamentos.filter(f => f.id !== fechamento.id);
+                        showToast(data.mensagem || 'Fechamento excluído com sucesso!');
+                    } else {
+                        showToast(data.erro || 'Erro ao excluir fechamento.', 'danger');
+                    }
+                } catch (e) {
+                    showToast('Erro de conexão com o servidor.', 'danger');
+                } finally {
+                    this.excluindoId = null;
+                }
             },
             async revisarFechamento() {
                 this.revisao = null;

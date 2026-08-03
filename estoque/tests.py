@@ -474,6 +474,41 @@ class FechamentoTestCase(TestCase):
         self.assertEqual(duplicado.status_code, 400)
         self.assertEqual(duplicado.json()['codigo'], 'FECHAMENTO_DUPLICADO')
 
+    def test_admin_exclui_fechamento_e_pode_refazer_periodo(self):
+        payload = {'data_inicio': '2026-09-01', 'data_fim': '2026-09-30'}
+        criado = self.client.post(
+            reverse('realizar_fechamento'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        fechamento_id = criado.json()['id']
+
+        sem_permissao = self.client.post(reverse('excluir_fechamento', args=[fechamento_id]))
+        self.assertEqual(sem_permissao.status_code, 403)
+        self.assertTrue(FechamentoMensal.objects.filter(pk=fechamento_id).exists())
+
+        admin = User.objects.create_superuser(username='adminfreeze', password='password123')
+        self.client.force_login(admin)
+        via_get = self.client.get(reverse('excluir_fechamento', args=[fechamento_id]))
+        self.assertEqual(via_get.status_code, 405)
+
+        exclusao = self.client.post(reverse('excluir_fechamento', args=[fechamento_id]))
+        self.assertEqual(exclusao.status_code, 200)
+        self.assertFalse(FechamentoMensal.objects.filter(pk=fechamento_id).exists())
+        self.assertFalse(ItemFechamento.objects.filter(fechamento_id=fechamento_id).exists())
+        self.assertTrue(LogAcao.objects.filter(
+            acao='EXCLUIR',
+            modelo='FechamentoMensal',
+            objeto_id=fechamento_id,
+        ).exists())
+
+        recriado = self.client.post(
+            reverse('realizar_fechamento'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(recriado.status_code, 200)
+
     def test_exportar_atual_xlsx(self):
         response = self.client.get(reverse('exportar_atual_xlsx'))
         self.assertEqual(response.status_code, 200)
