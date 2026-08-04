@@ -17,33 +17,26 @@ from openpyxl.utils import get_column_letter
 from ..log_utils import log_acao
 from ..models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, Movimentacao, Produto
 from ..services.estoque_status import filtro_baixo, filtro_normal, filtro_sem_minimo, filtro_zerado
-from .helpers import decimal_ou_none, exigir_admin_json, json_erro, json_ok, produto_operacional_json, requisicao_htmx
+from .helpers import decimal_ou_none, exigir_admin_json, json_erro, json_ok, produto_operacional_json
 
 
 @login_required
 def lista_produtos(request):
-    def _first_param(key, default=''):
-        vals = request.GET.getlist(key)
-        for v in vals:
-            if v is not None and str(v).strip() != '':
-                return str(v).strip()
-        return default
-
-    busca = (_first_param('busca') or _first_param('q')).strip()
-    filtro_url = _first_param('filtro').lower()
+    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
+    filtro_url = (request.GET.get('filtro') or '').lower()
     filtro_map = {'baixo': 'BAIXO', 'zerado': 'ZERADO', 'ok': 'OK'}
-    filtro_estoque = _first_param('estoque') or filtro_map.get(filtro_url, 'TODOS')
+    filtro_estoque = request.GET.get('estoque') or filtro_map.get(filtro_url, 'TODOS')
     if filtro_estoque not in ('TODOS', 'BAIXO', 'ZERADO', 'OK'):
         filtro_estoque = 'TODOS'
 
-    filtro_fornecedor = _first_param('fornecedor') or 'TODOS'
-    aba_ativa = _first_param('aba', 'PAPEL').upper()
+    filtro_fornecedor = request.GET.get('fornecedor') or 'TODOS'
+    aba_ativa = (request.GET.get('aba') or 'PAPEL').upper()
     abas_validas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO']
     if aba_ativa not in abas_validas:
         aba_ativa = 'PAPEL'
 
-    ordem_coluna = _first_param('ordem', 'descricao')
-    ordem_direcao = _first_param('direcao', 'asc')
+    ordem_coluna = request.GET.get('ordem') or 'descricao'
+    ordem_direcao = request.GET.get('direcao') or 'asc'
 
     qs = Produto.objects.select_related('fornecedor', 'categoria').all()
 
@@ -181,7 +174,7 @@ def lista_produtos(request):
         'extra_params': extra_params,
     }
 
-    if requisicao_htmx(request):
+    if request.headers.get('HX-Request'):
         return render(request, 'estoque/produtos/_lista_resultados.html', context)
     return render(request, 'estoque/lista.html', context)
 

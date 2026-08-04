@@ -42,13 +42,7 @@ def json_erro(mensagem, status=400, codigo='VALIDACAO'):
 
 
 def requisicao_htmx(request):
-    """Retorna True apenas para requisições HTMX de partial — exclui navegação
-    via hx-boost, que envia HX-Request mas também HX-Boosted e deve receber
-    a página completa com layout."""
-    return (
-        request.headers.get('HX-Request') == 'true'
-        and not request.headers.get('HX-Boosted')
-    )
+    return request.headers.get('HX-Request') == 'true'
 
 
 def usuario_pode_alterar(request):
