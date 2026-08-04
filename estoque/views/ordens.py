@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, render
 
 from ..log_utils import log_acao
 from ..models import Fornecedor, ItemOrdemCompra, Movimentacao, OrdemCompra, Produto
+from .helpers import requisicao_htmx
 
 
 @login_required
@@ -53,7 +54,7 @@ def lista_ordens(request):
         'tem_filtros_ativos': tem_filtros_ativos,
     }
 
-    if request.headers.get('HX-Request'):
+    if requisicao_htmx(request):
         return render(request, 'estoque/ordens/_lista_resultados.html', context)
     return render(request, 'estoque/lista_ordens.html', context)
 

@@ -16,7 +16,7 @@ from ..models import LogAcao, Movimentacao
 from ..services.estoque_metrics import agrupar_quantidade_por_unidade, serializar_totais_unidade
 from ..services.units import formatar_quantidade, unidade_base_codigo
 from ..services.usernames import validate_username_available
-from .helpers import PERFIS_NEGOCIO, exigir_admin_json, json_erro, json_ok
+from .helpers import PERFIS_NEGOCIO, exigir_admin_json, json_erro, json_ok, requisicao_htmx
 
 
 @login_required
@@ -103,7 +103,7 @@ def log_acoes(request):
         'tem_filtros_ativos': tem_filtros_ativos,
     }
 
-    if request.headers.get('HX-Request'):
+    if requisicao_htmx(request):
         return render(request, 'estoque/logs/_lista_resultados.html', context)
     return render(request, 'estoque/log_acoes.html', context)
 
