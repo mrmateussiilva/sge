@@ -18,7 +18,7 @@ from django.utils import timezone
 from .log_utils import log_acao
 from .models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto, FechamentoMensal
 from .services.estoque_metrics import agrupar_quantidade_por_unidade, serializar_totais_unidade, valor_por_tipo
-from .services.estoque_status import filtro_baixo, filtro_zerado
+from .services.estoque_status import filtro_baixo, filtro_normal, filtro_sem_minimo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
 from .services.fechamentos import criar_fechamento_periodo, validar_periodo
 from .services.units import UNIDADES, decimal_br, dinheiro_br, formatar_capacidade_embalagem, formatar_quantidade, unidade_base_codigo, unidade_info
@@ -184,84 +184,239 @@ def dashboard(request):
 
 @login_required
 def lista_produtos(request):
-    produtos = Produto.objects.select_related('fornecedor', 'categoria').all().order_by('descricao')
-    produtos_data = []
-    for p in produtos:
-        preco_custo = p.preco_custo
-        preco_venda = p.preco_venda
-        lucro = (preco_venda - preco_custo) if preco_venda is not None and preco_custo is not None else None
-        margem = (lucro / preco_custo * 100) if lucro is not None and preco_custo and preco_custo > 0 else None
-        unidade = unidade_info(p)
-        produtos_data.append({
-            'id': p.id,
-            'descricao': p.descricao,
-            'quantidade': float(p.quantidade_base),
-            'quantidade_formatada': p.quantidade_formatada,
-            'estoque_minimo': float(p.estoque_minimo) if p.estoque_minimo is not None else None,
-            'estoque_minimo_formatado': formatar_quantidade(p.estoque_minimo, unidade.codigo) if p.estoque_minimo is not None else 'Sem mínimo',
-            'status_estoque': p.status_estoque,
-            'tipo_produto': p.tipo_produto,
-            'tipo_label': p.get_tipo_produto_display(),
-            'fornecedor': p.fornecedor.nome if p.fornecedor else None,
-            'categoria_id': p.categoria_id,
-            'categoria': p.categoria.nome if p.categoria else None,
-            'preco_custo': float(preco_custo) if preco_custo is not None else None,
-            'preco_venda': float(preco_venda) if preco_venda is not None else None,
-            'preco_custo_formatado': dinheiro_br(preco_custo) if preco_custo is not None else 'Não cadastrado',
-            'preco_venda_formatado': dinheiro_br(preco_venda) if preco_venda is not None else 'Não cadastrado',
-            'lucro': float(lucro) if lucro is not None else None,
-            'margem': float(round(margem, 1)) if margem is not None else None,
-            'metros_por_rolo': float(p.metros_por_rolo) if p.metros_por_rolo else 0,
-            'litros_por_vidro': float(p.litros_por_vidro) if p.litros_por_vidro else 0,
-            'capacidade_embalagem': formatar_capacidade_embalagem(p),
-            'embalagens_estimadas': float(p.quantidade_rolos_estimada if p.tipo_produto in ('PAPEL', 'TECIDO') else p.quantidade_vidros_estimada),
-            'tipo_tinta': p.tipo_tinta,
-            'cor_tinta': p.cor_tinta,
-            'unidade_medida': unidade.codigo,
-            'unidade_simbolo': unidade.simbolo,
-            'unidade_nome': unidade.singular,
+    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
+    filtro_url = (request.GET.get('filtro') or '').lower()
+    filtro_map = {'baixo': 'BAIXO', 'zerado': 'ZERADO', 'ok': 'OK'}
+    filtro_estoque = request.GET.get('estoque') or filtro_map.get(filtro_url, 'TODOS')
+    if filtro_estoque not in ('TODOS', 'BAIXO', 'ZERADO', 'OK'):
+        filtro_estoque = 'TODOS'
+
+    filtro_fornecedor = request.GET.get('fornecedor') or 'TODOS'
+    aba_ativa = (request.GET.get('aba') or 'PAPEL').upper()
+    abas_validas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO']
+    if aba_ativa not in abas_validas:
+        aba_ativa = 'PAPEL'
+
+    ordem_coluna = request.GET.get('ordem') or 'descricao'
+    ordem_direcao = request.GET.get('direcao') or 'asc'
+
+    qs = Produto.objects.select_related('fornecedor', 'categoria').all()
+
+    if busca:
+        qs = qs.filter(
+            Q(descricao__icontains=busca) | Q(fornecedor__nome__icontains=busca)
+        )
+
+    if filtro_fornecedor == 'SEM_FORNECEDOR':
+        qs = qs.filter(fornecedor__isnull=True)
+    elif filtro_fornecedor != 'TODOS':
+        qs = qs.filter(fornecedor__nome=filtro_fornecedor)
+
+    if filtro_estoque == 'ZERADO':
+        qs = qs.filter(filtro_zerado())
+    elif filtro_estoque == 'BAIXO':
+        qs = qs.filter(filtro_baixo())
+    elif filtro_estoque == 'OK':
+        qs = qs.filter(filtro_normal() | filtro_sem_minimo())
+
+    fornecedores_unicos = list(
+        Fornecedor.objects.filter(produto__isnull=False)
+        .values_list('nome', flat=True).distinct().order_by('nome')
+    )
+
+    produtos_filtrados = list(qs)
+    total_filtrado = len(produtos_filtrados)
+    total_produtos = Produto.objects.count()
+
+    tabs = [
+        {'key': 'PAPEL',     'label': 'Papel',      'icon': 'bi bi-file-earmark-text'},
+        {'key': 'TECIDO',    'label': 'Tecido',     'icon': 'bi bi-grid-3x3-gap'},
+        {'key': 'TINTA',     'label': 'Tinta',      'icon': 'bi bi-droplet-half'},
+        {'key': 'AVIAMENTO', 'label': 'Aviamentos', 'icon': 'bi bi-tools'},
+        {'key': 'OUTRO',     'label': 'Outros',     'icon': 'bi bi-three-dots'},
+    ]
+
+    produtos_por_aba = {t['key']: [] for t in tabs}
+    for p in produtos_filtrados:
+        if p.tipo_produto in produtos_por_aba:
+            produtos_por_aba[p.tipo_produto].append(p)
+        else:
+            produtos_por_aba['OUTRO'].append(p)
+
+    tem_filtros_ativos = bool(busca or filtro_estoque != 'TODOS' or filtro_fornecedor != 'TODOS')
+    if tem_filtros_ativos and len(produtos_por_aba[aba_ativa]) == 0:
+        for t in tabs:
+            if len(produtos_por_aba[t['key']]) > 0:
+                aba_ativa = t['key']
+                break
+
+    all_produtos = list(Produto.objects.all())
+    critico_por_tipo = {}
+    for p in all_produtos:
+        if p.status_estoque in ('ZERADO', 'BAIXO'):
+            critico_por_tipo[p.tipo_produto] = True
+
+    tabs_data = []
+    for t in tabs:
+        k = t['key']
+        tabs_data.append({
+            'key': k,
+            'label': t['label'],
+            'icon': t['icon'],
+            'count': len(produtos_por_aba[k]),
+            'has_critical': critico_por_tipo.get(k, False),
         })
-    return render(request, 'estoque/lista.html', {
-        'produtos_json': json.dumps(produtos_data),
-    })
+
+    produtos_aba = produtos_por_aba[aba_ativa]
+
+    def get_sort_key(p):
+        if ordem_coluna == 'fornecedor':
+            val = p.fornecedor.nome if p.fornecedor else ''
+        elif ordem_coluna == 'metros_por_rolo':
+            val = float(p.metros_por_rolo or 0)
+        elif ordem_coluna == 'quantidade':
+            val = float(p.quantidade_base)
+        elif ordem_coluna == 'preco_custo':
+            val = float(p.preco_custo or 0)
+        else:
+            val = p.descricao or ''
+        return val
+
+    reverse_sort = (ordem_direcao == 'desc')
+    if ordem_coluna in ('quantidade', 'metros_por_rolo', 'preco_custo'):
+        produtos_aba.sort(key=get_sort_key, reverse=reverse_sort)
+    else:
+        produtos_aba.sort(key=lambda p: str(get_sort_key(p)).lower(), reverse=reverse_sort)
+
+    valor_custo = Decimal('0.00')
+    sem_custo = 0
+    baixos = 0
+    zerados = 0
+
+    for p in produtos_aba:
+        st = p.status_estoque
+        if st == 'ZERADO':
+            zerados += 1
+        elif st == 'BAIXO':
+            baixos += 1
+
+        if p.preco_custo is not None:
+            valor_custo += (p.quantidade_base * p.preco_custo)
+        elif p.quantidade_base > 0:
+            sem_custo += 1
+
+    resumo_aba = {
+        'total_itens': len(produtos_aba),
+        'valor_custo': valor_custo,
+        'sem_custo': sem_custo,
+        'baixos': baixos,
+        'zerados': zerados,
+    }
+
+    context = {
+        'produtos': produtos_aba,
+        'resumo_aba': resumo_aba,
+        'tabs': tabs_data,
+        'aba_ativa': aba_ativa,
+        'busca': busca,
+        'filtro_estoque': filtro_estoque,
+        'filtro_fornecedor': filtro_fornecedor,
+        'fornecedores_unicos': fornecedores_unicos,
+        'ordem': ordem_coluna,
+        'direcao': ordem_direcao,
+        'total_filtrado': total_filtrado,
+        'total_produtos': total_produtos,
+        'tem_filtros_ativos': tem_filtros_ativos,
+    }
+
+    if request.headers.get('HX-Request'):
+        return render(request, 'estoque/produtos/_lista_resultados.html', context)
+    return render(request, 'estoque/lista.html', context)
 
 
 @login_required
 def atualiza_estoque(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            produto = Produto.objects.get(id=data['id'])
-            variacao = Decimal(str(data['variacao']))
-            if variacao == 0:
-                return json_ok(nova_quantidade=float(produto.quantidade_base), nova_quantidade_formatada=produto.quantidade_formatada)
-            tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
-            quantidade = abs(variacao)
-            with transaction.atomic():
-                Movimentacao.objects.create(
-                    produto=produto,
-                    usuario=request.user,
-                    tipo=tipo,
-                    quantidade=quantidade,
-                    observacao='Ajuste rápido de estoque',
-                )
-            produto.refresh_from_db()
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.POST
+
+            produto_id = data.get('id')
+            variacao = Decimal(str(data.get('variacao', 0)))
+            produto = Produto.objects.get(id=produto_id)
+
+            if variacao != 0:
+                tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
+                quantidade = abs(variacao)
+                with transaction.atomic():
+                    Movimentacao.objects.create(
+                        produto=produto,
+                        usuario=request.user,
+                        tipo=tipo,
+                        quantidade=quantidade,
+                        observacao='Ajuste rápido de estoque',
+                    )
+                produto.refresh_from_db()
+
+            if request.headers.get('HX-Request'):
+                response = render(request, 'estoque/produtos/_quantidade_cell.html', {'p': produto})
+                response['HX-Trigger'] = 'estoqueAtualizado'
+                return response
+
             return json_ok(
                 nova_quantidade=float(produto.quantidade_base),
                 nova_quantidade_formatada=produto.quantidade_formatada,
                 status_estoque=produto.status_estoque,
             )
-        except json.JSONDecodeError:
-            return json_erro('JSON inválido.')
-        except KeyError as e:
-            return json_erro(f'Campo obrigatório ausente: {e.args[0]}.')
         except (InvalidOperation, TypeError, ValueError):
+            if request.headers.get('HX-Request'):
+                return HttpResponse('Quantidade inválida.', status=400)
             return json_erro('Quantidade inválida.')
         except Produto.DoesNotExist:
+            if request.headers.get('HX-Request'):
+                return HttpResponse('Produto não encontrado.', status=404)
             return json_erro('Produto não encontrado.', status=404)
         except ValidationError as e:
-            return json_erro('; '.join(e.messages), codigo='SALDO_INSUFICIENTE')
+            msg = '; '.join(e.messages)
+            if request.headers.get('HX-Request'):
+                return HttpResponse(msg, status=400)
+            return json_erro(msg, codigo='SALDO_INSUFICIENTE')
     return json_erro('Método não permitido.', status=405)
+
+
+@login_required
+def inline_edit_estoque(request, id):
+    produto = get_object_or_404(Produto, pk=id)
+
+    if request.GET.get('cancel'):
+        return render(request, 'estoque/produtos/_quantidade_cell.html', {'p': produto})
+
+    if request.method == 'POST':
+        try:
+            nova_qtd = Decimal(str(request.POST.get('quantidade_base', produto.quantidade_base)))
+            variacao = nova_qtd - produto.quantidade_base
+            if variacao != 0:
+                tipo = 'ENTRADA' if variacao > 0 else 'SAIDA'
+                with transaction.atomic():
+                    Movimentacao.objects.create(
+                        produto=produto,
+                        usuario=request.user,
+                        tipo=tipo,
+                        quantidade=abs(variacao),
+                        observacao='Edição inline de quantidade',
+                    )
+                produto.refresh_from_db()
+            response = render(request, 'estoque/produtos/_quantidade_cell.html', {'p': produto})
+            response['HX-Trigger'] = 'estoqueAtualizado'
+            return response
+        except (InvalidOperation, TypeError, ValueError):
+            return HttpResponse('Quantidade inválida.', status=400)
+        except ValidationError as e:
+            return HttpResponse('; '.join(e.messages), status=400)
+
+    return render(request, 'estoque/produtos/_inline_edit_form.html', {'p': produto})
 
 
 @login_required

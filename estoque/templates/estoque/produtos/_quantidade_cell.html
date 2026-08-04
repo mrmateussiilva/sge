@@ -1,0 +1,23 @@
+<td data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-target="this" hx-swap="outerHTML">
+    <div class="user-select-none cursor-pointer"
+         hx-get="{% url 'inline_edit_estoque' p.id %}"
+         hx-trigger="dblclick"
+         title="Duplo clique para editar saldo">
+        <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
+            {{ p.quantidade_formatada }}
+        </strong>
+        {% if p.estoque_minimo and p.estoque_minimo > 0 %}
+        <div class="stock-progress progress mt-1">
+            <div class="progress-bar {% if p.status_estoque == 'ZERADO' %}bg-secondary{% elif p.status_estoque == 'BAIXO' %}bg-danger{% else %}bg-success{% endif %}"
+                 role="progressbar"
+                 style="width: {{ p.porcentagem_estoque_minimo }}%;">
+            </div>
+        </div>
+        {% endif %}
+        {% if p.status_estoque == 'ZERADO' %}
+        <span class="status-badge status-badge--zero ms-1"><i class="bi bi-slash-circle me-1"></i>Estoque zerado</span>
+        {% elif p.status_estoque == 'BAIXO' %}
+        <span class="status-badge status-badge--low ms-1"><i class="bi bi-exclamation-triangle me-1"></i>Estoque baixo</span>
+        {% endif %}
+    </div>
+</td>

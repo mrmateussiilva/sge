@@ -139,6 +139,34 @@ class Produto(models.Model):
         from .services.estoque_status import classificar_estoque
         return classificar_estoque(self).codigo
 
+    @property
+    def cor_tinta_hex(self):
+        colors = {
+            'BLACK': '#111111', 'YELLOW': '#f5c400', 'MAGENTA': '#e0115f',
+            'CYAN': '#00b4d8', 'LIGHT_CYAN': '#90e0ef', 'LIGHT_MAGENTA': '#f4a7c3',
+            'BRANCO': '#f8f9fa', 'INCOLOR': '#dee2e6',
+        }
+        return colors.get(self.cor_tinta, '#dee2e6')
+
+    @property
+    def lucro(self):
+        if self.preco_venda is not None and self.preco_custo is not None:
+            return self.preco_venda - self.preco_custo
+        return None
+
+    @property
+    def margem_lucro(self):
+        l = self.lucro
+        if l is not None and self.preco_custo and self.preco_custo > 0:
+            return round((l / self.preco_custo) * 100, 1)
+        return None
+
+    @property
+    def porcentagem_estoque_minimo(self):
+        if self.estoque_minimo and self.estoque_minimo > 0:
+            return min(float(round((self.quantidade_base / self.estoque_minimo) * 100, 1)), 100)
+        return 0
+
 
 
 
