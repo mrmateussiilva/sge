@@ -22,21 +22,28 @@ from .helpers import decimal_ou_none, exigir_admin_json, json_erro, json_ok, pro
 
 @login_required
 def lista_produtos(request):
-    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
-    filtro_url = (request.GET.get('filtro') or '').lower()
+    def _first_param(key, default=''):
+        vals = request.GET.getlist(key)
+        for v in vals:
+            if v is not None and str(v).strip() != '':
+                return str(v).strip()
+        return default
+
+    busca = (_first_param('busca') or _first_param('q')).strip()
+    filtro_url = _first_param('filtro').lower()
     filtro_map = {'baixo': 'BAIXO', 'zerado': 'ZERADO', 'ok': 'OK'}
-    filtro_estoque = request.GET.get('estoque') or filtro_map.get(filtro_url, 'TODOS')
+    filtro_estoque = _first_param('estoque') or filtro_map.get(filtro_url, 'TODOS')
     if filtro_estoque not in ('TODOS', 'BAIXO', 'ZERADO', 'OK'):
         filtro_estoque = 'TODOS'
 
-    filtro_fornecedor = request.GET.get('fornecedor') or 'TODOS'
-    aba_ativa = (request.GET.get('aba') or 'PAPEL').upper()
+    filtro_fornecedor = _first_param('fornecedor') or 'TODOS'
+    aba_ativa = _first_param('aba', 'PAPEL').upper()
     abas_validas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO']
     if aba_ativa not in abas_validas:
         aba_ativa = 'PAPEL'
 
-    ordem_coluna = request.GET.get('ordem') or 'descricao'
-    ordem_direcao = request.GET.get('direcao') or 'asc'
+    ordem_coluna = _first_param('ordem', 'descricao')
+    ordem_direcao = _first_param('direcao', 'asc')
 
     qs = Produto.objects.select_related('fornecedor', 'categoria').all()
 

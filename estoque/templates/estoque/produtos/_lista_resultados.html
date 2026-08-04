@@ -1,6 +1,6 @@
 {% load static %}
 
-<div id="lista-produtos" hx-trigger="estoqueAtualizado from:body" hx-get="{% url 'lista_produtos' %}" hx-include="#filter-form" hx-target="#lista-produtos" hx-swap="outerHTML">
+<div id="lista-produtos" hx-trigger="estoqueAtualizado from:body" hx-get="{% url 'lista_produtos' %}?aba={{ aba_ativa }}&busca={{ busca }}&estoque={{ filtro_estoque }}&fornecedor={{ filtro_fornecedor }}&ordem={{ ordem }}&direcao={{ direcao }}" hx-target="#lista-produtos" hx-swap="outerHTML">
     <!-- Form de Filtros (HTMX live) -->
     <form id="filter-form"
           hx-get="{% url 'lista_produtos' %}"
