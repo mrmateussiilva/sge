@@ -643,11 +643,49 @@ def detalhe_produto(request, id):
 
 @login_required
 def lista_ordens(request):
-    ordens_qs = OrdemCompra.objects.select_related('fornecedor').all().order_by('-data_criacao')
-    paginator = Paginator(ordens_qs, 25)
+    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
+    status_selecionado = request.GET.get('status', '').strip()
+    fornecedor_selecionado = request.GET.get('fornecedor', '').strip()
+
+    qs = OrdemCompra.objects.select_related('fornecedor').all().order_by('-data_criacao')
+
+    if busca:
+        qs = qs.filter(
+            Q(fornecedor__nome__icontains=busca) | Q(observacao__icontains=busca)
+        )
+    if status_selecionado:
+        qs = qs.filter(status=status_selecionado)
+    if fornecedor_selecionado == 'SEM_FORNECEDOR':
+        qs = qs.filter(fornecedor__isnull=True)
+    elif fornecedor_selecionado:
+        qs = qs.filter(fornecedor__nome=fornecedor_selecionado)
+
+    fornecedores_unicos = list(
+        Fornecedor.objects.filter(ordemcompra__isnull=False)
+        .values_list('nome', flat=True).distinct().order_by('nome')
+    )
+
+    paginator = Paginator(qs, 25)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
-    return render(request, 'estoque/lista_ordens.html', {'page_obj': page_obj, 'ordens': page_obj})
+    extra_params = f"&busca={busca}&status={status_selecionado}&fornecedor={fornecedor_selecionado}"
+    tem_filtros_ativos = bool(busca or status_selecionado or fornecedor_selecionado)
+
+    context = {
+        'page_obj': page_obj,
+        'ordens': page_obj,
+        'busca': busca,
+        'status_selecionado': status_selecionado,
+        'fornecedor_selecionado': fornecedor_selecionado,
+        'fornecedores_unicos': fornecedores_unicos,
+        'status_choices': OrdemCompra.STATUS_CHOICES,
+        'extra_params': extra_params,
+        'tem_filtros_ativos': tem_filtros_ativos,
+    }
+
+    if request.headers.get('HX-Request'):
+        return render(request, 'estoque/ordens/_lista_resultados.html', context)
+    return render(request, 'estoque/lista_ordens.html', context)
 
 
 @login_required
@@ -796,7 +834,7 @@ def relatorio_mensal(request):
 
 @login_required
 def log_acoes(request):
-    busca = request.GET.get('q', '').strip()
+    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
     acao = request.GET.get('acao', '').strip()
     logs_qs = LogAcao.objects.select_related('usuario').all().order_by('-data')
     if busca:
@@ -811,16 +849,22 @@ def log_acoes(request):
     paginator = Paginator(logs_qs, 25)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
-    extra_params = f"&q={busca}&acao={acao}"
+    extra_params = f"&busca={busca}&acao={acao}"
+    tem_filtros_ativos = bool(busca or acao)
 
-    return render(request, 'estoque/log_acoes.html', {
+    context = {
         'page_obj': page_obj,
         'logs': page_obj,
         'busca': busca,
         'acao_selecionada': acao,
         'acoes': LogAcao.ACAO_CHOICES,
         'extra_params': extra_params,
-    })
+        'tem_filtros_ativos': tem_filtros_ativos,
+    }
+
+    if request.headers.get('HX-Request'):
+        return render(request, 'estoque/logs/_lista_resultados.html', context)
+    return render(request, 'estoque/log_acoes.html', context)
 
 
 @login_required

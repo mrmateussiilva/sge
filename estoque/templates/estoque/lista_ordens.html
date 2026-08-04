@@ -6,44 +6,6 @@
 {% url 'criar_ordem' as criar_ordem_url %}
 {% include 'estoque/components/page_header.html' with page_title='Ordens de compra' page_description='Acompanhe solicitações, aprovações e recebimentos de materiais.' page_icon='bi-cart' action_url=criar_ordem_url action_label='Nova ordem' action_icon='bi-plus-lg' %}
 
-<section class="content-panel">
-    <div class="card-body p-0">
-        <div class="table-responsive data-table-responsive">
-            <table class="data-table table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th class="ps-4">#</th>
-                    <th>Fornecedor</th>
-                    <th>Data</th>
-                    <th>Status</th>
-                    <th>Observação</th>
-                    <th class="pe-4"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for o in ordens %}
-                <tr>
-                    <td class="ps-4 fw-medium" data-label="#">{{ o.id }}</td>
-                    <td data-label="Fornecedor">{{ o.fornecedor.nome|default:'-' }}</td>
-                    <td class="text-muted small" data-label="Data">{{ o.data_criacao|date:"d/m/Y H:i" }}</td>
-                    <td data-label="Status">
-                        {% include 'estoque/components/status_badge.html' with status=o.status label=o.get_status_display %}
-                    </td>
-                    <td class="text-muted small" data-label="Observação">{{ o.observacao|truncatechars:40|default:'-' }}</td>
-                    <td class="pe-4" data-label="Ação">
-                        <a href="{% url 'detalhe_ordem' o.id %}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye me-1"></i>Ver detalhes
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-cart' empty_title='Nenhuma ordem de compra' empty_description='Crie uma ordem para iniciar o processo de aquisição.' empty_action_url=criar_ordem_url empty_action_label='Nova ordem' empty_action_icon='bi-plus-lg' %}
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        {% include 'estoque/components/pagination.html' with page_obj=page_obj %}
-    </div>
-</section>
+{% include 'estoque/ordens/_lista_resultados.html' %}
 </div>
 {% endblock %}
