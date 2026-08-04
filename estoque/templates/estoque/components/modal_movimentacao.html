@@ -1,0 +1,74 @@
+<!-- Busca rápida no mobile -->
+<div class="modal fade" id="mobileSearchModal" tabindex="-1" aria-labelledby="mobileSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="mobileSearchModalLabel">
+                    <i class="bi bi-search me-2 text-primary"></i>Buscar produto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <label for="mobile-search-input" class="form-label fw-semibold text-secondary small">Produto</label>
+                <input type="search" class="form-control form-control-lg" id="mobile-search-input" placeholder="Digite nome ou fornecedor..." autocomplete="off">
+                <div id="mobile-search-results" class="list-group list-group-flush mt-3 border rounded-3 overflow-hidden d-none"></div>
+                <div id="mobile-search-empty" class="text-center text-muted small py-4 d-none">
+                    Nenhum produto encontrado.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Movimentação Rápida Global -->
+<div class="modal fade" id="globalMoveModal" tabindex="-1" aria-labelledby="globalMoveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="globalMoveModalLabel">
+                    <i class="bi bi-arrow-left-right me-2 text-primary"></i>Movimentação Rápida
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="globalMoveForm">
+                <div class="modal-body py-3">
+                    <input type="hidden" id="globalMoveProdutoId">
+                    <div class="mb-3 position-relative">
+                        <label class="form-label fw-semibold text-secondary small">Produto</label>
+                        <input type="text" class="form-control" id="globalMoveProdutoSearch" placeholder="Digite para buscar..." autocomplete="off">
+                        <div id="globalMoveSearchResults" class="search-results search-results--modal position-absolute w-100 mt-1 border rounded shadow-sm d-none">
+                        </div>
+                        <div id="globalMoveSelectedProduto" class="alert alert-secondary mt-2 py-2 px-3 mb-0 d-none d-flex align-items-center justify-content-between">
+                            <span class="min-width-0">
+                                <span class="fw-medium text-truncate d-block" id="globalMoveSelectedName"></span>
+                                <span class="small text-muted" id="globalMoveSelectedMeta"></span>
+                            </span>
+                            <button type="button" class="btn-close btn-sm flex-shrink-0" onclick="clearGlobalMoveProduto()" aria-label="Limpar produto selecionado"></button>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary small">Tipo</label>
+                            <select class="form-select" id="globalMoveTipo" required>
+                                <option value="ENTRADA">Entrada</option>
+                                <option value="SAIDA">Saída</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary small">Quantidade</label>
+                            <input type="number" step="0.01" min="0.01" class="form-control" id="globalMoveQuantidade" required>
+                        </div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold text-secondary small">Observação</label>
+                        <input type="text" class="form-control" id="globalMoveObservacao" placeholder="Opcional">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="globalMoveSubmitBtn">Registrar entrada</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
