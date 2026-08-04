@@ -195,6 +195,15 @@
     const chartTipoCanvas = document.getElementById('chartTipo');
     if (!chartMovCanvas || !chartTipoCanvas) return;
 
+    if (typeof registerChart === 'function') {
+        if (window.sgeCharts && window.sgeCharts['chartMovimentacoes']) {
+            window.sgeCharts['chartMovimentacoes'].destroy();
+        }
+        if (window.sgeCharts && window.sgeCharts['chartTipo']) {
+            window.sgeCharts['chartTipo'].destroy();
+        }
+    }
+
     const chartMov = new Chart(chartMovCanvas, {
         type: 'bar',
         data: {
@@ -215,6 +224,10 @@
         }
     });
 
+    if (typeof registerChart === 'function') {
+        registerChart('chartMovimentacoes', chartMov);
+    }
+
     const selectAno = document.getElementById('selectChartAno');
     if (selectAno) {
         selectAno.addEventListener('change', function() {
@@ -229,7 +242,7 @@
         });
     }
 
-    new Chart(chartTipoCanvas, {
+    const chartTipo = new Chart(chartTipoCanvas, {
         type: 'doughnut',
         data: {
             labels: {{ chart_tipo_labels|safe }},
@@ -241,6 +254,10 @@
             plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
         }
     });
+
+    if (typeof registerChart === 'function') {
+        registerChart('chartTipo', chartTipo);
+    }
 })();
 </script>
 {% endblock %}

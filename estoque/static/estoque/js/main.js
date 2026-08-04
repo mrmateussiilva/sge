@@ -15,6 +15,31 @@ function showToast(message, type) {
     }
 }
 
+// Chart.js Lifecycle Manager (HTMX Swap Safety)
+window.sgeCharts = window.sgeCharts || {};
+
+function registerChart(id, chartInstance) {
+    if (window.sgeCharts[id]) {
+        try { window.sgeCharts[id].destroy(); } catch (e) {}
+    }
+    window.sgeCharts[id] = chartInstance;
+}
+
+function destroyAllCharts() {
+    Object.keys(window.sgeCharts).forEach(function(key) {
+        if (window.sgeCharts[key]) {
+            try { window.sgeCharts[key].destroy(); } catch (e) {}
+            delete window.sgeCharts[key];
+        }
+    });
+}
+
+document.addEventListener('htmx:beforeSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'main-content') {
+        destroyAllCharts();
+    }
+});
+
 // Mobile drawer toggle & backdrop logic
 function toggleSidebar() {
     var sidebar = document.getElementById('sidebar-wrapper');
