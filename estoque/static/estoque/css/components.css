@@ -460,3 +460,76 @@ body.valores-ocultos .valor-sensivel {
         margin: 0;
     }
 }
+
+.btn-xs {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: var(--sge-radius-sm);
+}
+
+.sidebar-version-badge {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--sge-font-3xs);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    padding: 0.3em 0.6em;
+    border-radius: var(--sge-radius-pill);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-version-badge:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.sidebar-version-icon {
+    font-size: 0.6rem;
+}
+
+.text-3xs {
+    font-size: var(--sge-font-3xs) !important;
+}
+
+.text-2xs {
+    font-size: var(--sge-font-2xs) !important;
+}
+
+.font-size-75 {
+    font-size: 0.75rem !important;
+}
+
+.max-w-220 {
+    max-width: 220px !important;
+}
+
+.max-w-260 {
+    max-width: 260px !important;
+}
+
+.max-w-400 {
+    max-width: 400px !important;
+}
+
+.w-col-60 {
+    width: 60px !important;
+}
+
+.w-col-100 {
+    width: 100px !important;
+}
+
+.w-col-120 {
+    width: 120px !important;
+}
+
+.tracking-wide {
+    letter-spacing: 0.03em !important;
+}
+
+.mt-login {
+    margin-top: 100px;
+}
+

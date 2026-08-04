@@ -39,7 +39,7 @@
                 <a href="/produtos/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between {% if '/produtos/' in request.path %}active{% endif %}">
                     <span><i class="bi bi-box-seam me-3"></i> Produtos</span>
                     {% if user.is_authenticated and estoque_baixo_count > 0 %}
-                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 px-2 py-0.5" style="font-size: 0.7rem;" title="{{ estoque_baixo_count }} produto(s) com estoque baixo">
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 px-2 py-0.5 text-2xs" title="{{ estoque_baixo_count }} produto(s) com estoque baixo">
                         <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ estoque_baixo_count }}
                     </span>
                     {% endif %}
@@ -81,11 +81,8 @@
                    hx-boost="false"
                    class="d-inline-flex align-items-center gap-1 text-decoration-none"
                    title="Ver release v1.0.0 no GitHub">
-                    <span class="badge d-flex align-items-center gap-1"
-                          style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);font-size:.65rem;font-weight:500;letter-spacing:.03em;padding:.3em .6em;border-radius:999px;border:1px solid rgba(255,255,255,.12);transition:background .2s,color .2s;"
-                          onmouseover="this.style.background='rgba(255,255,255,.14)';this.style.color='rgba(255,255,255,.85)'"
-                          onmouseout="this.style.background='rgba(255,255,255,.07)';this.style.color='rgba(255,255,255,.5)'">
-                        <i class="bi bi-tag-fill" style="font-size:.6rem;"></i> v1.0.0
+                    <span class="badge d-flex align-items-center gap-1 sidebar-version-badge">
+                        <i class="bi bi-tag-fill sidebar-version-icon"></i> v1.0.0
                     </span>
                 </a>
             </div>
