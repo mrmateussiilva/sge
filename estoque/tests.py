@@ -1071,3 +1071,76 @@ class ConfiguracaoOmieTestCase(TestCase):
                 'dEmiFinal': '28/07/2026',
             }
         )
+
+
+class HTMXViewsTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(username='admin', password='password123')
+        self.client = Client()
+        self.client.login(username='admin', password='password123')
+        self.fornecedor = Fornecedor.objects.create(nome='Fornecedor HTMX')
+        self.produto = Produto.objects.create(
+            descricao='PRODUTO HTMX TESTE',
+            tipo_produto='PAPEL',
+            unidade_medida='UN',
+            quantidade_base=Decimal('50.00'),
+            estoque_minimo=Decimal('10.00'),
+            preco_custo=Decimal('15.00'),
+            fornecedor=self.fornecedor,
+        )
+
+    def test_lista_produtos_htmx_retorna_partial(self):
+        response = self.client.get(reverse('lista_produtos'), HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/produtos/_lista_resultados.html')
+        self.assertContains(response, 'PRODUTO HTMX TESTE')
+
+    def test_atualiza_estoque_htmx_retorna_cell_e_header(self):
+        response = self.client.post(
+            reverse('atualiza_estoque'),
+            data={'id': self.produto.id, 'variacao': 1},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/produtos/_quantidade_cell.html')
+        self.assertEqual(response.headers.get('HX-Trigger'), 'estoqueAtualizado')
+
+    def test_inline_edit_estoque_htmx(self):
+        response = self.client.get(reverse('inline_edit_estoque', args=[self.produto.id]), HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/produtos/_inline_edit_form.html')
+
+        post_response = self.client.post(
+            reverse('inline_edit_estoque', args=[self.produto.id]),
+            data={'quantidade_base': '60.00'},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(post_response.status_code, 200)
+        self.assertTemplateUsed(post_response, 'estoque/produtos/_quantidade_cell.html')
+        self.assertEqual(post_response.headers.get('HX-Trigger'), 'estoqueAtualizado')
+
+    def test_lista_ordens_htmx_retorna_partial(self):
+        response = self.client.get(reverse('lista_ordens'), HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/ordens/_lista_resultados.html')
+
+    def test_log_acoes_htmx_retorna_partial(self):
+        response = self.client.get(reverse('log_acoes'), HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/logs/_lista_resultados.html')
+
+    def test_info_produto_movimentacao_htmx(self):
+        response = self.client.get(f"{reverse('info_produto_movimentacao')}?produto_id={self.produto.id}", HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/movimentacao/_produto_info.html')
+        self.assertContains(response, '50,00 m')
+
+    def test_registrar_movimentacao_htmx_retorna_tabela_e_header(self):
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data={'produto_id': self.produto.id, 'tipo': 'ENTRADA', 'quantidade': '10.00', 'observacao': 'Teste HTMX'},
+            HTTP_HX_REQUEST='true',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/movimentacao/_historico_tabela.html')
+        self.assertEqual(response.headers.get('HX-Trigger'), 'estoqueAtualizado')
