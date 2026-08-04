@@ -1,0 +1,22 @@
+{% if produto %}
+<div class="financial-summary p-3">
+    <div class="d-flex justify-content-between gap-3 mb-2">
+        <span class="text-muted small">Saldo atual</span>
+        <strong>{{ produto.quantidade_formatada }}</strong>
+    </div>
+    <div class="d-flex justify-content-between gap-3 mb-2">
+        <span class="text-muted small">Estoque mínimo</span>
+        <strong>{% if produto.estoque_minimo != None %}{{ produto.estoque_minimo|floatformat:2 }} {{ produto.unidade_simbolo }}{% else %}Sem mínimo{% endif %}</strong>
+    </div>
+    {% if produto.fornecedor %}
+    <div class="d-flex justify-content-between gap-3 mb-2">
+        <span class="text-muted small">Fornecedor</span>
+        <strong>{{ produto.fornecedor.nome }}</strong>
+    </div>
+    {% endif %}
+    <div class="d-flex justify-content-between gap-3">
+        <span class="text-muted small">Status</span>
+        {% include 'estoque/components/status_badge.html' with status=produto.status_estoque %}
+    </div>
+</div>
+{% endif %}

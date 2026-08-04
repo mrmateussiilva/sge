@@ -6,71 +6,65 @@
 {% url 'lista_produtos' as produtos_url %}
 {% include 'estoque/components/page_header.html' with page_title='Movimentar estoque' page_description='Registre entradas e saídas e acompanhe o histórico recente.' page_icon='bi-arrow-left-right' action_url=produtos_url action_label='Ver produtos' action_icon='bi-box-seam' %}
 
-<div class="row g-4" id="app">
+<div class="row g-4">
     <div class="col-12 col-lg-5">
         <section class="content-panel">
             <div class="content-panel__header">
                 <h5 class="mb-0 fw-semibold">Nova movimentação</h5>
             </div>
             <div class="card-body p-4">
-                <form @submit.prevent="enviar" class="row g-3">
+                <form hx-post="{% url 'registrar_movimentacao' %}"
+                      hx-target="#historico-movimentacoes"
+                      hx-swap="outerHTML"
+                      hx-on::after-request="if(event.detail.successful) { this.reset(); showToast('Movimentação registrada com sucesso.'); }"
+                      class="row g-3">
+                    {% csrf_token %}
                     <div class="col-12">
-                        <label class="form-label fw-medium">Produto</label>
-                        <select class="form-select form-select-lg" v-model="form.produto_id" required>
-                            <option value="" disabled>Selecione um produto</option>
-                            <option v-for="p in produtos" :key="p.id" :value="p.id">
-                                [[ p.descricao ]] · [[ p.quantidade_formatada ]]
-                            </option>
+                        <label for="select-produto-mov" class="form-label fw-medium">Produto</label>
+                        <select id="select-produto-mov"
+                                name="produto_id"
+                                class="form-select form-select-lg"
+                                hx-get="{% url 'info_produto_movimentacao' %}"
+                                hx-target="#produto-info-card"
+                                hx-trigger="change"
+                                required>
+                            <option value="" disabled {% if not lista_produtos_qs %}selected{% endif %}>Selecione um produto</option>
+                            {% for p in lista_produtos_qs %}
+                            <option value="{{ p.id }}" {% if forloop.first %}selected{% endif %}>{{ p.descricao }} · {{ p.quantidade_formatada }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
-                    <div class="col-12" v-if="produtoSelecionado">
-                        <div class="financial-summary p-3">
-                            <div class="d-flex justify-content-between gap-3 mb-2">
-                                <span class="text-muted small">Saldo atual</span>
-                                <strong>[[ produtoSelecionado.quantidade_formatada ]]</strong>
-                            </div>
-                            <div class="d-flex justify-content-between gap-3 mb-2">
-                                <span class="text-muted small">Estoque mínimo</span>
-                                <strong>[[ produtoSelecionado.estoque_minimo_formatado ]]</strong>
-                            </div>
-                            <div class="d-flex justify-content-between gap-3 mb-2" v-if="produtoSelecionado.fornecedor">
-                                <span class="text-muted small">Fornecedor</span>
-                                <strong>[[ produtoSelecionado.fornecedor ]]</strong>
-                            </div>
-                            <div class="d-flex justify-content-between gap-3">
-                                <span class="text-muted small">Status</span>
-                                <span class="status-badge" :class="statusClass(produtoSelecionado.status_estoque)">[[ statusLabel(produtoSelecionado.status_estoque) ]]</span>
-                            </div>
-                        </div>
+                    <!-- Card de informações do produto selecionado -->
+                    <div class="col-12" id="produto-info-card">
+                        {% with produto=lista_produtos_qs.first %}
+                        {% include 'estoque/movimentacao/_produto_info.html' %}
+                        {% endwith %}
                     </div>
 
                     <div class="col-12">
                         <label class="form-label fw-medium">Tipo</label>
                         <div class="btn-group w-100" role="group">
-                            <input class="btn-check" type="radio" value="ENTRADA" v-model="form.tipo" id="tipo_entrada">
+                            <input class="btn-check" type="radio" name="tipo" value="ENTRADA" id="tipo_entrada" checked>
                             <label class="btn btn-outline-success" for="tipo_entrada"><i class="bi bi-box-arrow-in-down me-1"></i>Entrada</label>
-                            <input class="btn-check" type="radio" value="SAIDA" v-model="form.tipo" id="tipo_saida">
+                            <input class="btn-check" type="radio" name="tipo" value="SAIDA" id="tipo_saida">
                             <label class="btn btn-outline-danger" for="tipo_saida"><i class="bi bi-box-arrow-up me-1"></i>Saída</label>
                         </div>
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label fw-medium">[[ quantidadeLabel ]]</label>
-                        <input type="number" min="0.01" step="0.01" class="form-control form-control-lg" v-model="form.quantidade" required>
-                        <div class="form-text" v-if="saldoProjetadoTexto">Saldo após movimentação: <strong>[[ saldoProjetadoTexto ]]</strong></div>
-                        <div class="text-danger small mt-1" v-if="erroValidacao">[[ erroValidacao ]]</div>
-                        <div class="text-warning small mt-1" v-else-if="alertaBaixo">Atenção: o saldo projetado ficará abaixo ou igual ao mínimo.</div>
+                        <label for="input-quantidade-mov" class="form-label fw-medium">Quantidade em {% if lista_produtos_qs.first %}{{ lista_produtos_qs.first.unidade_nome }}{% else %}unidade{% endif %}</label>
+                        <input id="input-quantidade-mov" type="number" min="0.01" step="0.01" name="quantidade" class="form-control form-control-lg" required>
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label fw-medium">Observação</label>
-                        <input type="text" class="form-control" v-model="form.observacao" placeholder="Opcional">
+                        <label for="input-observacao-mov" class="form-label fw-medium">Observação</label>
+                        <input id="input-observacao-mov" type="text" name="observacao" class="form-control" placeholder="Opcional">
                     </div>
 
                     <div class="col-12 pt-2">
-                        <button type="submit" class="btn btn-primary btn-lg w-100" :disabled="carregando || !!erroValidacao">
-                            <i class="bi bi-check-lg me-1"></i>[[ carregando ? 'Salvando...' : 'Registrar movimentação' ]]
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-check-lg me-1"></i>Registrar movimentação
                         </button>
                     </div>
                 </form>
@@ -79,173 +73,8 @@
     </div>
 
     <div class="col-12 col-lg-7">
-        <section class="content-panel">
-            <div class="content-panel__header">
-                <h5 class="mb-0 fw-semibold">Histórico recente</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive data-table-responsive">
-                    <table class="data-table table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-4">Produto</th>
-                                <th>Tipo</th>
-                                <th>Qtd</th>
-                                <th>Usuário</th>
-                                <th>Data</th>
-                                <th class="pe-4 text-end">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for m in movimentacoes %}
-                            <tr>
-                                <td class="ps-4" data-label="Produto"><a href="{% url 'detalhe_produto' m.produto.id %}" class="product-link text-decoration-none fw-medium">{{ m.produto.descricao }}</a></td>
-                                <td data-label="Tipo">
-                                    {% include 'estoque/components/status_badge.html' with status=m.tipo %}
-                                </td>
-                                <td class="fw-semibold" data-label="Qtd">{{ m.quantidade }} {{ m.produto.unidade_simbolo }}</td>
-                                <td class="text-muted small" data-label="Usuário">{{ m.usuario.username|default:"Sistema" }}</td>
-                                <td class="text-muted small" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
-                                <td class="pe-4 text-end" data-label="Ações">
-                                    {% if user.is_superuser %}
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Ações</button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li><a class="dropdown-item" href="{% url 'detalhe_produto' m.produto.id %}">Ver produto</a></li>
-                                            <li><button class="dropdown-item text-danger" type="button" onclick="excluirMovimentacao({{ m.id }}, '{{ m.produto.descricao|escapejs }}')">Excluir</button></li>
-                                        </ul>
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted small">Sem permissão</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-arrow-left-right' empty_title='Nenhuma movimentação registrada' empty_description='Registre uma entrada ou saída para iniciar o histórico.' %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% include 'estoque/components/pagination.html' with page_obj=page_obj %}
-            </div>
-        </section>
+        {% include 'estoque/movimentacao/_historico_tabela.html' %}
     </div>
 </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(function() {
-    const { createApp } = Vue;
-    const csrfToken = '{{ csrf_token }}';
-    createApp({
-        compilerOptions: { delimiters: ['[[', ']]'] },
-        data() {
-            return {
-                produtos: {{ produtos|safe }},
-                form: { produto_id: '', tipo: 'ENTRADA', quantidade: '', observacao: '' },
-                carregando: false,
-            };
-        },
-        computed: {
-            produtoSelecionado() {
-                return this.produtos.find(p => String(p.id) === String(this.form.produto_id)) || null;
-            },
-            quantidadeDecimal() {
-                const valor = Number(this.form.quantidade);
-                return Number.isFinite(valor) ? valor : null;
-            },
-            quantidadeLabel() {
-                if (!this.produtoSelecionado) return 'Quantidade';
-                return 'Quantidade em ' + this.produtoSelecionado.unidade_nome;
-            },
-            saldoProjetado() {
-                if (!this.produtoSelecionado || this.quantidadeDecimal === null) return null;
-                return this.form.tipo === 'SAIDA'
-                    ? this.produtoSelecionado.quantidade - this.quantidadeDecimal
-                    : this.produtoSelecionado.quantidade + this.quantidadeDecimal;
-            },
-            saldoProjetadoTexto() {
-                if (this.saldoProjetado === null) return '';
-                return this.formatQuantidade(this.saldoProjetado, this.produtoSelecionado.unidade_simbolo);
-            },
-            erroValidacao() {
-                if (!this.produtoSelecionado || this.form.quantidade === '') return '';
-                if (this.quantidadeDecimal === null || this.quantidadeDecimal <= 0) return 'Quantidade deve ser maior que zero.';
-                if (this.form.tipo === 'SAIDA' && this.quantidadeDecimal > this.produtoSelecionado.quantidade) {
-                    return 'Saldo insuficiente para esta saída.';
-                }
-                return '';
-            },
-            alertaBaixo() {
-                if (!this.produtoSelecionado || this.saldoProjetado === null) return false;
-                const minimo = this.produtoSelecionado.estoque_minimo;
-                return minimo !== null && minimo > 0 && this.saldoProjetado > 0 && this.saldoProjetado <= minimo;
-            },
-        },
-        methods: {
-            formatQuantidade(valor, unidade) {
-                return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (unidade ? ' ' + unidade : '');
-            },
-            statusLabel(status) {
-                return { ZERADO: 'Zerado', BAIXO: 'Baixo', SEM_MINIMO: 'Sem mínimo', NORMAL: 'Normal' }[status] || status;
-            },
-            statusClass(status) {
-                return {
-                    ZERADO: 'status-badge--zero',
-                    BAIXO: 'status-badge--low',
-                    SEM_MINIMO: 'status-badge--no-minimum',
-                    NORMAL: 'status-badge--normal',
-                }[status] || 'status-badge--neutral';
-            },
-            async enviar() {
-                if (this.erroValidacao) {
-                    showToast(this.erroValidacao, 'danger');
-                    return;
-                }
-                this.carregando = true;
-                try {
-                    const resp = await fetch('/movimentacao/', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                        body: JSON.stringify(this.form),
-                    });
-                    const data = await resp.json();
-                    if (resp.ok && data.ok) {
-                        showToast('Movimentação registrada com sucesso.');
-                        setTimeout(() => window.location.reload(), 700);
-                    } else {
-                        showToast(data.erro || 'Erro ao registrar movimentação.', 'danger');
-                    }
-                } catch {
-                    showToast('Erro de conexão.', 'danger');
-                } finally {
-                    this.carregando = false;
-                }
-            },
-        },
-    }).mount('#app');
-
-    window.excluirMovimentacao = async function(id, produto) {
-        const ok = window.confirm(`Excluir movimentação de ${produto}?\n\nEsta exclusão irá recalcular o saldo do produto.\nDeseja continuar?`);
-        if (!ok) return;
-        try {
-            const resp = await fetch(`/movimentacao/${id}/excluir/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': csrfToken },
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) {
-                showToast(data.mensagem || 'Movimentação excluída.');
-                setTimeout(() => window.location.reload(), 700);
-            } else {
-                showToast(data.erro || 'Erro ao excluir movimentação.', 'danger');
-            }
-        } catch {
-            showToast('Erro de conexão.', 'danger');
-        }
-    };
-})();
-</script>
 {% endblock %}

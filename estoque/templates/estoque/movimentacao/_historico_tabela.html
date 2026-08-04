@@ -1,0 +1,57 @@
+<div id="historico-movimentacoes">
+    <section class="content-panel">
+        <div class="content-panel__header">
+            <h5 class="mb-0 fw-semibold">Histórico recente</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Produto</th>
+                            <th>Tipo</th>
+                            <th>Qtd</th>
+                            <th>Usuário</th>
+                            <th>Data</th>
+                            <th class="pe-4 text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movimentacoes %}
+                        <tr>
+                            <td class="ps-4" data-label="Produto">
+                                <a href="{% url 'detalhe_produto' m.produto.id %}" class="product-link text-decoration-none fw-medium">
+                                    {{ m.produto.descricao }}
+                                </a>
+                            </td>
+                            <td data-label="Tipo">
+                                {% include 'estoque/components/status_badge.html' with status=m.tipo %}
+                            </td>
+                            <td class="fw-semibold" data-label="Qtd">{{ m.quantidade }} {{ m.produto.unidade_simbolo }}</td>
+                            <td class="text-muted small" data-label="Usuário">{{ m.usuario.username|default:"Sistema" }}</td>
+                            <td class="text-muted small" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
+                            <td class="pe-4 text-end" data-label="Ações">
+                                {% if user.is_superuser %}
+                                <button class="btn btn-sm btn-outline-danger"
+                                        hx-post="{% url 'excluir_movimentacao' m.id %}"
+                                        hx-target="#historico-movimentacoes"
+                                        hx-swap="outerHTML"
+                                        hx-confirm="Excluir movimentação de {{ m.produto.descricao|escapejs }}? Esta ação recalcula o saldo do produto."
+                                        title="Excluir movimentação">
+                                    <i class="bi bi-trash"></i> Excluir
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">Sem permissão</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-arrow-left-right' empty_title='Nenhuma movimentação registrada' empty_description='Registre uma entrada ou saída para iniciar o histórico.' %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include 'estoque/components/pagination.html' with page_obj=page_obj hx_target="#historico-movimentacoes" %}
+        </div>
+    </section>
+</div>
