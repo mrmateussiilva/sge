@@ -359,6 +359,7 @@
                     </tbody>
                 </table>
             </div>
+            {% include 'estoque/components/pagination.html' with page_obj=page_obj hx_target="#lista-produtos" extra_params=extra_params %}
         </div>
     </section>
 </div>

@@ -305,6 +305,11 @@ def lista_produtos(request):
         elif p.quantidade_base > 0:
             sem_custo += 1
 
+    paginator = Paginator(produtos_aba, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    extra_params = f"&aba={aba_ativa}&busca={busca}&estoque={filtro_estoque}&fornecedor={filtro_fornecedor}&ordem={ordem_coluna}&direcao={ordem_direcao}"
+
     resumo_aba = {
         'total_itens': len(produtos_aba),
         'valor_custo': valor_custo,
@@ -314,7 +319,8 @@ def lista_produtos(request):
     }
 
     context = {
-        'produtos': produtos_aba,
+        'page_obj': page_obj,
+        'produtos': page_obj,
         'resumo_aba': resumo_aba,
         'tabs': tabs_data,
         'aba_ativa': aba_ativa,
@@ -327,6 +333,7 @@ def lista_produtos(request):
         'total_filtrado': total_filtrado,
         'total_produtos': total_produtos,
         'tem_filtros_ativos': tem_filtros_ativos,
+        'extra_params': extra_params,
     }
 
     if request.headers.get('HX-Request'):
@@ -456,10 +463,15 @@ def registrar_movimentacao(request):
         except ValidationError as e:
             return json_erro('; '.join(e.messages), codigo='SALDO_INSUFICIENTE')
     produtos = [produto_operacional_json(p) for p in Produto.objects.select_related('fornecedor').all().order_by('descricao')]
-    movimentacoes = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')[:50]
+    movimentacoes_qs = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')
+    paginator = Paginator(movimentacoes_qs, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'estoque/movimentacao.html', {
         'produtos': produtos,
-        'movimentacoes': movimentacoes,
+        'page_obj': page_obj,
+        'movimentacoes': page_obj,
     })
 
 
@@ -631,8 +643,11 @@ def detalhe_produto(request, id):
 
 @login_required
 def lista_ordens(request):
-    ordens = OrdemCompra.objects.select_related('fornecedor').all()
-    return render(request, 'estoque/lista_ordens.html', {'ordens': ordens})
+    ordens_qs = OrdemCompra.objects.select_related('fornecedor').all().order_by('-data_criacao')
+    paginator = Paginator(ordens_qs, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'estoque/lista_ordens.html', {'page_obj': page_obj, 'ordens': page_obj})
 
 
 @login_required
@@ -783,21 +798,28 @@ def relatorio_mensal(request):
 def log_acoes(request):
     busca = request.GET.get('q', '').strip()
     acao = request.GET.get('acao', '').strip()
-    logs = LogAcao.objects.select_related('usuario').all()
+    logs_qs = LogAcao.objects.select_related('usuario').all().order_by('-data')
     if busca:
-        logs = logs.filter(
+        logs_qs = logs_qs.filter(
             Q(descricao__icontains=busca)
             | Q(usuario__username__icontains=busca)
             | Q(modelo__icontains=busca)
         )
     if acao:
-        logs = logs.filter(acao=acao)
-    logs = logs[:100]
+        logs_qs = logs_qs.filter(acao=acao)
+
+    paginator = Paginator(logs_qs, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    extra_params = f"&q={busca}&acao={acao}"
+
     return render(request, 'estoque/log_acoes.html', {
-        'logs': logs,
+        'page_obj': page_obj,
+        'logs': page_obj,
         'busca': busca,
         'acao_selecionada': acao,
         'acoes': LogAcao.ACAO_CHOICES,
+        'extra_params': extra_params,
     })
 
 
