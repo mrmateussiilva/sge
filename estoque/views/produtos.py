@@ -17,7 +17,7 @@ from openpyxl.utils import get_column_letter
 from ..log_utils import log_acao
 from ..models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, Movimentacao, Produto
 from ..services.estoque_status import filtro_baixo, filtro_normal, filtro_sem_minimo, filtro_zerado
-from .helpers import decimal_ou_none, exigir_admin_json, json_erro, json_ok, produto_operacional_json
+from .helpers import decimal_ou_none, exigir_admin_json, json_erro, json_ok, produto_operacional_json, requisicao_htmx
 
 
 @login_required
@@ -174,7 +174,7 @@ def lista_produtos(request):
         'extra_params': extra_params,
     }
 
-    if request.headers.get('HX-Request'):
+    if requisicao_htmx(request):
         return render(request, 'estoque/produtos/_lista_resultados.html', context)
     return render(request, 'estoque/lista.html', context)
 
