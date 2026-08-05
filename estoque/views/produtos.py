@@ -4,7 +4,6 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
@@ -16,174 +15,31 @@ from openpyxl.utils import get_column_letter
 
 from ..log_utils import log_acao
 from ..models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, Movimentacao, Produto
-from ..services.estoque_status import filtro_baixo, filtro_normal, filtro_sem_minimo, filtro_zerado
 from .helpers import (
     decimal_ou_none,
     exigir_admin_json,
     json_erro,
     json_ok,
+    produto_lista_vue_json,
     produto_operacional_json,
-    requisicao_htmx,
 )
 
 
 @login_required
 def lista_produtos(request):
-    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
-    filtro_url = (request.GET.get('filtro') or '').lower()
-    filtro_map = {'baixo': 'BAIXO', 'zerado': 'ZERADO', 'ok': 'OK'}
-    filtro_estoque = request.GET.get('estoque') or filtro_map.get(filtro_url, 'TODOS')
-    if filtro_estoque not in ('TODOS', 'BAIXO', 'ZERADO', 'OK'):
-        filtro_estoque = 'TODOS'
-
-    filtro_fornecedor = request.GET.get('fornecedor') or 'TODOS'
-    aba_ativa = (request.GET.get('aba') or 'PAPEL').upper()
-    abas_validas = ['PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO']
-    if aba_ativa not in abas_validas:
-        aba_ativa = 'PAPEL'
-
-    ordem_coluna = request.GET.get('ordem') or 'descricao'
-    ordem_direcao = request.GET.get('direcao') or 'asc'
-
-    qs = Produto.objects.select_related('fornecedor', 'categoria').all()
-
-    if busca:
-        qs = qs.filter(
-            Q(descricao__icontains=busca) | Q(fornecedor__nome__icontains=busca)
-        )
-
-    if filtro_fornecedor == 'SEM_FORNECEDOR':
-        qs = qs.filter(fornecedor__isnull=True)
-    elif filtro_fornecedor != 'TODOS':
-        qs = qs.filter(fornecedor__nome=filtro_fornecedor)
-
-    if filtro_estoque == 'ZERADO':
-        qs = qs.filter(filtro_zerado())
-    elif filtro_estoque == 'BAIXO':
-        qs = qs.filter(filtro_baixo())
-    elif filtro_estoque == 'OK':
-        qs = qs.filter(filtro_normal() | filtro_sem_minimo())
-
+    produtos = list(
+        Produto.objects.select_related('fornecedor', 'categoria').order_by('descricao')
+    )
+    produtos_data = [produto_lista_vue_json(p) for p in produtos]
     fornecedores_unicos = list(
         Fornecedor.objects.filter(produto__isnull=False)
         .values_list('nome', flat=True).distinct().order_by('nome')
     )
-
-    produtos_filtrados = list(qs)
-    total_filtrado = len(produtos_filtrados)
-    total_produtos = Produto.objects.count()
-
-    tabs = [
-        {'key': 'PAPEL',     'label': 'Papel',      'icon': 'bi bi-file-earmark-text'},
-        {'key': 'TECIDO',    'label': 'Tecido',     'icon': 'bi bi-grid-3x3-gap'},
-        {'key': 'TINTA',     'label': 'Tinta',      'icon': 'bi bi-droplet-half'},
-        {'key': 'AVIAMENTO', 'label': 'Aviamentos', 'icon': 'bi bi-tools'},
-        {'key': 'OUTRO',     'label': 'Outros',     'icon': 'bi bi-three-dots'},
-    ]
-
-    produtos_por_aba = {t['key']: [] for t in tabs}
-    for p in produtos_filtrados:
-        if p.tipo_produto in produtos_por_aba:
-            produtos_por_aba[p.tipo_produto].append(p)
-        else:
-            produtos_por_aba['OUTRO'].append(p)
-
-    tem_filtros_ativos = bool(busca or filtro_estoque != 'TODOS' or filtro_fornecedor != 'TODOS')
-    if tem_filtros_ativos and len(produtos_por_aba[aba_ativa]) == 0:
-        for t in tabs:
-            if len(produtos_por_aba[t['key']]) > 0:
-                aba_ativa = t['key']
-                break
-
-    all_produtos = list(Produto.objects.all())
-    critico_por_tipo = {}
-    for p in all_produtos:
-        if p.status_estoque in ('ZERADO', 'BAIXO'):
-            critico_por_tipo[p.tipo_produto] = True
-
-    tabs_data = []
-    for t in tabs:
-        k = t['key']
-        tabs_data.append({
-            'key': k,
-            'label': t['label'],
-            'icon': t['icon'],
-            'count': len(produtos_por_aba[k]),
-            'has_critical': critico_por_tipo.get(k, False),
-        })
-
-    produtos_aba = produtos_por_aba[aba_ativa]
-
-    def get_sort_key(p):
-        if ordem_coluna == 'fornecedor':
-            val = p.fornecedor.nome if p.fornecedor else ''
-        elif ordem_coluna == 'metros_por_rolo':
-            val = float(p.metros_por_rolo or 0)
-        elif ordem_coluna == 'quantidade':
-            val = float(p.quantidade_base)
-        elif ordem_coluna == 'preco_custo':
-            val = float(p.preco_custo or 0)
-        else:
-            val = p.descricao or ''
-        return val
-
-    reverse_sort = (ordem_direcao == 'desc')
-    if ordem_coluna in ('quantidade', 'metros_por_rolo', 'preco_custo'):
-        produtos_aba.sort(key=get_sort_key, reverse=reverse_sort)
-    else:
-        produtos_aba.sort(key=lambda p: str(get_sort_key(p)).lower(), reverse=reverse_sort)
-
-    valor_custo = Decimal('0.00')
-    sem_custo = 0
-    baixos = 0
-    zerados = 0
-
-    for p in produtos_aba:
-        st = p.status_estoque
-        if st == 'ZERADO':
-            zerados += 1
-        elif st == 'BAIXO':
-            baixos += 1
-
-        if p.preco_custo is not None:
-            valor_custo += (p.quantidade_base * p.preco_custo)
-        elif p.quantidade_base > 0:
-            sem_custo += 1
-
-    paginator = Paginator(produtos_aba, 25)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-    extra_params = f"&aba={aba_ativa}&busca={busca}&estoque={filtro_estoque}&fornecedor={filtro_fornecedor}&ordem={ordem_coluna}&direcao={ordem_direcao}"
-
-    resumo_aba = {
-        'total_itens': len(produtos_aba),
-        'valor_custo': valor_custo,
-        'sem_custo': sem_custo,
-        'baixos': baixos,
-        'zerados': zerados,
-    }
-
-    context = {
-        'page_obj': page_obj,
-        'produtos': page_obj,
-        'resumo_aba': resumo_aba,
-        'tabs': tabs_data,
-        'aba_ativa': aba_ativa,
-        'busca': busca,
-        'filtro_estoque': filtro_estoque,
-        'filtro_fornecedor': filtro_fornecedor,
-        'fornecedores_unicos': fornecedores_unicos,
-        'ordem': ordem_coluna,
-        'direcao': ordem_direcao,
-        'total_filtrado': total_filtrado,
-        'total_produtos': total_produtos,
-        'tem_filtros_ativos': tem_filtros_ativos,
-        'extra_params': extra_params,
-    }
-
-    if requisicao_htmx(request):
-        return render(request, 'estoque/produtos/_lista_resultados.html', context)
-    return render(request, 'estoque/lista.html', context)
+    return render(request, 'estoque/lista.html', {
+        'produtos_json': json.dumps(produtos_data),
+        'fornecedores_json': json.dumps(fornecedores_unicos),
+        'total_produtos': len(produtos_data),
+    })
 
 
 @login_required

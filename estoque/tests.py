@@ -1089,11 +1089,14 @@ class HTMXViewsTestCase(TestCase):
             fornecedor=self.fornecedor,
         )
 
-    def test_lista_produtos_htmx_retorna_partial(self):
+    def test_lista_produtos_renderiza_vue_com_dados(self):
         response = self.client.get(reverse('lista_produtos'), HTTP_HX_REQUEST='true')
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'estoque/produtos/_lista_resultados.html')
+        self.assertTemplateUsed(response, 'estoque/lista.html')
+        self.assertContains(response, 'id="app"')
+        self.assertContains(response, 'createApp')
         self.assertContains(response, 'PRODUTO HTMX TESTE')
+        self.assertContains(response, "tipo_produto\": \"PAPEL")
 
     def test_atualiza_estoque_htmx_retorna_cell_e_header(self):
         response = self.client.post(

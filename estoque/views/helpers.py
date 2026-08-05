@@ -8,7 +8,7 @@ from ..models import FechamentoMensal, Produto
 from ..services.estoque_status import filtro_baixo, filtro_zerado
 from ..services.estoque_valuation import calcular_valor_estoque
 from ..services.fechamentos import validar_periodo
-from ..services.units import dinheiro_br, formatar_quantidade, unidade_info
+from ..services.units import dinheiro_br, embalagens_estimadas, formatar_quantidade, unidade_info
 
 
 def decimal_ou_none(value):
@@ -75,6 +75,36 @@ def produto_operacional_json(produto):
         'unidade_simbolo': produto.unidade_simbolo,
         'unidade_nome': unidade_info(produto).plural,
         'status_estoque': produto.status_estoque,
+    }
+
+
+def produto_lista_vue_json(produto):
+    custo = produto.preco_custo
+    venda = produto.preco_venda
+    lucro = (venda - custo) if venda is not None and custo is not None else None
+    margem = (lucro / custo * 100) if lucro is not None and custo and custo > 0 else None
+    unidade = unidade_info(produto)
+    return {
+        'id': produto.id,
+        'descricao': produto.descricao,
+        'quantidade': float(produto.quantidade_base),
+        'quantidade_formatada': produto.quantidade_formatada,
+        'estoque_minimo': float(produto.estoque_minimo) if produto.estoque_minimo is not None else 0,
+        'status_estoque': produto.status_estoque,
+        'tipo_produto': produto.tipo_produto,
+        'tipo_label': produto.get_tipo_produto_display(),
+        'fornecedor': produto.fornecedor.nome if produto.fornecedor else None,
+        'preco_custo': float(custo) if custo is not None else None,
+        'preco_venda': float(venda) if venda is not None else None,
+        'preco_custo_formatado': dinheiro_br(custo) if custo is not None else 'Não cadastrado',
+        'preco_venda_formatado': dinheiro_br(venda) if venda is not None else 'Não cadastrado',
+        'margem': float(round(margem, 1)) if margem is not None else None,
+        'metros_por_rolo': float(produto.metros_por_rolo) if produto.metros_por_rolo else 0,
+        'litros_por_vidro': float(produto.litros_por_vidro) if produto.litros_por_vidro else 0,
+        'embalagens_estimadas': float(embalagens_estimadas(produto)),
+        'tipo_tinta': produto.tipo_tinta,
+        'cor_tinta': produto.cor_tinta,
+        'unidade_simbolo': unidade.simbolo,
     }
 
 
