@@ -38,6 +38,7 @@
                                                 hx-get="{% url 'editar_fornecedor' fornecedor.id %}"
                                                 hx-include="#fornecedor-busca"
                                                 hx-target="#modal-fornecedor-container"
+                                                hx-disinherit="hx-select"
                                             >Editar</button>
                                         </li>
                                         {% if user.is_superuser %}
@@ -48,6 +49,7 @@
                                                 hx-post="{% url 'excluir_fornecedor' fornecedor.id %}"
                                                 hx-target="#fornecedores-resultados"
                                                 hx-swap="outerHTML"
+                                                hx-disinherit="hx-select"
                                                 hx-confirm="Excluir o fornecedor {{ fornecedor.nome }}? A exclusão será bloqueada se houver produtos vinculados."
                                             >
                                                 {% csrf_token %}

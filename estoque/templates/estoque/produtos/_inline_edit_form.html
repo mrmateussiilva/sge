@@ -1,5 +1,5 @@
 <td data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-target="this" hx-swap="outerHTML">
-    <form hx-post="{% url 'inline_edit_estoque' p.id %}" class="inline-stock-edit d-flex align-items-center gap-1">
+    <form hx-post="{% url 'inline_edit_estoque' p.id %}" hx-disinherit="hx-select" class="inline-stock-edit d-flex align-items-center gap-1">
         {% csrf_token %}
         <input type="number"
                step="any"
@@ -11,8 +11,9 @@
                hx-trigger="keyup[key=='Escape']"
                hx-get="{% url 'inline_edit_estoque' p.id %}?cancel=1"
                hx-target="#quantidade-cell-{{ p.id }}"
+               hx-disinherit="hx-select"
                hx-swap="outerHTML">
         <button type="submit" class="btn btn-sm btn-primary py-0 px-1.5" title="Salvar"><i class="bi bi-check-lg"></i></button>
-        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1.5" hx-get="{% url 'inline_edit_estoque' p.id %}?cancel=1" hx-target="#quantidade-cell-{{ p.id }}" hx-swap="outerHTML" title="Cancelar"><i class="bi bi-x-lg"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1.5" hx-get="{% url 'inline_edit_estoque' p.id %}?cancel=1" hx-target="#quantidade-cell-{{ p.id }}" hx-swap="outerHTML" hx-disinherit="hx-select" title="Cancelar"><i class="bi bi-x-lg"></i></button>
     </form>
 </td>

@@ -1,6 +1,7 @@
 import csv
 import json
 from decimal import Decimal, InvalidOperation
+from io import StringIO
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -23,6 +24,22 @@ from .helpers import (
     produto_lista_vue_json,
     produto_operacional_json,
 )
+
+
+def registrar_ajuste_saldo(produto, usuario, nova_quantidade, observacao):
+    nova_quantidade = Decimal(str(nova_quantidade))
+    if nova_quantidade < 0:
+        raise ValidationError('Quantidade não pode ser negativa.')
+    diferenca = nova_quantidade - produto.quantidade_base
+    if diferenca == 0:
+        return None
+    return Movimentacao.objects.create(
+        produto=produto,
+        usuario=usuario,
+        tipo='ENTRADA' if diferenca > 0 else 'SAIDA',
+        quantidade=abs(diferenca),
+        observacao=observacao,
+    )
 
 
 @login_required
@@ -152,24 +169,40 @@ def exportar_csv(request):
 @login_required
 def cadastrar_produto(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        produto = Produto.objects.create(
-            tipo_produto=data['tipo_produto'],
-            descricao=data['descricao'],
-            fornecedor_id=data.get('fornecedor_id') or None,
-            quantidade_base=data.get('quantidade_base', 0),
-            preco_custo=decimal_ou_none(data.get('preco_custo')),
-            preco_venda=decimal_ou_none(data.get('preco_venda')),
-            estoque_minimo=decimal_ou_none(data.get('estoque_minimo')),
-            metros_por_rolo=data.get('metros_por_rolo') or None,
-            tipo_tinta=data.get('tipo_tinta', 'N/A'),
-            cor_tinta=data.get('cor_tinta', 'INCOLOR'),
-            litros_por_vidro=data.get('litros_por_vidro') or None,
-            unidade_medida=data.get('unidade_medida', 'UN'),
-            categoria_id=data.get('categoria_id') or None,
-        )
-        log_acao(request.user, 'CRIAR', f'Cadastrou produto {produto.descricao}', 'Produto', produto.id)
-        return JsonResponse({'ok': True, 'id': produto.id})
+        try:
+            data = json.loads(request.body)
+            quantidade_inicial = decimal_ou_none(data.get('quantidade_base')) or Decimal('0')
+            if quantidade_inicial < 0:
+                return json_erro('Quantidade não pode ser negativa.')
+            with transaction.atomic():
+                produto = Produto.objects.create(
+                    tipo_produto=data['tipo_produto'],
+                    descricao=data['descricao'],
+                    fornecedor_id=data.get('fornecedor_id') or None,
+                    quantidade_base=Decimal('0'),
+                    preco_custo=decimal_ou_none(data.get('preco_custo')),
+                    preco_venda=decimal_ou_none(data.get('preco_venda')),
+                    estoque_minimo=decimal_ou_none(data.get('estoque_minimo')),
+                    metros_por_rolo=data.get('metros_por_rolo') or None,
+                    tipo_tinta=data.get('tipo_tinta', 'N/A'),
+                    cor_tinta=data.get('cor_tinta', 'INCOLOR'),
+                    litros_por_vidro=data.get('litros_por_vidro') or None,
+                    unidade_medida=data.get('unidade_medida', 'UN'),
+                    categoria_id=data.get('categoria_id') or None,
+                )
+                registrar_ajuste_saldo(
+                    produto,
+                    request.user,
+                    quantidade_inicial,
+                    'Estoque inicial do cadastro do produto',
+                )
+                produto.refresh_from_db()
+                log_acao(request.user, 'CRIAR', f'Cadastrou produto {produto.descricao}', 'Produto', produto.id)
+            return JsonResponse({'ok': True, 'id': produto.id})
+        except (json.JSONDecodeError, KeyError, InvalidOperation, TypeError, ValueError):
+            return json_erro('Dados inválidos.')
+        except ValidationError as exc:
+            return json_erro('; '.join(exc.messages))
     fornecedores = Fornecedor.objects.all().values('id', 'nome')
     categorias = Categoria.objects.all().values('id', 'nome')
     return render(request, 'estoque/cadastrar_produto.html', {
@@ -182,37 +215,51 @@ def cadastrar_produto(request):
 def editar_produto(request, id):
     produto = get_object_or_404(Produto, id=id)
     if request.method == 'POST':
-        data = json.loads(request.body)
-        old_preco_custo = produto.preco_custo
-        old_preco_venda = produto.preco_venda
-        produto.tipo_produto = data['tipo_produto']
-        produto.descricao = data['descricao']
-        produto.fornecedor_id = data.get('fornecedor_id') or None
-        produto.quantidade_base = data.get('quantidade_base', 0)
-        produto.preco_custo = decimal_ou_none(data.get('preco_custo'))
-        produto.preco_venda = decimal_ou_none(data.get('preco_venda'))
-        produto.estoque_minimo = decimal_ou_none(data.get('estoque_minimo'))
-        produto.metros_por_rolo = data.get('metros_por_rolo') or None
-        produto.tipo_tinta = data.get('tipo_tinta', 'N/A')
-        produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
-        produto.litros_por_vidro = data.get('litros_por_vidro') or None
-        produto.unidade_medida = data.get('unidade_medida', 'UN')
-        produto.categoria_id = data.get('categoria_id') or None
-        preco_custo_mudou = old_preco_custo != produto.preco_custo
-        preco_venda_mudou = old_preco_venda != produto.preco_venda
-        produto._historico_ja_salvo = True
-        produto.save()
-        if preco_custo_mudou or preco_venda_mudou:
-            HistoricoPreco.objects.create(
-                produto=produto,
-                preco_custo_antigo=old_preco_custo if preco_custo_mudou else None,
-                preco_custo_novo=produto.preco_custo if preco_custo_mudou else None,
-                preco_venda_antigo=old_preco_venda if preco_venda_mudou else None,
-                preco_venda_novo=produto.preco_venda if preco_venda_mudou else None,
-                usuario=request.user,
-            )
-        log_acao(request.user, 'EDITAR', f'Editou produto {produto.descricao}', 'Produto', produto.id)
-        return JsonResponse({'ok': True})
+        try:
+            data = json.loads(request.body)
+            nova_quantidade = decimal_ou_none(data.get('quantidade_base')) or Decimal('0')
+            with transaction.atomic():
+                produto = Produto.objects.select_for_update().get(pk=produto.pk)
+                old_preco_custo = produto.preco_custo
+                old_preco_venda = produto.preco_venda
+                produto.tipo_produto = data['tipo_produto']
+                produto.descricao = data['descricao']
+                produto.fornecedor_id = data.get('fornecedor_id') or None
+                produto.preco_custo = decimal_ou_none(data.get('preco_custo'))
+                produto.preco_venda = decimal_ou_none(data.get('preco_venda'))
+                produto.estoque_minimo = decimal_ou_none(data.get('estoque_minimo'))
+                produto.metros_por_rolo = data.get('metros_por_rolo') or None
+                produto.tipo_tinta = data.get('tipo_tinta', 'N/A')
+                produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
+                produto.litros_por_vidro = data.get('litros_por_vidro') or None
+                produto.unidade_medida = data.get('unidade_medida', 'UN')
+                produto.categoria_id = data.get('categoria_id') or None
+                preco_custo_mudou = old_preco_custo != produto.preco_custo
+                preco_venda_mudou = old_preco_venda != produto.preco_venda
+                produto._historico_ja_salvo = True
+                produto.save()
+                registrar_ajuste_saldo(
+                    produto,
+                    request.user,
+                    nova_quantidade,
+                    'Ajuste de saldo na edição do produto',
+                )
+                produto.refresh_from_db()
+                if preco_custo_mudou or preco_venda_mudou:
+                    HistoricoPreco.objects.create(
+                        produto=produto,
+                        preco_custo_antigo=old_preco_custo if preco_custo_mudou else None,
+                        preco_custo_novo=produto.preco_custo if preco_custo_mudou else None,
+                        preco_venda_antigo=old_preco_venda if preco_venda_mudou else None,
+                        preco_venda_novo=produto.preco_venda if preco_venda_mudou else None,
+                        usuario=request.user,
+                    )
+                log_acao(request.user, 'EDITAR', f'Editou produto {produto.descricao}', 'Produto', produto.id)
+            return JsonResponse({'ok': True})
+        except (json.JSONDecodeError, KeyError, InvalidOperation, TypeError, ValueError):
+            return json_erro('Dados inválidos.')
+        except ValidationError as exc:
+            return json_erro('; '.join(exc.messages))
     fornecedores = Fornecedor.objects.all().values('id', 'nome')
     categorias = Categoria.objects.all().values('id', 'nome')
     return render(request, 'estoque/editar_produto.html', {
@@ -364,22 +411,43 @@ def importar_csv_produtos(request):
                 tipo_tinta = row.get('tipo_tinta', '').strip().upper() or 'N/A'
                 cor_tinta = row.get('cor_tinta', '').strip().upper() or 'INCOLOR'
 
-                prod, created = Produto.objects.update_or_create(
-                    descricao=desc,
-                    defaults={
-                        'tipo_produto': tipo_prod,
-                        'unidade_medida': unid,
-                        'quantidade_base': qtd,
-                        'estoque_minimo': minimo,
-                        'preco_custo': custo,
-                        'preco_venda': venda,
-                        'fornecedor': fornecedor,
-                        'categoria': categoria,
-                        'metros_por_rolo': metros_rolo,
-                        'tipo_tinta': tipo_tinta,
-                        'cor_tinta': cor_tinta,
-                        'litros_por_vidro': litros_vidro,
-                    }
+                prod = Produto.objects.select_for_update().filter(descricao=desc).first()
+                created = prod is None
+                if created:
+                    prod = Produto.objects.create(
+                        descricao=desc,
+                        tipo_produto=tipo_prod,
+                        unidade_medida=unid,
+                        quantidade_base=Decimal('0'),
+                        estoque_minimo=minimo,
+                        preco_custo=custo,
+                        preco_venda=venda,
+                        fornecedor=fornecedor,
+                        categoria=categoria,
+                        metros_por_rolo=metros_rolo,
+                        tipo_tinta=tipo_tinta,
+                        cor_tinta=cor_tinta,
+                        litros_por_vidro=litros_vidro,
+                    )
+                else:
+                    prod.tipo_produto = tipo_prod
+                    prod.unidade_medida = unid
+                    prod.estoque_minimo = minimo
+                    prod.preco_custo = custo
+                    prod.preco_venda = venda
+                    prod.fornecedor = fornecedor
+                    prod.categoria = categoria
+                    prod.metros_por_rolo = metros_rolo
+                    prod.tipo_tinta = tipo_tinta
+                    prod.cor_tinta = cor_tinta
+                    prod.litros_por_vidro = litros_vidro
+                    prod.save()
+
+                registrar_ajuste_saldo(
+                    prod,
+                    request.user,
+                    qtd,
+                    'Ajuste de saldo via importação CSV de produtos',
                 )
 
                 if created:

@@ -2,6 +2,7 @@
     <div class="user-select-none cursor-pointer"
          hx-get="{% url 'inline_edit_estoque' p.id %}"
          hx-trigger="dblclick"
+         hx-disinherit="hx-select"
          title="Duplo clique para editar saldo">
         <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
             {{ p.quantidade_formatada }}

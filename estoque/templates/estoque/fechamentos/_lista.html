@@ -53,6 +53,7 @@
                                 hx-post="{% url 'excluir_fechamento' fechamento.id %}"
                                 hx-target="#fechamentos-lista"
                                 hx-swap="outerHTML"
+                                hx-disinherit="hx-select"
                                 hx-confirm="Excluir definitivamente o fechamento de {{ fechamento.periodo_formatado }}? O snapshot será apagado e o período poderá receber um novo freeze."
                             >
                                 {% csrf_token %}

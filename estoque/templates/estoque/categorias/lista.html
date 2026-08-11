@@ -18,6 +18,7 @@
                 hx-get="{% url 'criar_categoria' %}"
                 hx-include="#categoria-busca"
                 hx-target="#modal-categoria-container"
+                hx-disinherit="hx-select"
             >
                 <i class="bi bi-plus-lg me-1"></i>Nova categoria
             </button>
@@ -40,6 +41,7 @@
                     hx-trigger="input changed delay:350ms, search"
                     hx-target="#categorias-resultados"
                     hx-push-url="true"
+                    hx-disinherit="hx-select"
                     data-sge-loading="inline"
                 >
             </div>

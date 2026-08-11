@@ -18,6 +18,7 @@
                 hx-get="{% url 'criar_fornecedor' %}"
                 hx-include="#fornecedor-busca"
                 hx-target="#modal-fornecedor-container"
+                hx-disinherit="hx-select"
             >
                 <i class="bi bi-plus-lg me-1"></i>Novo fornecedor
             </button>
@@ -40,6 +41,7 @@
                     hx-trigger="input changed delay:350ms, search"
                     hx-target="#fornecedores-resultados"
                     hx-push-url="true"
+                    hx-disinherit="hx-select"
                     data-sge-loading="inline"
                 >
             </div>

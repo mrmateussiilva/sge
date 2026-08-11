@@ -210,6 +210,8 @@ class Movimentacao(models.Model):
                     produto.quantidade_base -= self.quantidade
                 produto.save()
                 self.produto = produto
+                super().save(*args, **kwargs)
+            return
         super().save(*args, **kwargs)
 
     def __str__(self):

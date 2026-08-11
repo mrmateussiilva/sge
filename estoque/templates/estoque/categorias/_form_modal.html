@@ -13,6 +13,7 @@
                 hx-post="{% if categoria %}{% url 'editar_categoria' categoria.id %}{% else %}{% url 'criar_categoria' %}{% endif %}"
                 hx-target="#categorias-resultados"
                 hx-swap="outerHTML"
+                hx-disinherit="hx-select"
             >
                 {% csrf_token %}
                 <input type="hidden" name="q" value="{{ busca }}">

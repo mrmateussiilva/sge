@@ -34,6 +34,7 @@
                     hx-post="{% url 'realizar_fechamento' %}"
                     hx-target="#revisao-fechamento"
                     hx-swap="innerHTML"
+                    hx-disinherit="hx-select"
                 >
                     {% csrf_token %}
                     <div class="modal-body py-3">
@@ -54,6 +55,7 @@
                                     hx-trigger="change"
                                     hx-include="#fechamento-data-inicio, #fechamento-data-fim"
                                     hx-target="#revisao-fechamento"
+                                    hx-disinherit="hx-select"
                                     data-sge-loading="inline"
                                     required
                                 >
@@ -70,6 +72,7 @@
                                     hx-trigger="change"
                                     hx-include="#fechamento-data-inicio, #fechamento-data-fim"
                                     hx-target="#revisao-fechamento"
+                                    hx-disinherit="hx-select"
                                     data-sge-loading="inline"
                                     required
                                 >

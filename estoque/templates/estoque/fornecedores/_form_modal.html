@@ -13,6 +13,7 @@
                 hx-post="{% if fornecedor %}{% url 'editar_fornecedor' fornecedor.id %}{% else %}{% url 'criar_fornecedor' %}{% endif %}"
                 hx-target="#fornecedores-resultados"
                 hx-swap="outerHTML"
+                hx-disinherit="hx-select"
             >
                 {% csrf_token %}
                 <input type="hidden" name="q" value="{{ busca }}">

@@ -5,6 +5,7 @@
           hx-swap="outerHTML"
           hx-trigger="change from:select, input changed delay:350ms from:#atividadeBusca"
           hx-push-url="true"
+          hx-disinherit="hx-select"
           class="filter-bar filter-bar--activity mb-4"
           role="search"
           aria-label="Filtros de atividades">
@@ -26,6 +27,7 @@
                         hx-target="#lista-logs"
                         hx-swap="outerHTML"
                         hx-push-url="true"
+                        hx-disinherit="hx-select"
                         title="Limpar busca">
                     <i class="bi bi-x-lg"></i>
                 </button>
@@ -50,6 +52,7 @@
                hx-target="#lista-logs"
                hx-swap="outerHTML"
                hx-push-url="true"
+               hx-disinherit="hx-select"
                class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar
             </a>

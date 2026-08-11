@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -11,7 +12,7 @@ from io import BytesIO, StringIO
 
 import openpyxl
 
-from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, LogAcao, Movimentacao, Produto
+from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, LogAcao, Movimentacao, OrdemCompra, Produto
 from .services.estoque_metrics import agrupar_quantidade_por_unidade
 from .services.estoque_status import BAIXO, NORMAL, SEM_MINIMO, ZERADO, classificar_estoque, filtro_baixo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
@@ -144,6 +145,28 @@ class MovimentacaoTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertTrue(Produto.objects.filter(descricao='PRODUTO MINIMO').exists())
+
+    def test_cadastrar_produto_com_estoque_inicial_cria_movimentacao(self):
+        response = self.client.post(
+            reverse('cadastrar_produto'),
+            data=json.dumps({
+                'tipo_produto': 'OUTRO',
+                'unidade_medida': 'UN',
+                'descricao': 'PRODUTO COM ESTOQUE',
+                'quantidade_base': '7.50',
+                'preco_custo': 0,
+                'preco_venda': 0,
+                'estoque_minimo': 0,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        produto = Produto.objects.get(descricao='PRODUTO COM ESTOQUE')
+        self.assertEqual(produto.quantidade_base, Decimal('7.50'))
+        mov = Movimentacao.objects.get(produto=produto)
+        self.assertEqual(mov.tipo, 'ENTRADA')
+        self.assertEqual(mov.quantidade, Decimal('7.50'))
 
 
 class DominioEstoqueTestCase(TestCase):
@@ -557,6 +580,28 @@ class HistoricoPrecoTestCase(TestCase):
         self.assertEqual(historico.preco_venda_novo, Decimal('12.00'))
         self.assertEqual(historico.usuario, self.user)
 
+    def test_editar_produto_ajusta_saldo_por_movimentacao(self):
+        response = self.client.post(
+            reverse('editar_produto', args=[self.produto.id]),
+            data=json.dumps({
+                'tipo_produto': 'OUTRO',
+                'unidade_medida': 'UN',
+                'descricao': 'PRODUTO PRECO',
+                'quantidade_base': '12.50',
+                'preco_custo': '5.50',
+                'preco_venda': '10.00',
+                'estoque_minimo': '0.00',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('12.50'))
+        mov = Movimentacao.objects.get(produto=self.produto)
+        self.assertEqual(mov.tipo, 'ENTRADA')
+        self.assertEqual(mov.quantidade, Decimal('2.50'))
+
 
 class FechamentoTestCase(TestCase):
     def setUp(self):
@@ -849,6 +894,23 @@ class FluxosOperacionaisTestCase(TestCase):
         self.produto.refresh_from_db()
         self.assertEqual(self.produto.quantidade_base, Decimal('15.00'))
 
+    def test_importacao_csv_ajusta_saldo_por_movimentacao(self):
+        self.client.login(username='adminop', password='password123')
+        csv_content = (
+            'descricao,tipo_produto,unidade_medida,quantidade_base,estoque_minimo,preco_custo,preco_venda,fornecedor_nome,categoria_nome,metros_por_rolo,tipo_tinta,cor_tinta,litros_por_vidro\n'
+            'TECIDO OPERACIONAL,TECIDO,M,50.30,20.00,10.00,0.00,Fornecedor Operacional,,,,,\n'
+        ).encode('utf-8')
+        arquivo = SimpleUploadedFile('produtos.csv', csv_content, content_type='text/csv')
+
+        response = self.client.post(reverse('importar_csv_produtos'), {'arquivo': arquivo})
+
+        self.assertEqual(response.status_code, 200)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('50.30'))
+        mov = Movimentacao.objects.filter(produto=self.produto, observacao__icontains='CSV').latest('id')
+        self.assertEqual(mov.tipo, 'ENTRADA')
+        self.assertEqual(mov.quantidade, Decimal('5.00'))
+
     def test_exclusao_via_get_e_bloqueada(self):
         self.client.login(username='adminop', password='password123')
         response = self.client.get(reverse('excluir_produto', args=[self.produto.id]))
@@ -864,6 +926,18 @@ class FluxosOperacionaisTestCase(TestCase):
         response = self.client.post(reverse('excluir_fornecedor', args=[self.fornecedor.id]))
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['codigo'], 'VINCULO_IMPEDITIVO')
+
+    def test_acoes_de_ordem_bloqueiam_get(self):
+        self.client.login(username='adminop', password='password123')
+        ordem = OrdemCompra.objects.create(fornecedor=self.fornecedor)
+
+        for name in ('aprovar_ordem', 'cancelar_ordem', 'receber_ordem'):
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name, args=[ordem.id]))
+                self.assertEqual(response.status_code, 405)
+
+        ordem.refresh_from_db()
+        self.assertEqual(ordem.status, 'PENDENTE')
 
     def test_exclusao_de_movimentacao_recalcula_saldo_e_log(self):
         self.client.login(username='adminop', password='password123')
