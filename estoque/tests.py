@@ -27,6 +27,7 @@ class LoginTemplateTestCase(TestCase):
         self.assertContains(response, 'name="next" value="/produtos/"')
         self.assertContains(response, 'autocomplete="username"')
         self.assertContains(response, 'autocomplete="current-password"')
+        self.assertContains(response, 'id="main-content"')
 
     def test_login_invalido_exibe_mensagem_generica_e_preserva_usuario(self):
         response = self.client.post(
@@ -1137,6 +1138,19 @@ class HTMXViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/movimentacao/_produto_info.html')
         self.assertContains(response, '50,00 m')
+
+    def test_movimentacao_hx_boosted_retorna_pagina_completa(self):
+        response = self.client.get(
+            reverse('registrar_movimentacao'),
+            HTTP_HX_REQUEST='true',
+            HTTP_HX_BOOSTED='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/movimentacao.html')
+        self.assertContains(response, 'id="main-content"')
+        self.assertContains(response, 'Nova movimentação')
+        self.assertContains(response, 'Histórico recente')
 
     def test_registrar_movimentacao_htmx_retorna_tabela_e_header(self):
         response = self.client.post(

@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, render
 
 from ..log_utils import log_acao
 from ..models import Movimentacao, Produto
-from .helpers import json_erro, json_ok, produto_operacional_json
+from .helpers import json_erro, json_ok, produto_operacional_json, requisicao_htmx
 
 
 @login_required
@@ -29,7 +29,7 @@ def info_produto_movimentacao(request):
 def registrar_movimentacao(request):
     if request.method == 'POST':
         is_json = (request.content_type == 'application/json')
-        is_htmx = bool(request.headers.get('HX-Request'))
+        is_htmx = requisicao_htmx(request)
         try:
             if is_json:
                 data = json.loads(request.body)
@@ -114,7 +114,7 @@ def registrar_movimentacao(request):
         'movimentacoes': page_obj,
     }
 
-    if request.headers.get('HX-Request'):
+    if requisicao_htmx(request):
         return render(request, 'estoque/movimentacao/_historico_tabela.html', context)
 
     return render(request, 'estoque/movimentacao.html', context)
