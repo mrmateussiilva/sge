@@ -36,6 +36,7 @@
                                         hx-post="{% url 'excluir_movimentacao' m.id %}"
                                         hx-target="#historico-movimentacoes"
                                         hx-swap="outerHTML"
+                                        hx-disinherit="hx-select"
                                         hx-confirm="Excluir movimentação de {{ m.produto.descricao|escapejs }}? Esta ação recalcula o saldo do produto."
                                         title="Excluir movimentação">
                                     <i class="bi bi-trash"></i> Excluir

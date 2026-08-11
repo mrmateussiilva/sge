@@ -8,7 +8,7 @@
         <li class="page-item">
             <a class="page-link"
                href="?page={{ page_obj.previous_page_number }}{{ extra_params }}"
-               {% if hx_target %}hx-get="?page={{ page_obj.previous_page_number }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true"{% endif %}
+               {% if hx_target %}hx-get="?page={{ page_obj.previous_page_number }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true" hx-disinherit="hx-select"{% endif %}
                aria-label="Anterior">
                 <i class="bi bi-chevron-left"></i>
             </a>
@@ -28,7 +28,7 @@
             <li class="page-item">
                 <a class="page-link"
                    href="?page={{ p }}{{ extra_params }}"
-                   {% if hx_target %}hx-get="?page={{ p }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true"{% endif %}>
+                   {% if hx_target %}hx-get="?page={{ p }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true" hx-disinherit="hx-select"{% endif %}>
                     {{ p }}
                 </a>
             </li>
@@ -39,7 +39,7 @@
         <li class="page-item">
             <a class="page-link"
                href="?page={{ page_obj.next_page_number }}{{ extra_params }}"
-               {% if hx_target %}hx-get="?page={{ page_obj.next_page_number }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true"{% endif %}
+               {% if hx_target %}hx-get="?page={{ page_obj.next_page_number }}{{ extra_params }}" hx-target="{{ hx_target }}" hx-swap="outerHTML" hx-push-url="true" hx-disinherit="hx-select"{% endif %}
                aria-label="Próxima">
                 <i class="bi bi-chevron-right"></i>
             </a>

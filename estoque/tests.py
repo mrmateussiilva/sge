@@ -810,6 +810,7 @@ class FluxosOperacionaisTestCase(TestCase):
         self.assertContains(response, '20,00 m')
         self.assertContains(response, 'Fornecedor Operacional')
         self.assertContains(response, 'Quantidade em')
+        self.assertContains(response, 'hx-disinherit="hx-select"')
 
     def test_saida_maior_que_saldo_e_bloqueada_no_backend(self):
         self.client.login(username='operadorop', password='password123')
@@ -1161,3 +1162,4 @@ class HTMXViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/movimentacao/_historico_tabela.html')
         self.assertEqual(response.headers.get('HX-Trigger'), 'estoqueAtualizado')
+        self.assertContains(response, 'hx-disinherit="hx-select"')

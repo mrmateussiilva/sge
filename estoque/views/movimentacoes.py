@@ -125,7 +125,7 @@ def excluir_movimentacao(request, id):
     mov = get_object_or_404(Movimentacao, id=id)
     if request.method == 'POST':
         if not request.user.is_superuser:
-            if request.headers.get('HX-Request'):
+            if requisicao_htmx(request):
                 return HttpResponse('Permissão negada.', status=403)
             return json_erro('Permissão negada.', status=403, codigo='PERMISSAO_NEGADA')
 
@@ -140,7 +140,7 @@ def excluir_movimentacao(request, id):
             mov.delete()
         log_acao(request.user, 'EXCLUIR', f'Excluiu movimentacao: {descricao}', 'Movimentacao', id)
 
-        if request.headers.get('HX-Request'):
+        if requisicao_htmx(request):
             movimentacoes_qs = Movimentacao.objects.select_related('produto', 'usuario').order_by('-data')
             paginator = Paginator(movimentacoes_qs, 25)
             page_obj = paginator.get_page(1)
