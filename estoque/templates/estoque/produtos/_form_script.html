@@ -1,0 +1,114 @@
+<script>
+(function() {
+  const form = document.querySelector('[data-product-form]');
+  if (!form) return;
+
+  const typeSelect = form.querySelector('[data-product-type]');
+  const details = form.querySelector('[data-product-details]');
+  const unidadeSelect = form.querySelector('[data-unidade-select]');
+  const descricaoInput = form.querySelector('[data-description-input]');
+  const autoUnidade = form.dataset.autoUnidade === 'true';
+  const precoCusto = form.querySelector('[data-preco-custo]');
+  const precoVenda = form.querySelector('[data-preco-venda]');
+  const financialSummary = form.querySelector('[data-financial-summary]');
+  const lucroValor = form.querySelector('[data-lucro-valor]');
+  const markupValor = form.querySelector('[data-markup-valor]');
+  const markupInput = form.querySelector('[data-markup-input]');
+  const submitButton = form.querySelector('[data-submit-button]');
+  const submitText = form.querySelector('[data-submit-text]');
+
+  function parseDecimal(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    let text = String(value).trim();
+    if (text.includes(',')) {
+      text = text.replace(/\./g, '').replace(',', '.');
+    }
+    text = text.replace(/[^0-9.\-]/g, '');
+    const number = Number.parseFloat(text);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function formatDecimal(value, decimals) {
+    return Number(value || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+
+  function updateTypeFields() {
+    const tipo = typeSelect ? typeSelect.value : '';
+    if (details) details.classList.toggle('d-none', !tipo);
+
+    if (autoUnidade && unidadeSelect) {
+      if (tipo === 'PAPEL' || tipo === 'TECIDO') {
+        unidadeSelect.value = 'M';
+      } else if (tipo === 'TINTA') {
+        unidadeSelect.value = 'L';
+      } else if (tipo) {
+        unidadeSelect.value = 'UN';
+      }
+    }
+
+    form.querySelectorAll('[data-type-field]').forEach(function(field) {
+      const tipos = field.dataset.typeField.split(' ');
+      const visible = tipos.includes(tipo);
+      field.classList.toggle('d-none', !visible);
+      if (!visible) {
+        field.querySelectorAll('input').forEach(function(input) { input.value = ''; });
+      }
+    });
+
+    if (tipo && descricaoInput && document.activeElement === typeSelect) {
+      descricaoInput.focus();
+    }
+  }
+
+  function updateFinancialSummary() {
+    if (!precoCusto || !precoVenda || !financialSummary) return;
+    const custo = parseDecimal(precoCusto.value);
+    const venda = parseDecimal(precoVenda.value);
+    const hasValues = precoCusto.value.trim() !== '' || precoVenda.value.trim() !== '';
+    financialSummary.classList.toggle('d-none', !hasValues);
+
+    const lucro = venda - custo;
+    const markup = custo > 0 ? (lucro / custo) * 100 : 0;
+    if (lucroValor) {
+      lucroValor.textContent = 'R$ ' + formatDecimal(lucro, 2);
+      lucroValor.classList.toggle('text-success', lucro >= 0);
+      lucroValor.classList.toggle('text-danger', lucro < 0);
+    }
+    if (markupValor) {
+      markupValor.textContent = formatDecimal(markup, 1) + '%';
+      markupValor.classList.toggle('text-success', markup >= 0);
+      markupValor.classList.toggle('text-danger', markup < 0);
+    }
+  }
+
+  form.querySelectorAll('[data-decimal-input]').forEach(function(input) {
+    input.addEventListener('input', updateFinancialSummary);
+  });
+
+  if (markupInput && precoCusto && precoVenda) {
+    markupInput.addEventListener('input', function() {
+      const markup = parseDecimal(markupInput.value);
+      const custo = parseDecimal(precoCusto.value);
+      if (markup < 0 || custo <= 0) return;
+      precoVenda.value = formatDecimal(custo * (1 + (markup / 100)), 2);
+      updateFinancialSummary();
+    });
+  }
+
+  if (typeSelect) {
+    typeSelect.addEventListener('change', updateTypeFields);
+  }
+
+  form.addEventListener('submit', function() {
+    if (!submitButton || !submitText) return;
+    submitButton.disabled = true;
+    submitText.textContent = form.dataset.loadingLabel || form.dataset.submitLabel || 'Salvando...';
+  });
+
+  updateTypeFields();
+  updateFinancialSummary();
+})();
+</script>

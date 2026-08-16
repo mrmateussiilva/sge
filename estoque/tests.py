@@ -12,7 +12,7 @@ from io import BytesIO, StringIO
 
 import openpyxl
 
-from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, LogAcao, Movimentacao, OrdemCompra, Produto
+from .models import Categoria, FechamentoMensal, Fornecedor, HistoricoPreco, ItemFechamento, ItemOrdemCompra, LogAcao, Movimentacao, OrdemCompra, Produto
 from .services.estoque_metrics import agrupar_quantidade_por_unidade
 from .services.estoque_status import BAIXO, NORMAL, SEM_MINIMO, ZERADO, classificar_estoque, filtro_baixo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
@@ -127,6 +127,16 @@ class MovimentacaoTestCase(TestCase):
                 response = self.client.get(reverse(name))
                 self.assertEqual(response.status_code, 200)
 
+    def test_modal_global_de_movimentacao_renderiza_csrf(self):
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        form_start = content.index('id="globalMoveForm"')
+        form_end = content.index('</form>', form_start)
+        modal_form = content[form_start:form_end]
+        self.assertIn('name="csrfmiddlewaretoken"', modal_form)
+
     def test_cadastrar_produto_com_campos_minimos(self):
         response = self.client.post(
             reverse('cadastrar_produto'),
@@ -167,6 +177,34 @@ class MovimentacaoTestCase(TestCase):
         mov = Movimentacao.objects.get(produto=produto)
         self.assertEqual(mov.tipo, 'ENTRADA')
         self.assertEqual(mov.quantidade, Decimal('7.50'))
+
+    def test_formulario_cadastrar_produto_sem_vue_e_aceita_decimal_ptbr(self):
+        response = self.client.get(reverse('cadastrar_produto'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-product-form')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'v-model')
+
+        response = self.client.post(reverse('cadastrar_produto'), data={
+            'tipo_produto': 'PAPEL',
+            'unidade_medida': 'M',
+            'descricao': 'PAPEL FORMULARIO',
+            'quantidade_base': '12,50',
+            'preco_custo': '5,50',
+            'preco_venda': '9,90',
+            'estoque_minimo': '2,00',
+            'metros_por_rolo': '50,00',
+            'tipo_tinta': 'N/A',
+            'cor_tinta': 'INCOLOR',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        produto = Produto.objects.get(descricao='PAPEL FORMULARIO')
+        self.assertEqual(produto.quantidade_base, Decimal('12.50'))
+        self.assertEqual(produto.preco_custo, Decimal('5.50'))
+        self.assertEqual(produto.metros_por_rolo, Decimal('50.00'))
+        self.assertTrue(Movimentacao.objects.filter(produto=produto, quantidade=Decimal('12.50')).exists())
 
 
 class DominioEstoqueTestCase(TestCase):
@@ -601,6 +639,34 @@ class HistoricoPrecoTestCase(TestCase):
         mov = Movimentacao.objects.get(produto=self.produto)
         self.assertEqual(mov.tipo, 'ENTRADA')
         self.assertEqual(mov.quantidade, Decimal('2.50'))
+
+    def test_formulario_editar_produto_sem_vue_e_aceita_decimal_ptbr(self):
+        response = self.client.get(reverse('editar_produto', args=[self.produto.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-product-form')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'produto_json')
+
+        response = self.client.post(reverse('editar_produto', args=[self.produto.id]), data={
+            'tipo_produto': 'OUTRO',
+            'unidade_medida': 'UN',
+            'descricao': 'PRODUTO PRECO FORM',
+            'quantidade_base': '10,00',
+            'preco_custo': '6,25',
+            'preco_venda': '12,50',
+            'estoque_minimo': '3,00',
+            'tipo_tinta': 'N/A',
+            'cor_tinta': 'INCOLOR',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.descricao, 'PRODUTO PRECO FORM')
+        self.assertEqual(self.produto.preco_custo, Decimal('6.25'))
+        self.assertEqual(self.produto.preco_venda, Decimal('12.50'))
+        self.assertEqual(self.produto.estoque_minimo, Decimal('3.00'))
+        self.assertEqual(HistoricoPreco.objects.filter(produto=self.produto).count(), 1)
 
 
 class FechamentoTestCase(TestCase):
@@ -1165,14 +1231,28 @@ class HTMXViewsTestCase(TestCase):
             fornecedor=self.fornecedor,
         )
 
-    def test_lista_produtos_renderiza_vue_com_dados(self):
-        response = self.client.get(reverse('lista_produtos'), HTTP_HX_REQUEST='true')
+    def test_lista_produtos_renderiza_htmx_sem_vue(self):
+        response = self.client.get(reverse('lista_produtos'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/lista.html')
-        self.assertContains(response, 'id="app"')
-        self.assertContains(response, 'createApp')
+        self.assertTemplateUsed(response, 'estoque/produtos/_lista_resultados.html')
+        self.assertContains(response, 'id="lista-produtos"')
+        self.assertContains(response, 'hx-get="/produtos/"')
+        self.assertNotContains(response, 'createApp')
         self.assertContains(response, 'PRODUTO HTMX TESTE')
-        self.assertContains(response, "tipo_produto\": \"PAPEL")
+
+    def test_lista_produtos_htmx_retorna_partial_filtrado(self):
+        response = self.client.get(
+            reverse('lista_produtos'),
+            {'busca': 'HTMX', 'aba': 'PAPEL'},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/produtos/_lista_resultados.html')
+        self.assertContains(response, 'PRODUTO HTMX TESTE')
+        self.assertNotContains(response, '<h1>Produtos</h1>', html=True)
+        self.assertNotContains(response, 'createApp')
 
     def test_atualiza_estoque_htmx_retorna_cell_e_header(self):
         response = self.client.post(
@@ -1183,6 +1263,26 @@ class HTMXViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/produtos/_quantidade_cell.html')
         self.assertEqual(response.headers.get('HX-Trigger'), 'estoqueAtualizado')
+
+    def test_acoes_rapidas_de_estoque_nao_sao_navegacao_boosted(self):
+        response = self.client.get(reverse('lista_produtos'))
+
+        self.assertContains(response, 'hx-post="/atualiza-estoque/"')
+        self.assertContains(response, 'hx-boost="false"')
+        self.assertContains(response, 'hx-include="closest form"')
+        self.assertContains(response, 'onsubmit="return false;"')
+        self.assertContains(response, 'data-sge-loading="inline"', count=3)
+
+    def test_filtros_de_produtos_atualizam_apenas_a_lista(self):
+        response = self.client.get(reverse('lista_produtos'))
+
+        self.assertNotContains(response, '<body hx-boost="true">')
+        self.assertContains(response, 'id="lista-produtos" hx-boost="false"')
+        self.assertContains(response, 'id="produtos-conteudo"')
+        self.assertContains(response, 'id="produtos-filter-form"')
+        self.assertContains(response, 'hx-target="#produtos-conteudo"')
+        self.assertContains(response, 'hx-select="#produtos-conteudo"')
+        self.assertContains(response, 'data-sge-loading="inline"')
 
     def test_inline_edit_estoque_htmx(self):
         response = self.client.get(reverse('inline_edit_estoque', args=[self.produto.id]), HTTP_HX_REQUEST='true')
@@ -1202,6 +1302,53 @@ class HTMXViewsTestCase(TestCase):
         response = self.client.get(reverse('lista_ordens'), HTTP_HX_REQUEST='true')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/ordens/_lista_resultados.html')
+
+    def test_criar_ordem_renderiza_sem_vue(self):
+        response = self.client.get(reverse('criar_ordem'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'estoque/criar_ordem.html')
+        self.assertContains(response, 'data-order-form')
+        self.assertContains(response, 'data-item-template')
+        self.assertNotContains(response, 'createApp')
+        self.assertNotContains(response, 'v-model')
+
+    def test_criar_ordem_form_post_cria_itens(self):
+        response = self.client.post(reverse('criar_ordem'), data={
+            'fornecedor_id': self.fornecedor.id,
+            'observacao': 'Compra via formulário',
+            'produto_id': [self.produto.id],
+            'quantidade': ['2,50'],
+            'preco_unitario': ['15,75'],
+        })
+
+        self.assertEqual(response.status_code, 302)
+        ordem = OrdemCompra.objects.get(observacao='Compra via formulário')
+        self.assertEqual(ordem.fornecedor, self.fornecedor)
+        item = ItemOrdemCompra.objects.get(ordem=ordem)
+        self.assertEqual(item.produto, self.produto)
+        self.assertEqual(item.quantidade, Decimal('2.50'))
+        self.assertEqual(item.preco_unitario, Decimal('15.75'))
+
+    def test_criar_ordem_json_permanece_compativel(self):
+        response = self.client.post(
+            reverse('criar_ordem'),
+            data=json.dumps({
+                'fornecedor_id': self.fornecedor.id,
+                'observacao': 'Compra via JSON',
+                'itens': [{
+                    'produto_id': self.produto.id,
+                    'quantidade': '3.00',
+                    'preco_unitario': '15.00',
+                }],
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        ordem = OrdemCompra.objects.get(id=response.json()['id'])
+        self.assertEqual(ordem.itens.count(), 1)
 
     def test_log_acoes_htmx_retorna_partial(self):
         response = self.client.get(reverse('log_acoes'), HTTP_HX_REQUEST='true')

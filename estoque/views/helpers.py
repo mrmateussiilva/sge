@@ -14,7 +14,12 @@ from ..services.units import dinheiro_br, embalagens_estimadas, formatar_quantid
 def decimal_ou_none(value):
     if value in (None, ''):
         return None
-    return Decimal(str(value))
+    if isinstance(value, Decimal):
+        return value
+    texto = str(value).strip()
+    if ',' in texto:
+        texto = texto.replace('.', '').replace(',', '.')
+    return Decimal(texto)
 
 
 def data_iso(value, nome_campo):

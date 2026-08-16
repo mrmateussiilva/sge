@@ -1,4 +1,8 @@
-<nav class="navbar app-navbar border-bottom px-3 py-2 position-relative">
+<nav class="navbar app-navbar border-bottom px-3 py-2 position-relative"
+     hx-boost="true"
+     hx-target="#main-content"
+     hx-select="#main-content"
+     hx-swap="innerHTML">
     <div class="d-flex align-items-center justify-content-between w-100">
         <div class="d-flex align-items-center gap-2">
             <button class="btn btn-light border-0 py-1 px-2" id="menu-toggle" aria-label="Menu">

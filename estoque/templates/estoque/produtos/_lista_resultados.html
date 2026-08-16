@@ -1,0 +1,312 @@
+<div id="lista-produtos" hx-boost="false">
+    <form id="produtos-filter-form"
+          hx-get="{% url 'lista_produtos' %}"
+          hx-target="#produtos-conteudo"
+          hx-swap="outerHTML"
+          hx-trigger="change from:select, input changed delay:350ms from:#inputBusca"
+          hx-push-url="true"
+          hx-select="#produtos-conteudo"
+          data-sge-loading="inline"
+          class="filter-bar mb-4"
+          role="search"
+          aria-label="Filtros de produtos">
+
+        <input type="hidden" name="aba" value="{{ aba_ativa }}">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="dir" value="{{ direction }}">
+
+        <div class="filter-bar__search">
+            <div class="input-group">
+                <span class="input-group-text border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="search"
+                       name="busca"
+                       value="{{ busca }}"
+                       class="form-control border-start-0 ps-0"
+                       placeholder="Buscar por descrição ou fornecedor..."
+                       id="inputBusca">
+                {% if busca %}
+                <button class="btn btn-outline-secondary border-start-0"
+                        type="button"
+                        hx-get="{% url 'lista_produtos' %}{{ limpar_busca_url }}"
+                        hx-target="#produtos-conteudo"
+                        hx-swap="outerHTML"
+                        hx-push-url="true"
+                        hx-select="#produtos-conteudo"
+                        title="Limpar busca"
+                        aria-label="Limpar busca">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-funnel text-muted"></i></span>
+                <select name="filtro" class="form-select">
+                    <option value="" {% if not filtro_estoque %}selected{% endif %}>Todos os Status</option>
+                    <option value="BAIXO" {% if filtro_estoque == 'BAIXO' %}selected{% endif %}>Estoque baixo</option>
+                    <option value="ZERADO" {% if filtro_estoque == 'ZERADO' %}selected{% endif %}>Estoque zerado</option>
+                    <option value="OK" {% if filtro_estoque == 'OK' %}selected{% endif %}>Estoque normal</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-truck text-muted"></i></span>
+                <select name="fornecedor" class="form-select">
+                    <option value="" {% if not fornecedor_selecionado %}selected{% endif %}>Todos Fornecedores</option>
+                    {% for f in fornecedores_unicos %}
+                    <option value="{{ f }}" {% if fornecedor_selecionado == f %}selected{% endif %}>{{ f }}</option>
+                    {% endfor %}
+                    <option value="SEM_FORNECEDOR" {% if fornecedor_selecionado == 'SEM_FORNECEDOR' %}selected{% endif %}>Sem Fornecedor</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-bar__actions align-items-center">
+            {% if tem_filtros_ativos %}
+            <a href="{% url 'lista_produtos' %}"
+               hx-get="{% url 'lista_produtos' %}"
+               hx-target="#produtos-conteudo"
+               hx-swap="outerHTML"
+               hx-push-url="true"
+               hx-select="#produtos-conteudo"
+               class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar Filtros
+            </a>
+            {% else %}
+            <span class="filter-bar__summary">
+                <i class="bi bi-box-seam me-1"></i>{{ total_filtrado }} exibidos / {{ total_produtos }} produtos
+            </span>
+            {% endif %}
+        </div>
+    </form>
+
+    <div id="produtos-conteudo" data-aba="{{ aba_ativa }}" data-sort="{{ sort }}" data-direction="{{ direction }}">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="metric-card metric-card--info">
+                <span class="metric-card__icon"><i class="bi bi-boxes"></i></span>
+                <span class="metric-card__body">
+                    <span class="metric-card__label">Produtos nesta categoria</span>
+                    <span class="metric-card__value">{{ resumo_aba.total_itens }}</span>
+                </span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card metric-card--success">
+                <span class="metric-card__icon"><i class="bi bi-currency-dollar"></i></span>
+                <span class="metric-card__body">
+                    <span class="metric-card__label">Valor conhecido nesta categoria</span>
+                    <span class="metric-card__value">{{ resumo_aba.valor_custo_formatado }}</span>
+                    {% if resumo_aba.sem_custo > 0 %}<span class="metric-card__helper">Parcial: {{ resumo_aba.sem_custo }} sem custo</span>{% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card metric-card--warning">
+                <span class="metric-card__icon"><i class="bi bi-exclamation-triangle"></i></span>
+                <span class="metric-card__body">
+                    <span class="metric-card__label">Baixo nesta categoria</span>
+                    <span class="metric-card__value">{{ resumo_aba.baixos }}</span>
+                </span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card metric-card--danger">
+                <span class="metric-card__icon"><i class="bi bi-slash-circle"></i></span>
+                <span class="metric-card__body">
+                    <span class="metric-card__label">Zerado nesta categoria</span>
+                    <span class="metric-card__value">{{ resumo_aba.zerados }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <section class="content-panel">
+        <div class="content-panel__header pb-0">
+            <ul class="nav nav-tabs card-header-tabs mobile-scroll-tabs" role="tablist">
+                {% for tab in tabs %}
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link px-3 py-2 d-flex align-items-center gap-2 {% if tab.active %}active{% endif %}"
+                       href="{% url 'lista_produtos' %}{{ tab.querystring }}"
+                       hx-get="{% url 'lista_produtos' %}{{ tab.querystring }}"
+                       hx-target="#produtos-conteudo"
+                       hx-swap="outerHTML"
+                       hx-push-url="true"
+                       hx-select="#produtos-conteudo">
+                        <i class="bi {{ tab.icon }}"></i>
+                        {{ tab.label }}
+                        <span class="badge rounded-pill ms-1 {% if tab.active %}bg-primary{% else %}bg-secondary bg-opacity-25 text-secondary{% endif %}">
+                            {{ tab.count }}
+                        </span>
+                        {% if tab.critical %}<span class="critical-dot bg-danger" title="Contém insumos com alerta de estoque"><span class="visually-hidden">Contém estoque crítico</span></span>{% endif %}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive data-table-responsive">
+                <table class="data-table table table-hover align-middle">
+                    <thead class="table-light user-select-none">
+                        <tr>
+                            <th class="ps-4">
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.descricao }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.descricao }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Descrição <i class="bi {{ sort_icons.descricao }}"></i>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.fornecedor }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.fornecedor }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Fornecedor <i class="bi {{ sort_icons.fornecedor }}"></i>
+                                </a>
+                            </th>
+
+                            {% if aba_ativa == 'PAPEL' or aba_ativa == 'TECIDO' %}
+                            <th>
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.metros_por_rolo }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.metros_por_rolo }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Metros/Rolo <i class="bi {{ sort_icons.metros_por_rolo }}"></i>
+                                </a>
+                            </th>
+                            <th>Rolos Est.</th>
+                            {% endif %}
+
+                            {% if aba_ativa == 'TINTA' %}
+                            <th>Sublimação / Solvente</th>
+                            <th>Cor</th>
+                            <th>Litros/Garrafa</th>
+                            <th>Garrafas Est.</th>
+                            {% endif %}
+
+                            <th>
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.quantidade }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.quantidade }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Saldo em {{ unidade_label }} <i class="bi {{ sort_icons.quantidade }}"></i>
+                                </a>
+                            </th>
+                            <th>
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.preco_custo }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.preco_custo }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Preços (Custo/Venda) <i class="bi {{ sort_icons.preco_custo }}"></i>
+                                </a>
+                            </th>
+                            <th class="pe-4 text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in produtos %}
+                        <tr class="{% if p.status_estoque == 'ZERADO' %}estoque-zerado{% elif p.status_estoque == 'BAIXO' %}estoque-baixo{% endif %}">
+                            <td class="ps-4" data-label="Descrição">
+                                <a href="{% url 'detalhe_produto' p.id %}" class="text-decoration-none fw-medium product-link">{{ p.descricao }}</a>
+                            </td>
+                            <td data-label="Fornecedor">
+                                <span class="text-muted small">{{ p.fornecedor.nome|default:'—' }}</span>
+                            </td>
+
+                            {% if aba_ativa == 'PAPEL' or aba_ativa == 'TECIDO' %}
+                            <td class="text-muted" data-label="Metros/Rolo">
+                                {% if p.metros_por_rolo %}{{ p.metros_por_rolo|floatformat:2 }} m{% else %}—{% endif %}
+                            </td>
+                            <td data-label="Rolos Est.">
+                                {% if p.metros_por_rolo and p.metros_por_rolo > 0 %}
+                                <span class="badge bg-opacity-10 {% if aba_ativa == 'PAPEL' %}bg-primary text-primary{% else %}bg-success text-success{% endif %}">
+                                    {{ p.quantidade_rolos_estimada }} rolos
+                                </span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+
+                            {% if aba_ativa == 'TINTA' %}
+                            <td data-label="Tipo Tinta">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ p.get_tipo_tinta_display }}</span>
+                            </td>
+                            <td data-label="Cor">
+                                <div class="d-flex align-items-center gap-1.5">
+                                    <span class="ink-swatch" style="background-color: {{ p.cor_tinta_hex }}; border-color: {{ p.cor_tinta_hex }};"></span>
+                                    <span class="small">{{ p.get_cor_tinta_display }}</span>
+                                </div>
+                            </td>
+                            <td class="text-muted" data-label="Litros/Garrafa">
+                                {% if p.litros_por_vidro %}{{ p.litros_por_vidro|floatformat:2 }} L{% else %}—{% endif %}
+                            </td>
+                            <td data-label="Garrafas Est.">
+                                {% if p.litros_por_vidro and p.litros_por_vidro > 0 %}
+                                <span class="badge bg-info bg-opacity-10 text-info">{{ p.quantidade_vidros_estimada }} garrafas</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+
+                            {% include 'estoque/produtos/_quantidade_cell.html' with p=p %}
+
+                            <td data-label="Preço Custo/Venda">
+                                <div class="small">
+                                    <div class="text-muted">C: {% if p.preco_custo is not None %}R$ {{ p.preco_custo|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
+                                    <div class="fw-semibold text-primary">V: {% if p.preco_venda is not None %}R$ {{ p.preco_venda|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
+                                    {% if p.margem_lucro is not None %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-opacity-10 {% if p.margem_lucro >= 0 %}bg-success text-success{% else %}bg-danger text-danger{% endif %}">
+                                            {% if p.margem_lucro >= 0 %}+{% endif %}{{ p.margem_lucro }}% margem
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td class="pe-4 text-end" data-label="Ações">
+                                <div class="btn-group btn-group-sm">
+                                    <form class="btn-group btn-group-sm" onsubmit="return false;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="id" value="{{ p.id }}">
+                                        <button type="button"
+                                                class="btn btn-outline-success"
+                                                name="variacao"
+                                                value="1"
+                                                hx-post="{% url 'atualiza_estoque' %}"
+                                                hx-include="closest form"
+                                                hx-boost="false"
+                                                hx-target="#quantidade-cell-{{ p.id }}"
+                                                hx-swap="outerHTML"
+                                                hx-disinherit="hx-select"
+                                                data-sge-loading="inline"
+                                                title="Adicionar 1 {{ p.unidade_simbolo }}"
+                                                aria-label="Adicionar 1 unidade em {{ p.descricao }}"><i class="bi bi-plus-lg"></i></button>
+                                        <button type="button"
+                                                class="btn btn-outline-danger"
+                                                name="variacao"
+                                                value="-1"
+                                                hx-post="{% url 'atualiza_estoque' %}"
+                                                hx-include="closest form"
+                                                hx-boost="false"
+                                                hx-target="#quantidade-cell-{{ p.id }}"
+                                                hx-swap="outerHTML"
+                                                hx-disinherit="hx-select"
+                                                data-sge-loading="inline"
+                                                title="Remover 1 {{ p.unidade_simbolo }}"
+                                                aria-label="Remover 1 unidade de {{ p.descricao }}"><i class="bi bi-dash-lg"></i></button>
+                                    </form>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" aria-label="Mais ações para {{ p.descricao }}"><i class="bi bi-three-dots-vertical"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a href="{% url 'detalhe_produto' p.id %}" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            <li><a href="{% url 'editar_produto' p.id %}" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% include 'estoque/components/empty_state.html' with table_colspan=colspan_atual empty_icon='bi-inbox' empty_title='Nenhum insumo encontrado' empty_description='Ajuste ou limpe os filtros aplicados.' %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include 'estoque/components/pagination.html' with page_obj=page_obj hx_target="#produtos-conteudo" hx_select="#produtos-conteudo" extra_params=extra_params %}
+        </div>
+    </section>
+    </div>
+</div>

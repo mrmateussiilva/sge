@@ -3,12 +3,14 @@ import json
 from decimal import Decimal, InvalidOperation
 from io import StringIO
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -16,14 +18,164 @@ from openpyxl.utils import get_column_letter
 
 from ..log_utils import log_acao
 from ..models import Categoria, Fornecedor, HistoricoPreco, ItemOrdemCompra, Movimentacao, Produto
+from ..services.estoque_status import filtro_baixo, filtro_zerado
+from ..services.units import decimal_br, dinheiro_br
 from .helpers import (
     decimal_ou_none,
     exigir_admin_json,
     json_erro,
     json_ok,
-    produto_lista_vue_json,
-    produto_operacional_json,
+    requisicao_htmx,
 )
+
+
+PRODUTO_TABS = [
+    {'key': 'PAPEL', 'label': 'Papel', 'icon': 'bi-file-earmark-text'},
+    {'key': 'TECIDO', 'label': 'Tecido', 'icon': 'bi-grid-3x3-gap'},
+    {'key': 'TINTA', 'label': 'Tinta', 'icon': 'bi-droplet-half'},
+    {'key': 'AVIAMENTO', 'label': 'Aviamentos', 'icon': 'bi-tools'},
+    {'key': 'OUTRO', 'label': 'Outros', 'icon': 'bi-three-dots'},
+]
+
+
+def produtos_querystring(request, **updates):
+    params = request.GET.copy()
+    params.pop('page', None)
+    for key, value in updates.items():
+        if value in (None, ''):
+            params.pop(key, None)
+        else:
+            params[key] = value
+    query = params.urlencode()
+    return f'?{query}' if query else ''
+
+
+def ordenar_produtos(produtos, sort, direction):
+    reverse = direction == 'desc'
+
+    def text(value):
+        return (value or '').casefold()
+
+    sorters = {
+        'descricao': lambda p: text(p.descricao),
+        'fornecedor': lambda p: text(p.fornecedor.nome if p.fornecedor else ''),
+        'metros_por_rolo': lambda p: p.metros_por_rolo or Decimal('0'),
+        'quantidade': lambda p: p.quantidade_base or Decimal('0'),
+        'preco_custo': lambda p: p.preco_custo if p.preco_custo is not None else Decimal('0'),
+    }
+    return sorted(produtos, key=sorters.get(sort, sorters['descricao']), reverse=reverse)
+
+
+def resumo_produtos(produtos):
+    valor_custo = Decimal('0')
+    sem_custo = 0
+    baixos = 0
+    zerados = 0
+
+    for produto in produtos:
+        if produto.preco_custo is None and produto.quantidade_base > 0:
+            sem_custo += 1
+        elif produto.preco_custo is not None:
+            valor_custo += produto.quantidade_base * produto.preco_custo
+
+        if produto.status_estoque == 'ZERADO':
+            zerados += 1
+        elif produto.status_estoque == 'BAIXO':
+            baixos += 1
+
+    return {
+        'total_itens': len(produtos),
+        'valor_custo_formatado': dinheiro_br(valor_custo),
+        'sem_custo': sem_custo,
+        'baixos': baixos,
+        'zerados': zerados,
+    }
+
+
+def unidade_label_aba(aba, produtos):
+    if aba in ('PAPEL', 'TECIDO'):
+        return 'metros'
+    if aba == 'TINTA':
+        return 'litros'
+    primeiro = produtos[0] if produtos else None
+    return primeiro.unidade_simbolo if primeiro and primeiro.unidade_simbolo else 'unidades'
+
+
+def decimal_form_value(value):
+    return decimal_br(value) if value is not None else ''
+
+
+def produto_form_data(produto=None, data=None):
+    if data is not None:
+        return {
+            'tipo_produto': data.get('tipo_produto', ''),
+            'unidade_medida': data.get('unidade_medida', 'UN'),
+            'descricao': data.get('descricao', ''),
+            'fornecedor_id': data.get('fornecedor_id', ''),
+            'categoria_id': data.get('categoria_id', ''),
+            'quantidade_base': data.get('quantidade_base', ''),
+            'preco_custo': data.get('preco_custo', ''),
+            'preco_venda': data.get('preco_venda', ''),
+            'estoque_minimo': data.get('estoque_minimo', ''),
+            'metros_por_rolo': data.get('metros_por_rolo', ''),
+            'tipo_tinta': data.get('tipo_tinta', 'N/A'),
+            'cor_tinta': data.get('cor_tinta', 'INCOLOR'),
+            'litros_por_vidro': data.get('litros_por_vidro', ''),
+        }
+
+    if produto is None:
+        return {
+            'tipo_produto': '',
+            'unidade_medida': 'UN',
+            'descricao': '',
+            'fornecedor_id': '',
+            'categoria_id': '',
+            'quantidade_base': '',
+            'preco_custo': '',
+            'preco_venda': '',
+            'estoque_minimo': '',
+            'metros_por_rolo': '',
+            'tipo_tinta': 'N/A',
+            'cor_tinta': 'INCOLOR',
+            'litros_por_vidro': '',
+        }
+
+    return {
+        'tipo_produto': produto.tipo_produto,
+        'unidade_medida': produto.unidade_medida or 'UN',
+        'descricao': produto.descricao,
+        'fornecedor_id': str(produto.fornecedor_id or ''),
+        'categoria_id': str(produto.categoria_id or ''),
+        'quantidade_base': decimal_form_value(produto.quantidade_base),
+        'preco_custo': decimal_form_value(produto.preco_custo),
+        'preco_venda': decimal_form_value(produto.preco_venda),
+        'estoque_minimo': decimal_form_value(produto.estoque_minimo),
+        'metros_por_rolo': decimal_form_value(produto.metros_por_rolo),
+        'tipo_tinta': produto.tipo_tinta,
+        'cor_tinta': produto.cor_tinta,
+        'litros_por_vidro': decimal_form_value(produto.litros_por_vidro),
+    }
+
+
+def produto_form_context(produto=None, data=None):
+    fornecedores = [
+        {'id': fornecedor.id, 'id_str': str(fornecedor.id), 'nome': fornecedor.nome}
+        for fornecedor in Fornecedor.objects.all()
+    ]
+    categorias = [
+        {'id': categoria.id, 'id_str': str(categoria.id), 'nome': categoria.nome}
+        for categoria in Categoria.objects.all()
+    ]
+    return {
+        'produto': produto,
+        'form_data': produto_form_data(produto, data),
+        'tipo_produto_choices': Produto.TIPO_PRODUTO_CHOICES,
+        'unidade_medida_choices': Produto.UNIDADE_MEDIDA_CHOICES,
+        'tipo_tinta_choices': Produto.TIPO_TINTA_CHOICES,
+        'cor_tinta_choices': Produto.COR_CHOICES,
+        'fornecedores': fornecedores,
+        'categorias': categorias,
+    }
 
 
 def registrar_ajuste_saldo(produto, usuario, nova_quantidade, observacao):
@@ -44,19 +196,110 @@ def registrar_ajuste_saldo(produto, usuario, nova_quantidade, observacao):
 
 @login_required
 def lista_produtos(request):
-    produtos = list(
-        Produto.objects.select_related('fornecedor', 'categoria').order_by('descricao')
-    )
-    produtos_data = [produto_lista_vue_json(p) for p in produtos]
+    busca = (request.GET.get('busca') or request.GET.get('q') or '').strip()
+    filtro_raw = (request.GET.get('filtro') or request.GET.get('estoque') or '').strip().upper()
+    filtro_estoque = {
+        'BAIXO': 'BAIXO',
+        'ZERADO': 'ZERADO',
+        'OK': 'OK',
+        'NORMAL': 'OK',
+        'TODOS': '',
+    }.get(filtro_raw, '')
+    fornecedor_selecionado = (request.GET.get('fornecedor') or '').strip()
+    aba = (request.GET.get('aba') or 'PAPEL').strip().upper()
+    abas_validas = {tab['key'] for tab in PRODUTO_TABS}
+    if aba not in abas_validas:
+        aba = 'PAPEL'
+
+    sort = (request.GET.get('sort') or 'descricao').strip()
+    if sort not in {'descricao', 'fornecedor', 'metros_por_rolo', 'quantidade', 'preco_custo'}:
+        sort = 'descricao'
+    direction = 'desc' if request.GET.get('dir') == 'desc' else 'asc'
+
+    qs = Produto.objects.select_related('fornecedor', 'categoria').all()
+    if busca:
+        qs = qs.filter(Q(descricao__icontains=busca) | Q(fornecedor__nome__icontains=busca))
+    if filtro_estoque == 'ZERADO':
+        qs = qs.filter(filtro_zerado())
+    elif filtro_estoque == 'BAIXO':
+        qs = qs.filter(filtro_baixo())
+    elif filtro_estoque == 'OK':
+        qs = qs.exclude(filtro_zerado()).exclude(filtro_baixo())
+    if fornecedor_selecionado == 'SEM_FORNECEDOR':
+        qs = qs.filter(fornecedor__isnull=True)
+    elif fornecedor_selecionado:
+        qs = qs.filter(fornecedor__nome=fornecedor_selecionado)
+
+    produtos_filtrados = list(qs)
+    if (busca or filtro_estoque or fornecedor_selecionado) and not any(p.tipo_produto == aba for p in produtos_filtrados):
+        primeira_aba = next(
+            (tab['key'] for tab in PRODUTO_TABS if any(p.tipo_produto == tab['key'] for p in produtos_filtrados)),
+            None,
+        )
+        if primeira_aba:
+            aba = primeira_aba
+
+    produtos_aba = [p for p in produtos_filtrados if p.tipo_produto == aba]
+    produtos_aba = ordenar_produtos(produtos_aba, sort, direction)
+    paginator = Paginator(produtos_aba, 25)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    tabs = []
+    for tab in PRODUTO_TABS:
+        produtos_tab = [p for p in produtos_filtrados if p.tipo_produto == tab['key']]
+        tabs.append({
+            **tab,
+            'active': tab['key'] == aba,
+            'count': len(produtos_tab),
+            'critical': any(p.status_estoque in ('ZERADO', 'BAIXO') for p in produtos_tab),
+            'querystring': produtos_querystring(request, aba=tab['key']),
+        })
+
+    sort_links = {}
+    sort_icons = {}
+    for campo in ('descricao', 'fornecedor', 'metros_por_rolo', 'quantidade', 'preco_custo'):
+        proxima_direcao = 'desc' if sort == campo and direction == 'asc' else 'asc'
+        sort_links[campo] = produtos_querystring(request, sort=campo, dir=proxima_direcao)
+        if sort != campo:
+            sort_icons[campo] = 'bi-arrow-down-up opacity-25 ms-1'
+        elif campo in ('descricao', 'fornecedor'):
+            sort_icons[campo] = 'bi-sort-alpha-down text-primary ms-1' if direction == 'asc' else 'bi-sort-alpha-down-alt text-primary ms-1'
+        else:
+            sort_icons[campo] = 'bi-sort-numeric-down text-primary ms-1' if direction == 'asc' else 'bi-sort-numeric-down-alt text-primary ms-1'
+
     fornecedores_unicos = list(
         Fornecedor.objects.filter(produto__isnull=False)
         .values_list('nome', flat=True).distinct().order_by('nome')
     )
-    return render(request, 'estoque/lista.html', {
-        'produtos_json': json.dumps(produtos_data),
-        'fornecedores_json': json.dumps(fornecedores_unicos),
-        'total_produtos': len(produtos_data),
-    })
+    extra_params = request.GET.copy()
+    extra_params.pop('page', None)
+    extra_params = f'&{extra_params.urlencode()}' if extra_params else ''
+
+    context = {
+        'page_obj': page_obj,
+        'produtos': page_obj,
+        'total_produtos': Produto.objects.count(),
+        'total_filtrado': len(produtos_filtrados),
+        'busca': busca,
+        'filtro_estoque': filtro_estoque,
+        'fornecedor_selecionado': fornecedor_selecionado,
+        'fornecedores_unicos': fornecedores_unicos,
+        'tabs': tabs,
+        'aba_ativa': aba,
+        'resumo_aba': resumo_produtos(produtos_aba),
+        'unidade_label': unidade_label_aba(aba, produtos_aba),
+        'colspan_atual': 9 if aba == 'TINTA' else 7 if aba in ('PAPEL', 'TECIDO') else 5,
+        'sort': sort,
+        'direction': direction,
+        'sort_links': sort_links,
+        'sort_icons': sort_icons,
+        'extra_params': extra_params,
+        'tem_filtros_ativos': bool(busca or filtro_estoque or fornecedor_selecionado),
+        'limpar_busca_url': produtos_querystring(request, busca=None, q=None),
+    }
+    if requisicao_htmx(request):
+        return render(request, 'estoque/produtos/_lista_resultados.html', context)
+    return render(request, 'estoque/lista.html', context)
 
 
 @login_required
@@ -169,11 +412,14 @@ def exportar_csv(request):
 @login_required
 def cadastrar_produto(request):
     if request.method == 'POST':
+        is_json = request.content_type.startswith('application/json')
         try:
-            data = json.loads(request.body)
+            data = json.loads(request.body) if is_json else request.POST
+            if not data.get('tipo_produto') or not data.get('descricao'):
+                raise ValidationError('Tipo de insumo e descrição são obrigatórios.')
             quantidade_inicial = decimal_ou_none(data.get('quantidade_base')) or Decimal('0')
             if quantidade_inicial < 0:
-                return json_erro('Quantidade não pode ser negativa.')
+                raise ValidationError('Quantidade não pode ser negativa.')
             with transaction.atomic():
                 produto = Produto.objects.create(
                     tipo_produto=data['tipo_produto'],
@@ -183,10 +429,10 @@ def cadastrar_produto(request):
                     preco_custo=decimal_ou_none(data.get('preco_custo')),
                     preco_venda=decimal_ou_none(data.get('preco_venda')),
                     estoque_minimo=decimal_ou_none(data.get('estoque_minimo')),
-                    metros_por_rolo=data.get('metros_por_rolo') or None,
+                    metros_por_rolo=decimal_ou_none(data.get('metros_por_rolo')),
                     tipo_tinta=data.get('tipo_tinta', 'N/A'),
                     cor_tinta=data.get('cor_tinta', 'INCOLOR'),
-                    litros_por_vidro=data.get('litros_por_vidro') or None,
+                    litros_por_vidro=decimal_ou_none(data.get('litros_por_vidro')),
                     unidade_medida=data.get('unidade_medida', 'UN'),
                     categoria_id=data.get('categoria_id') or None,
                 )
@@ -198,25 +444,32 @@ def cadastrar_produto(request):
                 )
                 produto.refresh_from_db()
                 log_acao(request.user, 'CRIAR', f'Cadastrou produto {produto.descricao}', 'Produto', produto.id)
-            return JsonResponse({'ok': True, 'id': produto.id})
+            if is_json:
+                return JsonResponse({'ok': True, 'id': produto.id})
+            messages.success(request, 'Produto cadastrado com sucesso.')
+            return redirect('detalhe_produto', id=produto.id)
         except (json.JSONDecodeError, KeyError, InvalidOperation, TypeError, ValueError):
-            return json_erro('Dados inválidos.')
+            if is_json:
+                return json_erro('Dados inválidos.')
+            messages.error(request, 'Dados inválidos.')
+            return render(request, 'estoque/cadastrar_produto.html', produto_form_context(data=request.POST), status=400)
         except ValidationError as exc:
-            return json_erro('; '.join(exc.messages))
-    fornecedores = Fornecedor.objects.all().values('id', 'nome')
-    categorias = Categoria.objects.all().values('id', 'nome')
-    return render(request, 'estoque/cadastrar_produto.html', {
-        'fornecedores': list(fornecedores),
-        'categorias': list(categorias),
-    })
+            if is_json:
+                return json_erro('; '.join(exc.messages))
+            messages.error(request, '; '.join(exc.messages))
+            return render(request, 'estoque/cadastrar_produto.html', produto_form_context(data=request.POST), status=400)
+    return render(request, 'estoque/cadastrar_produto.html', produto_form_context())
 
 
 @login_required
 def editar_produto(request, id):
     produto = get_object_or_404(Produto, id=id)
     if request.method == 'POST':
+        is_json = request.content_type.startswith('application/json')
         try:
-            data = json.loads(request.body)
+            data = json.loads(request.body) if is_json else request.POST
+            if not data.get('tipo_produto') or not data.get('descricao'):
+                raise ValidationError('Tipo de insumo e descrição são obrigatórios.')
             nova_quantidade = decimal_ou_none(data.get('quantidade_base')) or Decimal('0')
             with transaction.atomic():
                 produto = Produto.objects.select_for_update().get(pk=produto.pk)
@@ -228,10 +481,10 @@ def editar_produto(request, id):
                 produto.preco_custo = decimal_ou_none(data.get('preco_custo'))
                 produto.preco_venda = decimal_ou_none(data.get('preco_venda'))
                 produto.estoque_minimo = decimal_ou_none(data.get('estoque_minimo'))
-                produto.metros_por_rolo = data.get('metros_por_rolo') or None
+                produto.metros_por_rolo = decimal_ou_none(data.get('metros_por_rolo'))
                 produto.tipo_tinta = data.get('tipo_tinta', 'N/A')
                 produto.cor_tinta = data.get('cor_tinta', 'INCOLOR')
-                produto.litros_por_vidro = data.get('litros_por_vidro') or None
+                produto.litros_por_vidro = decimal_ou_none(data.get('litros_por_vidro'))
                 produto.unidade_medida = data.get('unidade_medida', 'UN')
                 produto.categoria_id = data.get('categoria_id') or None
                 preco_custo_mudou = old_preco_custo != produto.preco_custo
@@ -255,34 +508,21 @@ def editar_produto(request, id):
                         usuario=request.user,
                     )
                 log_acao(request.user, 'EDITAR', f'Editou produto {produto.descricao}', 'Produto', produto.id)
-            return JsonResponse({'ok': True})
+            if is_json:
+                return JsonResponse({'ok': True})
+            messages.success(request, 'Produto atualizado com sucesso.')
+            return redirect('detalhe_produto', id=produto.id)
         except (json.JSONDecodeError, KeyError, InvalidOperation, TypeError, ValueError):
-            return json_erro('Dados inválidos.')
+            if is_json:
+                return json_erro('Dados inválidos.')
+            messages.error(request, 'Dados inválidos.')
+            return render(request, 'estoque/editar_produto.html', produto_form_context(produto, request.POST), status=400)
         except ValidationError as exc:
-            return json_erro('; '.join(exc.messages))
-    fornecedores = Fornecedor.objects.all().values('id', 'nome')
-    categorias = Categoria.objects.all().values('id', 'nome')
-    return render(request, 'estoque/editar_produto.html', {
-        'produto': produto,
-        'fornecedores': list(fornecedores),
-        'categorias': list(categorias),
-        'produto_json': json.dumps({
-            'id': produto.id,
-            'tipo_produto': produto.tipo_produto,
-            'descricao': produto.descricao,
-            'fornecedor_id': produto.fornecedor_id or '',
-            'categoria_id': produto.categoria_id or '',
-            'quantidade_base': float(produto.quantidade_base) if produto.quantidade_base else '',
-            'preco_custo': float(produto.preco_custo) if produto.preco_custo is not None else '',
-            'preco_venda': float(produto.preco_venda) if produto.preco_venda is not None else '',
-            'estoque_minimo': float(produto.estoque_minimo) if produto.estoque_minimo is not None else '',
-            'metros_por_rolo': float(produto.metros_por_rolo) if produto.metros_por_rolo else None,
-            'tipo_tinta': produto.tipo_tinta,
-            'cor_tinta': produto.cor_tinta,
-            'litros_por_vidro': float(produto.litros_por_vidro) if produto.litros_por_vidro else None,
-            'unidade_medida': produto.unidade_medida or 'UN',
-        }),
-    })
+            if is_json:
+                return json_erro('; '.join(exc.messages))
+            messages.error(request, '; '.join(exc.messages))
+            return render(request, 'estoque/editar_produto.html', produto_form_context(produto, request.POST), status=400)
+    return render(request, 'estoque/editar_produto.html', produto_form_context(produto))
 
 
 @login_required

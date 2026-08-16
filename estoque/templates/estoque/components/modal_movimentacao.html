@@ -31,6 +31,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="globalMoveForm">
+                {% csrf_token %}
                 <div class="modal-body py-3">
                     <input type="hidden" id="globalMoveProdutoId">
                     <div class="mb-3 position-relative">

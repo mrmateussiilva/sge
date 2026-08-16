@@ -1,0 +1,158 @@
+<section class="content-panel">
+  <div class="card-body p-4">
+    <form method="post"
+          action="{{ form_action }}"
+          hx-boost="false"
+          class="row g-3"
+          data-product-form
+          data-auto-unidade="{{ auto_unidade|yesno:'true,false' }}"
+          data-submit-label="{{ submit_label }}"
+          data-loading-label="{{ loading_label }}">
+      {% csrf_token %}
+
+      <div class="col-12">
+        <label class="form-label fw-medium small text-uppercase text-secondary" for="id_tipo_produto">Tipo de Insumo</label>
+        <select id="id_tipo_produto" name="tipo_produto" class="form-select form-select-lg" required data-product-type>
+          <option value="" {% if not form_data.tipo_produto %}selected{% endif %} disabled>Selecione o tipo de insumo...</option>
+          {% for value, label in tipo_produto_choices %}
+          <option value="{{ value }}" {% if form_data.tipo_produto == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="product-form-fields row g-3 {% if not form_data.tipo_produto %}d-none{% endif %}" data-product-details>
+        <div class="col-12">
+          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_descricao">Descrição</label>
+          <input id="id_descricao" name="descricao" type="text" class="form-control form-control-lg" value="{{ form_data.descricao }}" placeholder="Ex: Papel Vinil Adesivo Branco" required data-description-input>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_quantidade_base">{{ quantidade_label }}</label>
+          <input id="id_quantidade_base" name="quantidade_base" type="text" inputmode="decimal" class="form-control" value="{{ form_data.quantidade_base }}" placeholder="0,00" {% if quantidade_readonly %}readonly{% endif %} data-decimal-input>
+          {% if quantidade_help %}<div class="form-text">{{ quantidade_help }}</div>{% endif %}
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_unidade_medida">Unid. Medida</label>
+          <select id="id_unidade_medida" name="unidade_medida" class="form-select" data-unidade-select>
+            {% for value, label in unidade_medida_choices %}
+            <option value="{{ value }}" {% if form_data.unidade_medida == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_estoque_minimo">Est. Mínimo</label>
+          <input id="id_estoque_minimo" name="estoque_minimo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.estoque_minimo }}" placeholder="0,00" data-decimal-input>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_fornecedor">Fornecedor</label>
+          <select id="id_fornecedor" name="fornecedor_id" class="form-select">
+            <option value="">-</option>
+            {% for fornecedor in fornecedores %}
+            <option value="{{ fornecedor.id }}" {% if form_data.fornecedor_id == fornecedor.id_str %}selected{% endif %}>{{ fornecedor.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 mt-2">
+          <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#camposAvancados">
+            <i class="bi bi-sliders me-1"></i>Campos avançados
+          </button>
+        </div>
+
+        <div class="collapse col-12" id="camposAvancados">
+          <div class="row g-3 mt-1">
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_categoria">Categoria</label>
+              <select id="id_categoria" name="categoria_id" class="form-select">
+                <option value="">- Sem Categoria -</option>
+                {% for categoria in categorias %}
+                <option value="{{ categoria.id }}" {% if form_data.categoria_id == categoria.id_str %}selected{% endif %}>{{ categoria.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_custo">Preço de Custo</label>
+              <div class="input-group">
+                <span class="input-group-text">R$</span>
+                <input id="id_preco_custo" name="preco_custo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_custo }}" placeholder="0,00" data-decimal-input data-preco-custo>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_venda">Preço de Venda</label>
+              <div class="input-group">
+                <span class="input-group-text">R$</span>
+                <input id="id_preco_venda" name="preco_venda" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_venda }}" placeholder="0,00" data-decimal-input data-preco-venda>
+              </div>
+            </div>
+
+            <div class="col-12 d-none" data-financial-summary>
+              <div class="financial-summary p-3 d-flex flex-wrap gap-4 align-items-center justify-content-between">
+                <div class="d-flex gap-4 flex-wrap">
+                  <div>
+                    <small class="metric-card__label">Lucro Estimado</small>
+                    <strong class="fs-5" data-lucro-valor>R$ 0,00</strong>
+                  </div>
+                  <div>
+                    <small class="metric-card__label">Margem de Lucro (Markup)</small>
+                    <strong class="fs-5" data-markup-valor>0,0%</strong>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="small text-muted fw-medium">Simular Markup:</span>
+                  <div class="input-group input-group-sm markup-input">
+                    <input type="number" class="form-control" min="0" step="0.1" placeholder="Ex: 50" data-markup-input>
+                    <span class="input-group-text">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 d-none" data-type-field="TINTA">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_tipo_tinta">Tipo de Tinta</label>
+              <select id="id_tipo_tinta" name="tipo_tinta" class="form-select">
+                {% for value, label in tipo_tinta_choices %}
+                <option value="{{ value }}" {% if form_data.tipo_tinta == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 d-none" data-type-field="TINTA">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_cor_tinta">Cor</label>
+              <select id="id_cor_tinta" name="cor_tinta" class="form-select">
+                {% for value, label in cor_tinta_choices %}
+                <option value="{{ value }}" {% if form_data.cor_tinta == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4 d-none" data-type-field="TINTA">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_litros_por_vidro">Litros / Vidro</label>
+              <input id="id_litros_por_vidro" name="litros_por_vidro" type="text" inputmode="decimal" class="form-control" value="{{ form_data.litros_por_vidro }}" placeholder="Ex: 3,6" data-decimal-input>
+            </div>
+
+            <div class="col-md-4 d-none" data-type-field="PAPEL TECIDO">
+              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_metros_por_rolo">Metros / Rolo</label>
+              <input id="id_metros_por_rolo" name="metros_por_rolo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.metros_por_rolo }}" placeholder="Ex: 50" data-decimal-input>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 mt-4">
+          <button type="submit" class="btn btn-primary btn-lg px-5 w-100" data-submit-button>
+            <i class="bi bi-check-lg me-2"></i><span data-submit-text>{{ submit_label }}</span>
+          </button>
+          {% if cancel_url %}
+          <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-lg px-5 w-100 mt-2">
+            <i class="bi bi-arrow-left me-2"></i>Cancelar
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+</section>

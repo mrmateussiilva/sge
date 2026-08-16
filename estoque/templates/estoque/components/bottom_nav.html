@@ -1,5 +1,10 @@
 <!-- Bottom Navigation (Mobile) -->
-<nav class="bottom-nav d-md-none border-top shadow-sm w-100 d-flex justify-content-around align-items-center pb-2 pt-2 position-fixed bottom-0 z-3" id="mobile-bottom-nav">
+<nav class="bottom-nav d-md-none border-top shadow-sm w-100 d-flex justify-content-around align-items-center pb-2 pt-2 position-fixed bottom-0 z-3"
+     id="mobile-bottom-nav"
+     hx-boost="true"
+     hx-target="#main-content"
+     hx-select="#main-content"
+     hx-swap="innerHTML">
     <a href="/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if request.path == '/' %}text-primary fw-bold{% endif %}">
         <i class="bi bi-grid-1x2-fill fs-5 mb-1"></i><span class="bottom-nav__label">Início</span>
     </a>
@@ -13,7 +18,7 @@
     <a href="/ordens/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if '/ordens/' in request.path %}text-primary fw-bold{% endif %}">
         <i class="bi bi-cart fs-5 mb-1"></i><span class="bottom-nav__label">Ordens</span>
     </a>
-    <a href="#" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary" onclick="toggleSidebar(); return false;">
+    <a href="#" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary" hx-boost="false" onclick="toggleSidebar(); return false;">
         <i class="bi bi-three-dots fs-5 mb-1"></i><span class="bottom-nav__label">Mais</span>
     </a>
 </nav>

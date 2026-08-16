@@ -5,36 +5,37 @@
 <div class="page-container">
 {% include 'estoque/components/page_header.html' with page_title='Nova ordem de compra' page_description='Selecione o fornecedor e informe os materiais solicitados.' page_icon='bi-cart-plus' %}
 
-<div id="app">
-    <form @submit.prevent="salvar">
-        <section class="content-panel mb-4">
-            <div class="card-body p-4">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-medium">Fornecedor</label>
-                        <select v-model="fornecedor_id" class="form-select">
-                            <option value="">-- Selecione --</option>
-                            {% for f in fornecedores %}
-                            <option value="{{ f.id }}">{{ f.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-medium">Observação</label>
-                        <input type="text" v-model="observacao" class="form-control" placeholder="Opicional">
-                    </div>
+<form method="post" action="{% url 'criar_ordem' %}" hx-boost="false" data-order-form>
+    {% csrf_token %}
+    <section class="content-panel mb-4">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-medium" for="id_fornecedor">Fornecedor</label>
+                    <select id="id_fornecedor" name="fornecedor_id" class="form-select">
+                        <option value="">-- Selecione --</option>
+                        {% for f in fornecedores %}
+                        <option value="{{ f.id }}" {% if form_data.fornecedor_id == f.id|stringformat:'s' %}selected{% endif %}>{{ f.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-medium" for="id_observacao">Observação</label>
+                    <input id="id_observacao" type="text" name="observacao" value="{{ form_data.observacao }}" class="form-control" placeholder="Opcional">
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section class="content-panel mb-4">
-            <div class="content-panel__header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-semibold">Itens</h5>
-                <button type="button" class="btn btn-sm btn-success" @click="adicionarItem">
-                    <i class="bi bi-plus-lg me-1"></i>Item
-                </button>
-            </div>
-            <div class="card-body p-0">
+    <section class="content-panel mb-4">
+        <div class="content-panel__header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-semibold">Itens</h5>
+            <button type="button" class="btn btn-sm btn-success" data-add-item>
+                <i class="bi bi-plus-lg me-1"></i>Item
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive data-table-responsive">
                 <table class="data-table table">
                     <thead class="table-light">
                         <tr>
@@ -45,158 +46,191 @@
                             <th class="pe-4"></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr v-for="(item, idx) in itens" :key="idx">
+                    <tbody data-items-body>
+                        {% for item in form_itens %}
+                        <tr data-item-row>
                             <td class="ps-4" data-label="Produto">
-                                <input type="text" class="form-control form-control-sm" placeholder="Pesquisar produto..." 
-                                    :value="getProductName(item.produto_id)" 
-                                    @input="onProductSearch(idx, $event)" 
-                                    list="produtos-datalist" required>
+                                <select name="produto_id" class="form-select form-select-sm" required data-product-select>
+                                    <option value="">Selecione um produto...</option>
+                                    {% for p in produtos %}
+                                    <option value="{{ p.id }}" data-price="{{ p.preco_custo|default_if_none:'0' }}" {% if item.produto_id == p.id_str %}selected{% endif %}>{{ p.descricao }}</option>
+                                    {% endfor %}
+                                </select>
                             </td>
                             <td data-label="Quantidade">
-                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.quantidade)" @input="filterItemDecimal('quantidade', idx, $event)" class="inline-stock-edit form-control form-control-sm" required>
+                                <input type="text" inputmode="decimal" name="quantidade" value="{{ item.quantidade }}" class="inline-stock-edit form-control form-control-sm" required data-quantity-input>
                             </td>
                             <td data-label="Preço Unitário">
-                                <input type="text" inputmode="decimal" :value="formatInitialVal(item.preco_unitario)" @input="filterItemDecimal('preco_unitario', idx, $event)" class="price-input form-control form-control-sm" required>
+                                <input type="text" inputmode="decimal" name="preco_unitario" value="{{ item.preco_unitario }}" class="price-input form-control form-control-sm" required data-price-input>
                             </td>
-                            <td class="fw-medium" data-label="Subtotal">R$ [[ (item.quantidade * item.preco_unitario).toFixed(2) ]]</td>
+                            <td class="fw-medium" data-label="Subtotal" data-subtotal>R$ 0,00</td>
                             <td class="pe-4" data-label="Ação">
-                                <button type="button" class="btn btn-sm btn-outline-danger" @click="removerItem(idx)">
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-item title="Remover item" aria-label="Remover item">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
                         </tr>
-                        <tr v-if="itens.length === 0"><td colspan="5"><div class="empty-state"><i class="bi bi-cart-plus empty-state__icon"></i><p class="empty-state__title">Nenhum item adicionado</p><p class="empty-state__description">Use o botão Item para incluir um produto na ordem.</p></div></td></tr>
+                        {% endfor %}
+                        <tr data-empty-row class="{% if form_itens %}d-none{% endif %}">
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <i class="bi bi-cart-plus empty-state__icon"></i>
+                                    <p class="empty-state__title">Nenhum item adicionado</p>
+                                    <p class="empty-state__description">Use o botão Item para incluir um produto na ordem.</p>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                     <tfoot>
                         <tr class="table-light fw-bold">
                             <td colspan="3" class="text-end pe-3">Total:</td>
-                            <td data-label="Total">R$ [[ total.toFixed(2) ]]</td>
+                            <td data-label="Total" data-order-total>R$ 0,00</td>
                             <td data-label=""></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
-        </section>
-
-        <div class="page-actions">
-            <button type="submit" class="btn btn-primary" :disabled="itens.length === 0">
-                <i class="bi bi-check-lg me-1"></i>Salvar Ordem
-            </button>
-            <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary">Cancelar</a>
         </div>
+    </section>
 
-        <datalist id="produtos-datalist">
-            {% for p in produtos %}
-            <option value="{{ p.descricao }}"></option>
-            {% endfor %}
-        </datalist>
-    </form>
-</div>
+    <div class="page-actions">
+        <button type="submit" class="btn btn-primary" data-submit-button disabled>
+            <i class="bi bi-check-lg me-1"></i><span data-submit-text>Salvar Ordem</span>
+        </button>
+        <a href="{% url 'lista_ordens' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+
+    <template data-item-template>
+        <tr data-item-row>
+            <td class="ps-4" data-label="Produto">
+                <select name="produto_id" class="form-select form-select-sm" required data-product-select>
+                    <option value="">Selecione um produto...</option>
+                    {% for p in produtos %}
+                    <option value="{{ p.id }}" data-price="{{ p.preco_custo|default_if_none:'0' }}">{{ p.descricao }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td data-label="Quantidade">
+                <input type="text" inputmode="decimal" name="quantidade" value="1,00" class="inline-stock-edit form-control form-control-sm" required data-quantity-input>
+            </td>
+            <td data-label="Preço Unitário">
+                <input type="text" inputmode="decimal" name="preco_unitario" value="0,00" class="price-input form-control form-control-sm" required data-price-input>
+            </td>
+            <td class="fw-medium" data-label="Subtotal" data-subtotal>R$ 0,00</td>
+            <td class="pe-4" data-label="Ação">
+                <button type="button" class="btn btn-sm btn-outline-danger" data-remove-item title="Remover item" aria-label="Remover item">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    </template>
+</form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
-    const { createApp } = Vue;
-    const csrfToken = '{{ csrf_token }}';
-    createApp({
-        compilerOptions: {
-            delimiters: ['[[', ']]']
-        },
-        data() {
-            return {
-                fornecedor_id: '',
-                observacao: '',
-                itens: [],
-                produtosMap: {
-                    {% for p in produtos %}
-                    "{{ p.descricao|escapejs }}": {{ p.id }},
-                    {% endfor %}
-                },
-                produtosNomesMap: {
-                    {% for p in produtos %}
-                    {{ p.id }}: "{{ p.descricao|escapejs }}",
-                    {% endfor %}
-                },
-                produtosPrecos: {
-                    {% for p in produtos %}
-                    {{ p.id }}: {{ p.preco_custo|default:0 }},
-                    {% endfor %}
-                }
-            };
-        },
-        computed: {
-            total() {
-                return this.itens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
-            },
-        },
-        methods: {
-            getProductName(id) {
-                return this.produtosNomesMap[id] || '';
-            },
-            onProductSearch(idx, event) {
-                const val = event.target.value;
-                const id = this.produtosMap[val];
-                if (id !== undefined) {
-                    this.itens[idx].produto_id = id;
-                    // Auto-preenche o preço unitário com o preço de custo atual
-                    const preco = this.produtosPrecos[id];
-                    if (preco !== undefined) {
-                        this.itens[idx].preco_unitario = parseFloat(preco);
-                    }
-                } else {
-                    this.itens[idx].produto_id = '';
-                }
-            },
-            formatInitialVal(val) {
-                if (val === null || val === undefined || val === '') return '';
-                let num = parseFloat(val);
-                if (isNaN(num)) return '';
-                let formatted = num.toFixed(2).replace('.', ',');
-                return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            },
-            filterItemDecimal(field, idx, event) {
-                let val = event.target.value.replace(/\D/g, '');
-                if (!val) {
-                    this.itens[idx][field] = '';
-                    event.target.value = '';
-                    return;
-                }
-                let num = (parseInt(val, 10) / 100).toFixed(2);
-                let formatted = num.replace('.', ',');
-                formatted = formatted.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                this.itens[idx][field] = num;
-                event.target.value = formatted;
-            },
-            adicionarItem() {
-                this.itens.push({ produto_id: '', quantidade: 1, preco_unitario: 0 });
-            },
-            removerItem(idx) {
-                this.itens.splice(idx, 1);
-            },
-            salvar() {
-                if (this.itens.length === 0) return;
-                fetch('{% url "criar_ordem" %}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                    body: JSON.stringify({
-                        fornecedor_id: this.fornecedor_id,
-                        observacao: this.observacao,
-                        itens: this.itens.filter(i => i.produto_id !== ''),
-                    }),
-                }).then(function(r) { return r.json(); }).then(function(data) {
-                    if (data.ok) {
-                        showToast('Ordem criada com sucesso!');
-                        setTimeout(function() { window.location.href = '/ordens/'; }, 800);
-                    } else {
-                        showToast('Erro ao criar ordem.', 'danger');
-                    }
-                });
-            },
-        },
-    }).mount('#app');
+    const form = document.querySelector('[data-order-form]');
+    if (!form) return;
+
+    const body = form.querySelector('[data-items-body]');
+    const template = form.querySelector('[data-item-template]');
+    const emptyRow = form.querySelector('[data-empty-row]');
+    const totalEl = form.querySelector('[data-order-total]');
+    const submitButton = form.querySelector('[data-submit-button]');
+    const submitText = form.querySelector('[data-submit-text]');
+
+    function parseDecimal(value) {
+        if (value === null || value === undefined || value === '') return 0;
+        let text = String(value).trim();
+        if (text.includes(',')) {
+            text = text.replace(/\./g, '').replace(',', '.');
+        }
+        text = text.replace(/[^0-9.\-]/g, '');
+        const number = Number.parseFloat(text);
+        return Number.isFinite(number) ? number : 0;
+    }
+
+    function formatMoney(value) {
+        return 'R$ ' + Number(value || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function formatDecimal(value) {
+        return Number(value || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function rows() {
+        return Array.from(body.querySelectorAll('[data-item-row]'));
+    }
+
+    function updateTotals() {
+        let total = 0;
+        rows().forEach(function(row) {
+            const quantity = parseDecimal(row.querySelector('[data-quantity-input]')?.value);
+            const price = parseDecimal(row.querySelector('[data-price-input]')?.value);
+            const subtotal = quantity * price;
+            total += subtotal;
+            const subtotalEl = row.querySelector('[data-subtotal]');
+            if (subtotalEl) subtotalEl.textContent = formatMoney(subtotal);
+        });
+        if (totalEl) totalEl.textContent = formatMoney(total);
+        if (emptyRow) emptyRow.classList.toggle('d-none', rows().length > 0);
+        if (submitButton) submitButton.disabled = rows().length === 0;
+    }
+
+    function addItem() {
+        const fragment = template.content.cloneNode(true);
+        body.insertBefore(fragment, emptyRow);
+        const row = rows().at(-1);
+        if (row) row.querySelector('[data-product-select]')?.focus();
+        updateTotals();
+    }
+
+    form.addEventListener('click', function(event) {
+        const addButton = event.target.closest('[data-add-item]');
+        if (addButton) {
+            addItem();
+            return;
+        }
+
+        const removeButton = event.target.closest('[data-remove-item]');
+        if (removeButton) {
+            removeButton.closest('[data-item-row]')?.remove();
+            updateTotals();
+        }
+    });
+
+    form.addEventListener('change', function(event) {
+        const productSelect = event.target.closest('[data-product-select]');
+        if (!productSelect) return;
+        const option = productSelect.selectedOptions[0];
+        const priceInput = productSelect.closest('[data-item-row]')?.querySelector('[data-price-input]');
+        if (priceInput && option && option.dataset.price !== undefined) {
+            priceInput.value = formatDecimal(parseDecimal(option.dataset.price));
+        }
+        updateTotals();
+    });
+
+    form.addEventListener('input', function(event) {
+        if (event.target.matches('[data-quantity-input], [data-price-input]')) {
+            updateTotals();
+        }
+    });
+
+    form.addEventListener('submit', function() {
+        if (!submitButton || !submitText) return;
+        submitButton.disabled = true;
+        submitText.textContent = 'Salvando...';
+    });
+
+    updateTotals();
 })();
 </script>
 {% endblock %}

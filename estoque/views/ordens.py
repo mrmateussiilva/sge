@@ -1,15 +1,18 @@
 import json
+from decimal import InvalidOperation
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from ..log_utils import log_acao
 from ..models import Fornecedor, ItemOrdemCompra, Movimentacao, OrdemCompra, Produto
-from .helpers import requisicao_htmx
+from .helpers import decimal_ou_none, json_erro, requisicao_htmx
 
 
 @login_required
@@ -59,30 +62,110 @@ def lista_ordens(request):
     return render(request, 'estoque/lista_ordens.html', context)
 
 
+def contexto_form_ordem(data=None, itens=None):
+    produtos = [
+        {
+            'id': produto.id,
+            'id_str': str(produto.id),
+            'descricao': produto.descricao,
+            'preco_custo': produto.preco_custo,
+        }
+        for produto in Produto.objects.all().order_by('descricao')
+    ]
+    return {
+        'fornecedores': Fornecedor.objects.all().order_by('nome'),
+        'produtos': produtos,
+        'form_data': {
+            'fornecedor_id': data.get('fornecedor_id', '') if data is not None else '',
+            'observacao': data.get('observacao', '') if data is not None else '',
+        },
+        'form_itens': itens or [],
+    }
+
+
+def itens_ordem_de_post(post_data):
+    produto_ids = post_data.getlist('produto_id')
+    quantidades = post_data.getlist('quantidade')
+    precos = post_data.getlist('preco_unitario')
+    itens = []
+
+    for idx in range(max(len(produto_ids), len(quantidades), len(precos))):
+        produto_id = produto_ids[idx] if idx < len(produto_ids) else ''
+        quantidade = quantidades[idx] if idx < len(quantidades) else ''
+        preco_unitario = precos[idx] if idx < len(precos) else ''
+        if not produto_id and not quantidade and not preco_unitario:
+            continue
+        itens.append({
+            'produto_id': produto_id,
+            'quantidade': quantidade,
+            'preco_unitario': preco_unitario,
+        })
+    return itens
+
+
+def validar_itens_ordem(itens):
+    if not itens:
+        raise ValidationError('Inclua ao menos um item na ordem.')
+
+    itens_validados = []
+    for item in itens:
+        produto_id = item.get('produto_id')
+        quantidade = decimal_ou_none(item.get('quantidade'))
+        preco_unitario = decimal_ou_none(item.get('preco_unitario'))
+
+        if not produto_id:
+            raise ValidationError('Selecione um produto para todos os itens.')
+        if quantidade is None or quantidade <= 0:
+            raise ValidationError('Quantidade deve ser maior que zero em todos os itens.')
+        if preco_unitario is None or preco_unitario < 0:
+            raise ValidationError('Preço unitário não pode ser negativo.')
+        if not Produto.objects.filter(pk=produto_id).exists():
+            raise ValidationError('Produto informado não foi encontrado.')
+
+        itens_validados.append({
+            'produto_id': produto_id,
+            'quantidade': quantidade,
+            'preco_unitario': preco_unitario,
+        })
+    return itens_validados
+
+
 @login_required
 def criar_ordem(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        with transaction.atomic():
-            ordem = OrdemCompra.objects.create(
-                fornecedor_id=data.get('fornecedor_id') or None,
-                observacao=data.get('observacao', ''),
-            )
-            for item in data.get('itens', []):
-                ItemOrdemCompra.objects.create(
-                    ordem=ordem,
-                    produto_id=item['produto_id'],
-                    quantidade=item['quantidade'],
-                    preco_unitario=item['preco_unitario'],
+        is_json = request.content_type.startswith('application/json')
+        try:
+            data = json.loads(request.body) if is_json else request.POST
+            itens_raw = data.get('itens', []) if is_json else itens_ordem_de_post(request.POST)
+            itens = validar_itens_ordem(itens_raw)
+            with transaction.atomic():
+                ordem = OrdemCompra.objects.create(
+                    fornecedor_id=data.get('fornecedor_id') or None,
+                    observacao=data.get('observacao', ''),
                 )
-        log_acao(request.user, 'CRIAR', f'Criou ordem de compra #{ordem.id}', 'OrdemCompra', ordem.id)
-        return JsonResponse({'ok': True, 'id': ordem.id})
-    fornecedores = Fornecedor.objects.all().values('id', 'nome')
-    produtos = Produto.objects.all().values('id', 'descricao', 'preco_custo')
-    return render(request, 'estoque/criar_ordem.html', {
-        'fornecedores': list(fornecedores),
-        'produtos': list(produtos),
-    })
+                for item in itens:
+                    ItemOrdemCompra.objects.create(
+                        ordem=ordem,
+                        produto_id=item['produto_id'],
+                        quantidade=item['quantidade'],
+                        preco_unitario=item['preco_unitario'],
+                    )
+            log_acao(request.user, 'CRIAR', f'Criou ordem de compra #{ordem.id}', 'OrdemCompra', ordem.id)
+            if is_json:
+                return JsonResponse({'ok': True, 'id': ordem.id})
+            messages.success(request, f'Ordem de compra #{ordem.id} criada com sucesso.')
+            return redirect('detalhe_ordem', id=ordem.id)
+        except (json.JSONDecodeError, InvalidOperation, TypeError, ValueError):
+            if is_json:
+                return json_erro('Dados inválidos.')
+            messages.error(request, 'Dados inválidos.')
+            return render(request, 'estoque/criar_ordem.html', contexto_form_ordem(request.POST, itens_ordem_de_post(request.POST)), status=400)
+        except ValidationError as exc:
+            if is_json:
+                return json_erro('; '.join(exc.messages))
+            messages.error(request, '; '.join(exc.messages))
+            return render(request, 'estoque/criar_ordem.html', contexto_form_ordem(request.POST, itens_ordem_de_post(request.POST)), status=400)
+    return render(request, 'estoque/criar_ordem.html', contexto_form_ordem())
 
 
 @login_required
