@@ -39,6 +39,7 @@
                     autocomplete="off"
                     hx-get="{% url 'lista_categorias' %}"
                     hx-trigger="input changed delay:350ms, search"
+                    hx-sync="this:replace"
                     hx-target="#categorias-resultados"
                     hx-push-url="true"
                     hx-disinherit="hx-select"

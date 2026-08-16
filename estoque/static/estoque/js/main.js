@@ -126,7 +126,9 @@ function setHtmxRequestState(source, active) {
 }
 
 document.addEventListener('htmx:beforeRequest', function(evt) {
-    if (evt.detail.elt.dataset.sgeLoading !== 'inline') {
+    var target = evt.detail.target;
+    var isPageNavigation = target && (target.id === 'main-content' || target === document.body);
+    if (isPageNavigation && evt.detail.elt.dataset.sgeLoading !== 'inline') {
         var overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.classList.add('show');
     }
@@ -139,8 +141,32 @@ document.addEventListener('htmx:afterRequest', function(evt) {
     setHtmxRequestState(evt.detail.elt, false);
 });
 
+function resetMovementFields(form) {
+    var quantidade = form.querySelector('[name="quantidade"]');
+    var observacao = form.querySelector('[name="observacao"]');
+    var entrada = form.querySelector('[name="tipo"][value="ENTRADA"]');
+    var produto = form.querySelector('[name="produto_id"]');
+
+    if (quantidade) quantidade.value = '';
+    if (observacao) observacao.value = '';
+    if (entrada) entrada.checked = true;
+    if (produto && window.htmx) window.htmx.trigger(produto, 'change');
+}
+
 document.addEventListener('htmx:responseError', function(evt) {
     showToast('Não foi possível concluir a operação. Tente novamente.', 'danger');
+});
+
+document.addEventListener('htmx:targetError', function(evt) {
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.remove('show');
+    var source = evt.detail && evt.detail.elt;
+    var selector = evt.detail && evt.detail.target;
+    console.error('Alvo HTMX não encontrado.', {
+        selector: selector,
+        element: source,
+    });
+    showToast('A área da página não está disponível. Atualize e tente novamente.', 'danger');
 });
 
 document.addEventListener('htmx:sendError', function() {

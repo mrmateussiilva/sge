@@ -17,12 +17,18 @@ from .helpers import json_erro, json_ok, produto_operacional_json, requisicao_ht
 def info_produto_movimentacao(request):
     produto_id = request.GET.get('produto_id')
     if not produto_id:
-        return HttpResponse('')
+        response = HttpResponse('')
+        response['Cache-Control'] = 'no-store'
+        return response
     try:
         produto = Produto.objects.select_related('fornecedor').get(id=produto_id)
-        return render(request, 'estoque/movimentacao/_produto_info.html', {'produto': produto})
+        response = render(request, 'estoque/movimentacao/_produto_info.html', {'produto': produto})
+        response['Cache-Control'] = 'no-store'
+        return response
     except Produto.DoesNotExist:
-        return HttpResponse('')
+        response = HttpResponse('')
+        response['Cache-Control'] = 'no-store'
+        return response
 
 
 @login_required

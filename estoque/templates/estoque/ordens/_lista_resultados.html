@@ -5,6 +5,7 @@
           hx-target="#lista-ordens"
           hx-swap="outerHTML"
           hx-trigger="change from:select, input changed delay:350ms from:#inputBuscaOrdens"
+          hx-sync="this:replace"
           hx-push-url="true"
           hx-disinherit="hx-select"
           class="filter-bar mb-4"

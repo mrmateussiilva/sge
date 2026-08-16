@@ -4,6 +4,7 @@
           hx-target="#lista-logs"
           hx-swap="outerHTML"
           hx-trigger="change from:select, input changed delay:350ms from:#atividadeBusca"
+          hx-sync="this:replace"
           hx-push-url="true"
           hx-disinherit="hx-select"
           class="filter-bar filter-bar--activity mb-4"

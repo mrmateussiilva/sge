@@ -17,7 +17,7 @@
                       hx-target="#historico-movimentacoes"
                       hx-swap="outerHTML"
                       hx-disinherit="hx-select"
-                      hx-on::after-request="if(event.detail.successful) { this.reset(); showToast('Movimentação registrada com sucesso.'); }"
+                      hx-on::after-request="if(event.detail.successful) { resetMovementFields(this); showToast('Movimentação registrada com sucesso.'); }"
                       class="row g-3">
                     {% csrf_token %}
                     <div class="col-12">
@@ -28,7 +28,11 @@
                                 hx-get="{% url 'info_produto_movimentacao' %}"
                                 hx-target="#produto-info-card"
                                 hx-trigger="change"
+                                hx-include="this"
+                                hx-sync="this:replace"
+                                hx-boost="false"
                                 hx-disinherit="hx-select"
+                                data-sge-loading="inline"
                                 required>
                             <option value="" disabled {% if not lista_produtos_qs %}selected{% endif %}>Selecione um produto</option>
                             {% for p in lista_produtos_qs %}

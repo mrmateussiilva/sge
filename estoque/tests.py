@@ -1284,6 +1284,39 @@ class HTMXViewsTestCase(TestCase):
         self.assertContains(response, 'hx-select="#produtos-conteudo"')
         self.assertContains(response, 'data-sge-loading="inline"')
 
+    def test_controles_htmx_tem_alvos_explicitos_e_cancelam_respostas_antigas(self):
+        produtos = self.client.get(reverse('lista_produtos'))
+        movimentacao = self.client.get(reverse('registrar_movimentacao'))
+
+        self.assertContains(produtos, 'hx-sync="this:replace"')
+        self.assertContains(produtos, f'hx-target="#quantidade-cell-{self.produto.id}"')
+        self.assertContains(movimentacao, 'hx-sync="this:replace"')
+        self.assertContains(movimentacao, 'resetMovementFields(this)')
+
+    def test_navegacao_boosted_da_sidebar_retorna_pagina_completa(self):
+        rotas = [
+            'dashboard',
+            'lista_produtos',
+            'registrar_movimentacao',
+            'lista_ordens',
+            'relatorio_mensal',
+            'lista_fornecedores',
+            'lista_categorias',
+            'lista_fechamentos',
+            'log_acoes',
+            'lista_usuarios',
+        ]
+
+        for nome_rota in rotas:
+            with self.subTest(nome_rota=nome_rota):
+                response = self.client.get(
+                    reverse(nome_rota),
+                    HTTP_HX_REQUEST='true',
+                    HTTP_HX_BOOSTED='true',
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'id="main-content"')
+
     def test_inline_edit_estoque_htmx(self):
         response = self.client.get(reverse('inline_edit_estoque', args=[self.produto.id]), HTTP_HX_REQUEST='true')
         self.assertEqual(response.status_code, 200)
@@ -1360,6 +1393,27 @@ class HTMXViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'estoque/movimentacao/_produto_info.html')
         self.assertContains(response, '50,00 m')
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def test_info_movimentacao_muda_conforme_produto_selecionado(self):
+        outro_produto = Produto.objects.create(
+            descricao='TINTA HTMX',
+            tipo_produto='TINTA',
+            unidade_medida='L',
+            quantidade_base=Decimal('7.00'),
+            estoque_minimo=Decimal('3.00'),
+        )
+
+        response = self.client.get(
+            reverse('info_produto_movimentacao'),
+            {'produto_id': outro_produto.id},
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '7,00 L')
+        self.assertContains(response, '3,00 L')
+        self.assertNotContains(response, '50,00 m')
 
     def test_movimentacao_hx_boosted_retorna_pagina_completa(self):
         response = self.client.get(

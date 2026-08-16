@@ -1,5 +1,5 @@
 <td data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-boost="false" hx-target="this" hx-swap="outerHTML">
-    <form hx-post="{% url 'inline_edit_estoque' p.id %}" hx-boost="false" hx-disinherit="hx-select" class="inline-stock-edit d-flex align-items-center gap-1">
+    <form hx-post="{% url 'inline_edit_estoque' p.id %}" hx-boost="false" hx-target="#quantidade-cell-{{ p.id }}" hx-swap="outerHTML" hx-disinherit="hx-select" class="inline-stock-edit d-flex align-items-center gap-1">
         {% csrf_token %}
         <input type="number"
                step="any"
