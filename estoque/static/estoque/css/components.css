@@ -174,6 +174,12 @@
     width: 100%;
 }
 
+.filter-bar .input-group-text {
+    border-color: var(--sge-border-strong);
+    background: var(--sge-surface-subtle);
+    color: var(--sge-text-muted);
+}
+
 .filter-bar--compact {
     grid-template-columns: 1fr auto;
     width: 100%;
@@ -426,7 +432,25 @@ body.valores-ocultos .valor-sensivel {
 
 @media (max-width: 767.98px) {
     .metric-card {
-        min-height: 104px;
+        min-height: 96px;
+        padding: 0.75rem;
+        gap: var(--sge-space-2);
+    }
+
+    .metric-card__icon {
+        flex-basis: 2rem;
+        width: 2rem;
+        height: 2rem;
+        font-size: 1rem;
+    }
+
+    .metric-card__label {
+        font-size: 0.625rem;
+        line-height: 1.25;
+    }
+
+    .metric-card__value {
+        font-size: 1.1rem;
     }
 
     .filter-bar,
@@ -444,6 +468,12 @@ body.valores-ocultos .valor-sensivel {
         flex-direction: column;
     }
 
+    .filter-bar {
+        gap: var(--sge-space-3);
+        padding: var(--sge-space-3);
+        margin-bottom: var(--sge-space-4) !important;
+    }
+
     .form-control,
     .form-select {
         min-height: 44px;
@@ -458,6 +488,13 @@ body.valores-ocultos .valor-sensivel {
     .modal-footer > * {
         width: 100%;
         margin: 0;
+    }
+
+    .content-panel__header,
+    .card-header {
+        min-height: 3.25rem;
+        display: flex;
+        align-items: center;
     }
 }
 
@@ -532,4 +569,3 @@ body.valores-ocultos .valor-sensivel {
 .mt-login {
     margin-top: 100px;
 }
-

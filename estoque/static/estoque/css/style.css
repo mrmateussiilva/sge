@@ -105,4 +105,25 @@
     .modal-body {
         overflow-y: auto;
     }
+
+    #mobileSearchModal .modal-dialog,
+    #globalMoveModal .modal-dialog {
+        display: flex;
+        align-items: flex-end;
+        min-height: 100%;
+        margin: 0;
+    }
+
+    #mobileSearchModal .modal-content,
+    #globalMoveModal .modal-content {
+        width: 100%;
+        max-height: calc(100dvh - 0.5rem);
+        border-radius: 1.25rem 1.25rem 0 0 !important;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    #mobileSearchModal .modal-header,
+    #globalMoveModal .modal-header {
+        padding-top: 1.1rem;
+    }
 }

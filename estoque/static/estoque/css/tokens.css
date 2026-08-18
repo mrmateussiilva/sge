@@ -1,14 +1,14 @@
 :root {
     --sge-primary: #2563eb;
     --sge-primary-hover: #1d4ed8;
-    --sge-bg: #f3f4f6;
+    --sge-bg: #eef2f7;
     --sge-surface: #ffffff;
-    --sge-surface-subtle: #f8fafc;
+    --sge-surface-subtle: #f1f5f9;
     --sge-surface-raised: #ffffff;
-    --sge-border: #e2e8f0;
-    --sge-border-strong: #cbd5e1;
+    --sge-border: #d7e0eb;
+    --sge-border-strong: #b8c5d4;
     --sge-text: #0f172a;
-    --sge-text-muted: #64748b;
+    --sge-text-muted: #475569;
     --sge-success: #15803d;
     --sge-success-soft: #f0fdf4;
     --sge-warning: #b45309;
@@ -18,8 +18,8 @@
     --sge-info: #0284c7;
     --sge-info-soft: #f0f9ff;
 
-    --sge-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
-    --sge-shadow-md: 0 3px 8px rgb(0 0 0 / 6%);
+    --sge-shadow-sm: 0 1px 3px rgb(15 23 42 / 8%);
+    --sge-shadow-md: 0 4px 12px rgb(15 23 42 / 10%);
 
     --sge-radius-sm: 3px;
     --sge-radius-md: 5px;
@@ -70,4 +70,3 @@
     --sge-shadow-md: 0 4px 12px rgb(0 0 0 / 25%);
     --sge-focus-ring: 0 0 0 2px rgb(59 130 246 / 25%);
 }
-

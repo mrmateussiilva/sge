@@ -152,7 +152,7 @@
 
         <div class="card-body p-0">
             <div class="table-responsive data-table-responsive">
-                <table class="data-table table table-hover align-middle">
+                <table class="data-table product-table table table-hover align-middle">
                     <thead class="table-light user-select-none">
                         <tr>
                             <th class="ps-4">
@@ -198,18 +198,19 @@
                     <tbody>
                         {% for p in produtos %}
                         <tr class="{% if p.status_estoque == 'ZERADO' %}estoque-zerado{% elif p.status_estoque == 'BAIXO' %}estoque-baixo{% endif %}">
-                            <td class="ps-4" data-label="Descrição">
+                            <td class="product-card__title ps-4" data-label="Descrição">
                                 <a href="{% url 'detalhe_produto' p.id %}" class="text-decoration-none fw-medium product-link">{{ p.descricao }}</a>
+                                <span class="product-card__meta d-md-none">{{ p.fornecedor.nome|default:'Sem fornecedor' }}</span>
                             </td>
-                            <td data-label="Fornecedor">
+                            <td class="product-card__secondary" data-label="Fornecedor">
                                 <span class="text-muted small">{{ p.fornecedor.nome|default:'—' }}</span>
                             </td>
 
                             {% if aba_ativa == 'PAPEL' or aba_ativa == 'TECIDO' %}
-                            <td class="text-muted" data-label="Metros/Rolo">
+                            <td class="product-card__secondary text-muted" data-label="Metros/Rolo">
                                 {% if p.metros_por_rolo %}{{ p.metros_por_rolo|floatformat:2 }} m{% else %}—{% endif %}
                             </td>
-                            <td data-label="Rolos Est.">
+                            <td class="product-card__secondary" data-label="Rolos Est.">
                                 {% if p.metros_por_rolo and p.metros_por_rolo > 0 %}
                                 <span class="badge bg-opacity-10 {% if aba_ativa == 'PAPEL' %}bg-primary text-primary{% else %}bg-success text-success{% endif %}">
                                     {{ p.quantidade_rolos_estimada }} rolos
@@ -221,19 +222,19 @@
                             {% endif %}
 
                             {% if aba_ativa == 'TINTA' %}
-                            <td data-label="Tipo Tinta">
+                            <td class="product-card__secondary" data-label="Tipo Tinta">
                                 <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ p.get_tipo_tinta_display }}</span>
                             </td>
-                            <td data-label="Cor">
+                            <td class="product-card__secondary" data-label="Cor">
                                 <div class="d-flex align-items-center gap-1.5">
                                     <span class="ink-swatch" style="background-color: {{ p.cor_tinta_hex }}; border-color: {{ p.cor_tinta_hex }};"></span>
                                     <span class="small">{{ p.get_cor_tinta_display }}</span>
                                 </div>
                             </td>
-                            <td class="text-muted" data-label="Litros/Garrafa">
+                            <td class="product-card__secondary text-muted" data-label="Litros/Garrafa">
                                 {% if p.litros_por_vidro %}{{ p.litros_por_vidro|floatformat:2 }} L{% else %}—{% endif %}
                             </td>
-                            <td data-label="Garrafas Est.">
+                            <td class="product-card__secondary" data-label="Garrafas Est.">
                                 {% if p.litros_por_vidro and p.litros_por_vidro > 0 %}
                                 <span class="badge bg-info bg-opacity-10 text-info">{{ p.quantidade_vidros_estimada }} garrafas</span>
                                 {% else %}
@@ -244,7 +245,7 @@
 
                             {% include 'estoque/produtos/_quantidade_cell.html' with p=p %}
 
-                            <td data-label="Preço Custo/Venda">
+                            <td class="product-card__price" data-label="Preços">
                                 <div class="small">
                                     <div class="text-muted">C: {% if p.preco_custo is not None %}R$ {{ p.preco_custo|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
                                     <div class="fw-semibold text-primary">V: {% if p.preco_venda is not None %}R$ {{ p.preco_venda|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
@@ -258,8 +259,8 @@
                                 </div>
                             </td>
 
-                            <td class="pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm">
+                            <td class="data-table__actions pe-4 text-end" data-label="Ações">
+                                <div class="btn-group btn-group-sm data-table__action-group">
                                     <form class="btn-group btn-group-sm" onsubmit="return false;">
                                         {% csrf_token %}
                                         <input type="hidden" name="id" value="{{ p.id }}">

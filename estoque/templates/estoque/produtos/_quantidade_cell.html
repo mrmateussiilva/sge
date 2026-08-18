@@ -1,4 +1,4 @@
-<td data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-boost="false" hx-target="this" hx-swap="outerHTML">
+<td class="product-card__stock" data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-boost="false" hx-target="this" hx-swap="outerHTML">
     <div class="user-select-none cursor-pointer"
          hx-get="{% url 'inline_edit_estoque' p.id %}"
          hx-target="#quantidade-cell-{{ p.id }}"
