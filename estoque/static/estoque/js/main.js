@@ -154,6 +154,11 @@ function resetMovementFields(form) {
 }
 
 document.addEventListener('htmx:responseError', function(evt) {
+    var status = evt.detail && evt.detail.xhr ? evt.detail.xhr.status : 0;
+    if (status === 403) {
+        showToast('Você não tem permissão para realizar esta operação.', 'warning');
+        return;
+    }
     showToast('Não foi possível concluir a operação. Tente novamente.', 'danger');
 });
 
@@ -242,6 +247,7 @@ document.addEventListener('htmx:historyRestore', updateActiveSidebarLink);
             if (label) label.textContent = 'Modo Escuro';
             localStorage.setItem('sgeDarkMode', 'false');
         }
+        document.dispatchEvent(new CustomEvent('sge:theme-change', { detail: { isDark: isDark } }));
     }
 
     var stored = localStorage.getItem('sgeDarkMode') === 'true';

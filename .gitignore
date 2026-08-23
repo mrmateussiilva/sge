@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+node_modules/
 
 # Secrets — nunca commitar em produção
 .env
@@ -21,3 +22,9 @@ importar_estoque.py
 
 # Arquivos estáticos coletados
 staticfiles/
+
+# Playwright artifacts and authenticated browser state
+test-results/
+playwright-report/
+blob-report/
+.auth/

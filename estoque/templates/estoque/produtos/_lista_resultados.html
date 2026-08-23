@@ -261,6 +261,7 @@
 
                             <td class="data-table__actions pe-4 text-end" data-label="Ações">
                                 <div class="btn-group btn-group-sm data-table__action-group">
+                                    {% if usuario_operacional %}
                                     <form class="btn-group btn-group-sm" onsubmit="return false;">
                                         {% csrf_token %}
                                         <input type="hidden" name="id" value="{{ p.id }}">
@@ -291,11 +292,14 @@
                                                 title="Remover 1 {{ p.unidade_simbolo }}"
                                                 aria-label="Remover 1 unidade de {{ p.descricao }}"><i class="bi bi-dash-lg"></i></button>
                                     </form>
+                                    {% endif %}
                                     <div class="btn-group btn-group-sm">
                                         <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" aria-label="Mais ações para {{ p.descricao }}"><i class="bi bi-three-dots-vertical"></i></button>
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li><a href="{% url 'detalhe_produto' p.id %}" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                            {% if usuario_operacional %}
                                             <li><a href="{% url 'editar_produto' p.id %}" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                            {% endif %}
                                         </ul>
                                     </div>
                                 </div>

@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, render
 
 from ..log_utils import log_acao
 from ..models import Movimentacao, Produto
-from .helpers import json_erro, json_ok, produto_operacional_json, requisicao_htmx
+from .helpers import PERFIS_OPERACIONAIS, exigir_perfil, json_erro, json_ok, produto_operacional_json, requisicao_htmx
 
 
 @login_required
@@ -34,6 +34,9 @@ def info_produto_movimentacao(request):
 @login_required
 def registrar_movimentacao(request):
     if request.method == 'POST':
+        perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+        if perm_error:
+            return perm_error
         is_json = (request.content_type == 'application/json')
         is_htmx = requisicao_htmx(request)
         try:
@@ -142,6 +145,7 @@ def excluir_movimentacao(request, id):
             else:
                 produto.quantidade_base += mov.quantidade
             produto.save()
+            mov._permitir_exclusao_interna = True
             descricao = f'{mov.get_tipo_display()} de {mov.quantidade} de {mov.produto.descricao}'
             mov.delete()
         log_acao(request.user, 'EXCLUIR', f'Excluiu movimentacao: {descricao}', 'Movimentacao', id)

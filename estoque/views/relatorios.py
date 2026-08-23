@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
@@ -35,32 +36,39 @@ def relatorio_mensal(request):
     total_entradas_unidade = serializar_totais_unidade(agrupar_quantidade_por_unidade(movs.filter(tipo='ENTRADA')))
     total_saidas_unidade = serializar_totais_unidade(agrupar_quantidade_por_unidade(movs.filter(tipo='SAIDA')))
 
-    por_produto = movs.values('produto__descricao', 'produto__tipo_produto', 'produto__unidade_medida', 'tipo').annotate(
+    por_produto = movs.values(
+        'produto_id', 'produto__descricao', 'produto__tipo_produto', 'produto__unidade_medida', 'tipo'
+    ).annotate(
         total=Sum('quantidade')
     ).order_by('produto__descricao')
 
     movs_por_produto = {}
     for item in por_produto:
-        nome = item['produto__descricao']
-        if nome not in movs_por_produto:
+        produto_id = item['produto_id']
+        if produto_id not in movs_por_produto:
             fake_produto = type('ProdutoUnidade', (), {
                 'tipo_produto': item['produto__tipo_produto'],
                 'unidade_medida': item['produto__unidade_medida'],
             })()
-            movs_por_produto[nome] = {'entradas': Decimal('0'), 'saidas': Decimal('0'), 'unidade': unidade_base_codigo(fake_produto)}
+            movs_por_produto[produto_id] = {
+                'nome': item['produto__descricao'],
+                'entradas': Decimal('0'),
+                'saidas': Decimal('0'),
+                'unidade': unidade_base_codigo(fake_produto),
+            }
         if item['tipo'] == 'ENTRADA':
-            movs_por_produto[nome]['entradas'] += item['total']
+            movs_por_produto[produto_id]['entradas'] += item['total']
         else:
-            movs_por_produto[nome]['saidas'] += item['total']
+            movs_por_produto[produto_id]['saidas'] += item['total']
 
     produtos_afetados = [
         {
-            'nome': nome,
+            'nome': d['nome'],
             'entradas': formatar_quantidade(d['entradas'], d['unidade']),
             'saidas': formatar_quantidade(d['saidas'], d['unidade']),
             'saldo': formatar_quantidade(d['entradas'] - d['saidas'], d['unidade']),
         }
-        for nome, d in movs_por_produto.items()
+        for d in movs_por_produto.values()
     ]
 
     return render(request, 'estoque/relatorio.html', {
@@ -126,11 +134,15 @@ def lista_usuarios(request):
         if acao == 'criar':
             try:
                 username = validate_username_available(data.get('username'))
+                password = data.get('password', '')
+                validate_password(password, User(username=username))
                 user = User.objects.create_user(
                     username=username,
-                    password=data['password'],
+                    password=password,
                     is_staff=True,
                 )
+                grupo_visualizador, _ = Group.objects.get_or_create(name='Visualizador')
+                user.groups.add(grupo_visualizador)
             except ValidationError as e:
                 return JsonResponse({'ok': False, 'erro': '; '.join(e.messages)}, status=400)
             log_acao(request.user, 'CRIAR', f'Criou usuario {user.username}', 'User', user.id)

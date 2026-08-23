@@ -12,6 +12,7 @@ class FornecedorAdmin(admin.ModelAdmin):
 class ProdutoAdmin(admin.ModelAdmin):
     list_display = ('descricao', 'tipo_produto', 'fornecedor', 'quantidade_base', 'preco_custo', 'preco_venda', 'estoque_minimo')
     list_filter = ('tipo_produto', 'fornecedor')
+    readonly_fields = ('quantidade_base',)
     fieldsets = (
         ('Geral', {'fields': ('descricao', 'tipo_produto', 'fornecedor')}),
         ('Preços', {'fields': ('preco_custo', 'preco_venda')}),
@@ -22,11 +23,26 @@ class ProdutoAdmin(admin.ModelAdmin):
         }),
     )
 
+    def has_delete_permission(self, request, obj=None):
+        # A exclusão pelo Admin poderia apagar a trilha de movimentações em
+        # cascata e deixar o saldo histórico sem explicação.
+        return False
+
 
 @admin.register(Movimentacao)
 class MovimentacaoAdmin(admin.ModelAdmin):
     list_display = ('produto', 'tipo', 'quantidade', 'data', 'observacao')
     list_filter = ('tipo', 'data')
+    readonly_fields = ('produto', 'usuario', 'tipo', 'quantidade', 'data', 'observacao')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(HistoricoPreco)
@@ -46,6 +62,11 @@ class OrdemCompraAdmin(admin.ModelAdmin):
     list_display = ('id', 'fornecedor', 'status', 'data_criacao')
     list_filter = ('status', 'data_criacao')
     inlines = [ItemOrdemCompraInline]
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.status != 'PENDENTE':
+            return False
+        return super().has_change_permission(request, obj)
 
 
 @admin.register(LogAcao)

@@ -3,27 +3,12 @@
 
 {% block content %}
 <div class="page-container page-container--wide">
-    <header class="page-header">
-        <div class="page-header__content">
-            <div class="page-header__title">
-                <span class="page-header__icon"><i class="bi bi-truck"></i></span>
-                <h1>Fornecedores</h1>
-            </div>
-            <p class="page-header__description">Gerencie os fornecedores vinculados aos produtos do estoque.</p>
-        </div>
-        <div class="page-header__actions">
-            <button
-                type="button"
-                class="btn btn-primary"
-                hx-get="{% url 'criar_fornecedor' %}"
-                hx-include="#fornecedor-busca"
-                hx-target="#modal-fornecedor-container"
-                hx-disinherit="hx-select"
-            >
-                <i class="bi bi-plus-lg me-1"></i>Novo fornecedor
-            </button>
-        </div>
-    </header>
+    {% if usuario_operacional %}
+    {% url 'criar_fornecedor' as criar_fornecedor_url %}
+    {% include 'estoque/components/page_header.html' with page_title='Fornecedores' page_description='Gerencie os fornecedores vinculados aos produtos do estoque.' page_icon='bi-truck' action_htmx_get=criar_fornecedor_url action_htmx_include='#fornecedor-busca' action_htmx_target='#modal-fornecedor-container' action_label='Novo fornecedor' action_icon='bi-plus-lg' %}
+    {% else %}
+    {% include 'estoque/components/page_header.html' with page_title='Fornecedores' page_description='Gerencie os fornecedores vinculados aos produtos do estoque.' page_icon='bi-truck' %}
+    {% endif %}
 
     <div class="filter-bar filter-bar--compact mb-4" role="search" aria-label="Filtro de fornecedores">
         <div class="filter-bar__search">

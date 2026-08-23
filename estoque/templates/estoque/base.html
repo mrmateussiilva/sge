@@ -37,7 +37,9 @@
             </main>
 
             {% include 'estoque/components/bottom_nav.html' %}
-            {% include 'estoque/components/modal_movimentacao.html' %}
+            {% if usuario_operacional %}
+                {% include 'estoque/components/modal_movimentacao.html' %}
+            {% endif %}
             {% include 'estoque/components/toast_layer.html' %}
         </div>
     </div>

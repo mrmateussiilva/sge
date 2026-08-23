@@ -28,6 +28,7 @@
                                 <span class="status-badge status-badge--info">{{ fornecedor.total_produtos }} produto(s)</span>
                             </td>
                             <td class="pe-4" data-label="Ações">
+                                {% if usuario_operacional %}
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Ações</button>
                                     <ul class="dropdown-menu dropdown-menu-end">
@@ -60,6 +61,9 @@
                                         {% endif %}
                                     </ul>
                                 </div>
+                                {% else %}
+                                <span class="text-muted small">Somente leitura</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}

@@ -9,9 +9,11 @@
         <p class="page-header__description">Consulte os dados, o saldo e o histórico deste produto.</p>
     </div>
     <div class="page-header__actions">
+        {% if usuario_operacional %}
         <a href="{% url 'editar_produto' produto.id %}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
+        {% endif %}
         <a href="{% url 'etiqueta_produto' produto.id %}" class="btn btn-outline-secondary" target="_blank" hx-boost="false">
             <i class="bi bi-tag me-1"></i>Etiqueta
         </a>
@@ -21,7 +23,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{% url 'detalhe_produto' produto.id %}">Ver</a></li>
-                <li><a class="dropdown-item" href="{% url 'editar_produto' produto.id %}">Editar</a></li>
+                {% if usuario_operacional %}<li><a class="dropdown-item" href="{% url 'editar_produto' produto.id %}">Editar</a></li>{% endif %}
                 <li><a class="dropdown-item" href="#historico">Histórico</a></li>
                 {% if user.is_superuser %}
                 <li><hr class="dropdown-divider"></li>
@@ -55,6 +57,7 @@
                         <small class="text-muted d-block">Quantidade Atual</small>
                         <span class="fw-medium fs-4" id="detalhe-qtd-{{ produto.id }}">{{ produto.quantidade_base }}</span> <span class="fs-6 text-muted">{{ produto.get_unidade_medida_display }}</span>
                     </div>
+                    {% if usuario_operacional %}
                     <div class="d-flex flex-column gap-1">
                         <button class="btn btn-sm btn-outline-success border-0 px-2" onclick="atualizaEstoqueRapido({{ produto.id }}, 1)" title="Adicionar 1">
                             <i class="bi bi-plus-lg"></i>
@@ -63,6 +66,7 @@
                             <i class="bi bi-dash-lg"></i>
                         </button>
                     </div>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-md-3">

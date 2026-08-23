@@ -3,8 +3,12 @@
 
 {% block content %}
 <div class="page-container page-container--wide">
+{% if usuario_operacional %}
 {% url 'criar_ordem' as criar_ordem_url %}
 {% include 'estoque/components/page_header.html' with page_title='Ordens de compra' page_description='Acompanhe solicitações, aprovações e recebimentos de materiais.' page_icon='bi-cart' action_url=criar_ordem_url action_label='Nova ordem' action_icon='bi-plus-lg' %}
+{% else %}
+{% include 'estoque/components/page_header.html' with page_title='Ordens de compra' page_description='Acompanhe solicitações, aprovações e recebimentos de materiais.' page_icon='bi-cart' %}
+{% endif %}
 
 {% include 'estoque/ordens/_lista_resultados.html' %}
 </div>

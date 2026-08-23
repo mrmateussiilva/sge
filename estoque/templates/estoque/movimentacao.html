@@ -4,9 +4,10 @@
 {% block content %}
 <div class="page-container page-container--wide">
 {% url 'lista_produtos' as produtos_url %}
-{% include 'estoque/components/page_header.html' with page_title='Movimentar estoque' page_description='Registre entradas e saídas e acompanhe o histórico recente.' page_icon='bi-arrow-left-right' action_url=produtos_url action_label='Ver produtos' action_icon='bi-box-seam' %}
+{% include 'estoque/components/page_header.html' with page_title='Movimentar estoque' page_description='Registre entradas e saídas e acompanhe o histórico recente.' page_icon='bi-arrow-left-right' action_url=produtos_url action_class='btn-outline-secondary' action_label='Ver produtos' action_icon='bi-box-seam' %}
 
 <div class="row g-4">
+    {% if usuario_operacional %}
     <div class="col-12 col-lg-5">
         <section class="content-panel">
             <div class="content-panel__header">
@@ -77,8 +78,15 @@
             </div>
         </section>
     </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info border-0 shadow-sm">
+            <i class="bi bi-eye me-2"></i>Você está em modo somente leitura. O histórico está disponível abaixo.
+        </div>
+    </div>
+    {% endif %}
 
-    <div class="col-12 col-lg-7">
+    <div class="col-12{% if usuario_operacional %} col-lg-7{% endif %}">
         {% include 'estoque/movimentacao/_historico_tabela.html' %}
     </div>
 </div>

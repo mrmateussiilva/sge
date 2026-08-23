@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 
 from ..models import FechamentoMensal, Produto
 from ..services.estoque_status import filtro_baixo, filtro_zerado
@@ -36,6 +36,27 @@ PERFIS_NEGOCIO = {
     'Leitura': 'Somente leitura',
     'Visualizador': 'Somente leitura',
 }
+
+PERFIS_OPERACIONAIS = {'Admin', 'Gestor', 'Operador'}
+PERFIS_GESTAO = {'Admin', 'Gestor'}
+
+
+def usuario_tem_perfil(usuario, perfis):
+    """Retorna se o usuário possui um perfil de negócio autorizado."""
+    if not usuario or not usuario.is_authenticated:
+        return False
+    if usuario.is_superuser:
+        return True
+    return usuario.groups.filter(name__in=perfis).exists()
+
+
+def exigir_perfil(request, perfis):
+    """Protege mutações sem depender da camada visual ou de HTMX."""
+    if usuario_tem_perfil(request.user, perfis):
+        return None
+    if request.content_type.startswith('application/json'):
+        return json_erro('Permissão negada.', status=403, codigo='PERMISSAO_NEGADA')
+    return HttpResponse('Permissão negada.', status=403)
 
 
 def json_ok(**kwargs):

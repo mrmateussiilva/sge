@@ -10,14 +10,25 @@
         <p class="page-header__description">{{ page_description }}</p>
         {% endif %}
     </div>
-    {% if action_url or action_modal %}
+    {% if action_url or action_modal or action_htmx_get %}
     <div class="page-header__actions">
         {% if action_url %}
-        <a href="{{ action_url }}" class="btn btn-primary">
+        <a href="{{ action_url }}" class="btn {{ action_class|default:'btn-primary' }}">
             {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ action_label }}
         </a>
+        {% elif action_modal %}
+        <button type="button" class="btn {{ action_class|default:'btn-primary' }}" data-bs-toggle="modal" data-bs-target="#{{ action_modal }}">
+            {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ action_label }}
+        </button>
         {% else %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#{{ action_modal }}">
+        <button
+            type="button"
+            class="btn {{ action_class|default:'btn-primary' }}"
+            hx-get="{{ action_htmx_get }}"
+            {% if action_htmx_include %}hx-include="{{ action_htmx_include }}"{% endif %}
+            hx-target="{{ action_htmx_target }}"
+            hx-disinherit="hx-select"
+        >
             {% if action_icon %}<i class="bi {{ action_icon }} me-1" aria-hidden="true"></i>{% endif %}{{ action_label }}
         </button>
         {% endif %}

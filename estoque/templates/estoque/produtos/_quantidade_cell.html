@@ -1,4 +1,5 @@
-<td class="product-card__stock" data-label="Saldo" id="quantidade-cell-{{ p.id }}" hx-boost="false" hx-target="this" hx-swap="outerHTML">
+<td class="product-card__stock" data-label="Saldo" id="quantidade-cell-{{ p.id }}"{% if usuario_operacional %} hx-boost="false" hx-target="this" hx-swap="outerHTML"{% endif %}>
+    {% if usuario_operacional %}
     <div class="user-select-none cursor-pointer"
          hx-get="{% url 'inline_edit_estoque' p.id %}"
          hx-target="#quantidade-cell-{{ p.id }}"
@@ -23,4 +24,9 @@
         <span class="status-badge status-badge--low ms-1"><i class="bi bi-exclamation-triangle me-1"></i>Estoque baixo</span>
         {% endif %}
     </div>
+    {% else %}
+    <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
+        {{ p.quantidade_formatada }}
+    </strong>
+    {% endif %}
 </td>

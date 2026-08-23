@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db.models.signals import post_save, pre_save
 from django.core.exceptions import ValidationError
 from django.dispatch import receiver
@@ -27,9 +28,6 @@ def salvar_historico_preco(sender, instance, created, **kwargs):
         return
     old_preco_custo = getattr(instance, '_preco_custo_anterior', None)
     old_preco_venda = getattr(instance, '_preco_venda_anterior', None)
-    if old_preco_custo is None and old_preco_venda is None:
-        return
-
     preco_custo_mudou = old_preco_custo != instance.preco_custo
     preco_venda_mudou = old_preco_venda != instance.preco_venda
     if not preco_custo_mudou and not preco_venda_mudou:
@@ -41,6 +39,7 @@ def salvar_historico_preco(sender, instance, created, **kwargs):
         preco_custo_novo=instance.preco_custo if preco_custo_mudou else None,
         preco_venda_antigo=old_preco_venda if preco_venda_mudou else None,
         preco_venda_novo=instance.preco_venda if preco_venda_mudou else None,
+        usuario=getattr(instance, '_historico_usuario', None),
     )
 
 
@@ -60,3 +59,11 @@ def normalizar_username_usuario(sender, instance, **kwargs):
             return
 
     instance.username = validate_username_available(normalized, instance.pk)
+
+
+@receiver(post_save, sender=get_user_model())
+def atribuir_perfil_padrao_usuario(sender, instance, created, **kwargs):
+    if not created or instance.is_superuser:
+        return
+    grupo, _ = Group.objects.get_or_create(name='Visualizador')
+    instance.groups.add(grupo)

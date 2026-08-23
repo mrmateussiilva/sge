@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, render
 
 from ..log_utils import log_acao
 from ..models import Fornecedor, Produto
-from .helpers import exigir_admin_json, json_erro, json_ok, requisicao_htmx
+from .helpers import PERFIS_OPERACIONAIS, exigir_admin_json, exigir_perfil, json_erro, json_ok, requisicao_htmx
 
 
 @login_required
@@ -53,6 +53,9 @@ def resposta_erro_fornecedor(request, mensagem, status=400):
 @login_required
 def salvar_fornecedor(request, id=None):
     """Cria ou edita um fornecedor via formulário HTMX ou JSON."""
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     fornecedor = get_object_or_404(Fornecedor, id=id) if id else None
     if request.method == 'GET':
         return render(request, 'estoque/fornecedores/_form_modal.html', {

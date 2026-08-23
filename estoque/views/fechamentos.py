@@ -20,7 +20,8 @@ from ..models import FechamentoMensal
 from ..services.fechamentos import criar_fechamento_periodo
 from ..services.units import UNIDADES, dinheiro_br
 from .helpers import (
-    data_iso, exigir_admin_json, json_erro, json_ok, requisicao_htmx, resumo_fechamento
+    PERFIS_OPERACIONAIS, data_iso, exigir_admin_json, exigir_perfil, json_erro, json_ok,
+    requisicao_htmx, resumo_fechamento
 )
 
 
@@ -181,6 +182,9 @@ def revisar_fechamento(request):
 def realizar_fechamento(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     try:
         data = request.POST if requisicao_htmx(request) else json.loads(request.body)
         inicio = data_iso(data.get('data_inicio'), 'Data inicial')

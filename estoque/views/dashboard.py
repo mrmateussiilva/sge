@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -33,17 +34,17 @@ def dashboard(request):
     anos = sorted(list(set([a.year for a in anos_disponiveis] + [ano_atual])), reverse=True)
     
     meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-    entradas_meses = []
-    saidas_meses = []
-    for m in range(1, 13):
-        entradas = Movimentacao.objects.filter(
-            tipo='ENTRADA', data__year=ano_selecionado, data__month=m
-        ).count()
-        saidas = Movimentacao.objects.filter(
-            tipo='SAIDA', data__year=ano_selecionado, data__month=m
-        ).count()
-        entradas_meses.append(entradas)
-        saidas_meses.append(saidas)
+    movimentos_por_mes = {
+        row['data__month']: row
+        for row in Movimentacao.objects.filter(data__year=ano_selecionado)
+        .values('data__month')
+        .annotate(
+            entradas=Count('id', filter=Q(tipo='ENTRADA')),
+            saidas=Count('id', filter=Q(tipo='SAIDA')),
+        )
+    }
+    entradas_meses = [movimentos_por_mes.get(m, {}).get('entradas', 0) for m in range(1, 13)]
+    saidas_meses = [movimentos_por_mes.get(m, {}).get('saidas', 0) for m in range(1, 13)]
 
     if request.GET.get('ajax') == '1':
         return JsonResponse({
@@ -56,6 +57,8 @@ def dashboard(request):
     tipo_choices = dict(Produto.TIPO_PRODUTO_CHOICES)
     tipo_labels = [tipo_choices.get(tipo, tipo) for tipo in valores_por_tipo.keys()]
     tipo_data = [float(total) for total in valores_por_tipo.values()]
+    tem_movimentacoes_ano = any(entradas_meses) or any(saidas_meses)
+    tem_valor_por_tipo = any(tipo_data)
 
     valor_total = valuation.valor_conhecido
 
@@ -73,6 +76,8 @@ def dashboard(request):
         'chart_saidas': json.dumps(saidas_meses),
         'chart_tipo_labels': json.dumps(tipo_labels),
         'chart_tipo_data': json.dumps(tipo_data),
+        'tem_movimentacoes_ano': tem_movimentacoes_ano,
+        'tem_valor_por_tipo': tem_valor_por_tipo,
         'anos_disponiveis': anos,
         'ano_selecionado': ano_selecionado,
     })

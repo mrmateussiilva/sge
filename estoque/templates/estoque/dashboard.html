@@ -12,12 +12,14 @@
         <p class="page-header__description">Visão geral do estoque e operações do dia a dia.</p>
     </div>
     <div class="page-header__actions">
+        {% if usuario_operacional %}
         <button type="button" class="btn btn-sm btn-primary" onclick="openGlobalMoveModal()">
             <i class="bi bi-arrow-left-right me-1"></i>Movimentar estoque
         </button>
         <a href="{% url 'cadastrar_produto' %}" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-plus-lg me-1"></i>Novo produto
         </a>
+        {% endif %}
         <button id="btnToggleValores" class="btn btn-sm btn-outline-secondary" title="Ocultar valores financeiros" aria-label="Alternar exibição de valores financeiros">
             <i class="bi bi-eye" id="iconToggle"></i>
             <span class="d-none d-sm-inline ms-1" id="labelToggleValores">Valores</span>
@@ -26,37 +28,22 @@
 </header>
 
 {% url 'lista_produtos' as produtos_url %}
-<div class="row g-2.5 mb-3">
-    <div class="col-6 col-lg-3">
-        {% include 'estoque/components/metric_card.html' with metric_url=produtos_url metric_label='Total de produtos' metric_value=total_itens metric_icon='bi-box-seam' metric_variant='info' %}
-    </div>
-    <div class="col-6 col-lg-3">
-        {% include 'estoque/components/metric_card.html' with metric_url=produtos_url|add:'?filtro=baixo' metric_label='Estoque baixo' metric_value=estoque_baixo|length metric_icon='bi-exclamation-triangle' metric_variant='warning' %}
-    </div>
-    <div class="col-6 col-lg-3">
-        {% include 'estoque/components/metric_card.html' with metric_url=produtos_url|add:'?filtro=zerado' metric_label='Estoque zerado' metric_value=estoque_zerado_count metric_icon='bi-slash-circle' metric_variant='danger' %}
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="metric-card metric-card--success">
-            <span class="metric-card__icon" aria-hidden="true"><i class="bi bi-coin"></i></span>
-            <span class="metric-card__body">
-                <span class="metric-card__label">{% if valuation.calculo_completo %}Valor em estoque{% else %}Valor conhecido{% endif %}</span>
-                <span class="metric-card__value valor-sensivel">{{ valor_total_formatado }}</span>
-                {% if not valuation.calculo_completo %}<span class="metric-card__helper">Parcial: {{ valuation.produtos_sem_custo }} sem custo</span>{% endif %}
-            </span>
-        </div>
-    </div>
-</div>
-
 <div class="row g-3 mb-3">
     <div class="col-12 col-xl-7">
-        <section class="content-panel h-100">
+        <section class="content-panel dashboard-panel dashboard-panel--priority h-100">
             <div class="content-panel__header d-flex align-items-center justify-content-between py-2.5 px-3">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-exclamation-circle-fill text-warning"></i>
-                    <span class="fw-bold text-body small">Resolver primeiro</span>
+                <div class="dashboard-panel__header-main d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-circle-fill text-warning" aria-hidden="true"></i>
+                    <div>
+                        <span class="dashboard-panel__eyebrow">Atenção operacional</span>
+                        <span class="fw-bold text-body small">Resolver primeiro</span>
+                    </div>
                 </div>
-                <a href="{% url 'lista_produtos' %}?filtro=baixo" class="btn btn-xs btn-outline-secondary py-0.5 px-2">Ver todos</a>
+                {% if estoque_baixo %}
+                <span class="status-badge status-badge--warning text-2xs">{{ estoque_baixo|length }} pendente{{ estoque_baixo|length|pluralize }}</span>
+                {% else %}
+                <span class="status-badge status-badge--normal text-2xs">Em dia</span>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive data-table-responsive">
@@ -85,9 +72,13 @@
                                 </td>
                                 <td data-label="Mínimo" class="small text-muted">{{ p.estoque_minimo }} {{ p.unidade_simbolo }}</td>
                                 <td class="pe-3 text-end" data-label="Ação">
+                                    {% if usuario_operacional %}
                                     <button type="button" class="btn btn-xs btn-primary py-1 px-2.5" onclick="openGlobalMoveModal({{ p.id }}, '{{ p.descricao|escapejs }}')">
                                         <i class="bi bi-plus-lg me-1"></i>Entrada
                                     </button>
+                                    {% else %}
+                                    <span class="text-muted small">Somente leitura</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -132,6 +123,37 @@
     </div>
 </div>
 
+<section class="dashboard-metrics" aria-labelledby="dashboard-summary-title">
+    <div class="dashboard-section-label">
+        <div>
+            <span class="dashboard-section-label__eyebrow">Resumo rápido</span>
+            <h2 id="dashboard-summary-title">Saúde do estoque</h2>
+        </div>
+        <span class="dashboard-section-label__note">Indicadores atuais</span>
+    </div>
+    <div class="row g-2.5 mb-3">
+        <div class="col-6 col-lg-3">
+            {% include 'estoque/components/metric_card.html' with metric_url=produtos_url metric_label='Total de produtos' metric_value=total_itens metric_icon='bi-box-seam' metric_variant='info' %}
+        </div>
+        <div class="col-6 col-lg-3">
+            {% include 'estoque/components/metric_card.html' with metric_url=produtos_url|add:'?filtro=baixo' metric_label='Estoque baixo' metric_value=estoque_baixo|length metric_icon='bi-exclamation-triangle' metric_variant='warning' %}
+        </div>
+        <div class="col-6 col-lg-3">
+            {% include 'estoque/components/metric_card.html' with metric_url=produtos_url|add:'?filtro=zerado' metric_label='Estoque zerado' metric_value=estoque_zerado_count metric_icon='bi-slash-circle' metric_variant='danger' %}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="metric-card metric-card--success">
+                <span class="metric-card__icon" aria-hidden="true"><i class="bi bi-coin"></i></span>
+                <span class="metric-card__body">
+                    <span class="metric-card__label">{% if valuation.calculo_completo %}Valor em estoque{% else %}Valor conhecido{% endif %}</span>
+                    <span class="metric-card__value valor-sensivel">{{ valor_total_formatado }}</span>
+                    {% if not valuation.calculo_completo %}<span class="metric-card__helper">Parcial: {{ valuation.produtos_sem_custo }} sem custo</span>{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="content-panel">
     <div class="content-panel__header d-flex align-items-center justify-content-between py-2 px-3">
         <div class="d-flex align-items-center gap-2">
@@ -150,13 +172,41 @@
                 <div class="d-flex align-items-center justify-content-between mb-1">
                     <span class="extra-small text-muted fw-semibold text-uppercase tracking-wide">Movimentações por mês</span>
                 </div>
+                {% if tem_movimentacoes_ano %}
                 <div class="chart-frame"><canvas id="chartMovimentacoes"></canvas></div>
+                {% else %}
+                <div class="chart-empty-state" role="status">
+                    <div>
+                        <i class="bi bi-bar-chart-line chart-empty-state__icon" aria-hidden="true"></i>
+                        <div class="chart-empty-state__title">Nenhuma movimentação em {{ ano_selecionado }}</div>
+                        <p class="chart-empty-state__description">Registre uma entrada ou saída para acompanhar a evolução do estoque.</p>
+                        {% if usuario_operacional %}
+                        <button type="button" class="btn btn-sm btn-primary" onclick="openGlobalMoveModal()">
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Registrar movimentação
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="col-12 col-lg-4">
                 <div class="d-flex align-items-center justify-content-between mb-1">
                     <span class="extra-small text-muted fw-semibold text-uppercase tracking-wide">Valor por tipo</span>
                 </div>
+                {% if tem_valor_por_tipo %}
                 <div class="chart-frame"><canvas id="chartTipo"></canvas></div>
+                {% else %}
+                <div class="chart-empty-state" role="status">
+                    <div>
+                        <i class="bi bi-pie-chart chart-empty-state__icon" aria-hidden="true"></i>
+                        <div class="chart-empty-state__title">Sem valores para comparar</div>
+                        <p class="chart-empty-state__description">Cadastre preços de custo nos produtos para visualizar a composição.</p>
+                        <a href="{% url 'lista_produtos' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-seam me-1" aria-hidden="true"></i>Revisar produtos
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -193,7 +243,7 @@
 
     const chartMovCanvas = document.getElementById('chartMovimentacoes');
     const chartTipoCanvas = document.getElementById('chartTipo');
-    if (!chartMovCanvas || !chartTipoCanvas) return;
+    if (!chartMovCanvas && !chartTipoCanvas) return;
 
     if (typeof registerChart === 'function') {
         if (window.sgeCharts && window.sgeCharts['chartMovimentacoes']) {
@@ -204,22 +254,45 @@
         }
     }
 
-    const chartMov = new Chart(chartMovCanvas, {
+    function getChartPalette() {
+        const styles = getComputedStyle(document.documentElement);
+        const token = name => styles.getPropertyValue(name).trim();
+        return {
+            entry: token('--sge-chart-entry'),
+            exit: token('--sge-chart-exit'),
+            type: [
+                token('--sge-chart-type-1'),
+                token('--sge-chart-type-2'),
+                token('--sge-chart-type-3'),
+                token('--sge-chart-type-4'),
+                token('--sge-chart-type-5'),
+            ],
+            grid: token('--sge-chart-grid'),
+            axis: token('--sge-chart-axis'),
+            legend: token('--sge-chart-legend'),
+            surface: token('--sge-surface'),
+        };
+    }
+
+    const initialChartPalette = getChartPalette();
+    let chartMov = null;
+    if (chartMovCanvas) {
+    chartMov = new Chart(chartMovCanvas, {
         type: 'bar',
         data: {
             labels: {{ chart_meses|safe }},
             datasets: [
-                { label: 'Entradas', data: {{ chart_entradas|safe }}, backgroundColor: 'rgba(37, 99, 235, 0.75)', borderRadius: 4 },
-                { label: 'Saídas', data: {{ chart_saidas|safe }}, backgroundColor: 'rgba(220, 38, 38, 0.75)', borderRadius: 4 },
+                { label: 'Entradas', data: {{ chart_entradas|safe }}, backgroundColor: initialChartPalette.entry, borderRadius: 4 },
+                { label: 'Saídas', data: {{ chart_saidas|safe }}, backgroundColor: initialChartPalette.exit, borderRadius: 4 },
             ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, color: initialChartPalette.legend, font: { size: 11 } } } },
             scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                y: { ticks: { font: { size: 10 } } }
+                x: { grid: { display: false }, ticks: { color: initialChartPalette.axis, font: { size: 10 } } },
+                y: { grid: { color: initialChartPalette.grid }, ticks: { color: initialChartPalette.axis, font: { size: 10 } } }
             }
         }
     });
@@ -227,13 +300,23 @@
     if (typeof registerChart === 'function') {
         registerChart('chartMovimentacoes', chartMov);
     }
+    }
 
     const selectAno = document.getElementById('selectChartAno');
     if (selectAno) {
         selectAno.addEventListener('change', function() {
+            if (!chartMov) {
+                window.location.href = `/?ano=${encodeURIComponent(selectAno.value)}`;
+                return;
+            }
             fetch(`/?ano=${selectAno.value}&ajax=1`)
                 .then(r => r.json())
                 .then(data => {
+                    const temDados = data.entradas.some(Number) || data.saidas.some(Number);
+                    if (!temDados) {
+                        window.location.href = `/?ano=${encodeURIComponent(selectAno.value)}`;
+                        return;
+                    }
                     chartMov.data.labels = data.meses;
                     chartMov.data.datasets[0].data = data.entradas;
                     chartMov.data.datasets[1].data = data.saidas;
@@ -242,22 +325,46 @@
         });
     }
 
-    const chartTipo = new Chart(chartTipoCanvas, {
+    let chartTipo = null;
+    if (chartTipoCanvas) {
+    chartTipo = new Chart(chartTipoCanvas, {
         type: 'doughnut',
         data: {
             labels: {{ chart_tipo_labels|safe }},
-            datasets: [{ data: {{ chart_tipo_data|safe }}, backgroundColor: ['#2563eb','#16a34a','#d97706','#dc2626','#64748b'] }],
+            datasets: [{ data: {{ chart_tipo_data|safe }}, backgroundColor: initialChartPalette.type, borderColor: initialChartPalette.surface, borderWidth: 2 }],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, color: initialChartPalette.legend, font: { size: 10 } } } }
         }
     });
 
     if (typeof registerChart === 'function') {
         registerChart('chartTipo', chartTipo);
     }
+    }
+
+    function applyChartTheme() {
+        const palette = getChartPalette();
+        if (chartMov) {
+            chartMov.data.datasets[0].backgroundColor = palette.entry;
+            chartMov.data.datasets[1].backgroundColor = palette.exit;
+            chartMov.options.plugins.legend.labels.color = palette.legend;
+            chartMov.options.scales.x.ticks.color = palette.axis;
+            chartMov.options.scales.y.grid.color = palette.grid;
+            chartMov.options.scales.y.ticks.color = palette.axis;
+            chartMov.update('none');
+        }
+        if (chartTipo) {
+            chartTipo.data.datasets[0].backgroundColor = palette.type;
+            chartTipo.data.datasets[0].borderColor = palette.surface;
+            chartTipo.options.plugins.legend.labels.color = palette.legend;
+            chartTipo.update('none');
+        }
+    }
+
+    document.addEventListener('sge:theme-change', applyChartTheme);
 })();
 </script>
 {% endblock %}

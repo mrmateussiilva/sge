@@ -15,11 +15,11 @@
             </p>
         </div>
         <div class="page-header__actions">
-            <a href="{% url 'lista_fechamentos' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i>Voltar
-            </a>
             <a href="{% url 'exportar_fechamento_xlsx' fechamento.id %}" class="btn btn-success" hx-boost="false">
                 <i class="bi bi-file-earmark-excel me-1"></i>Exportar XLSX
+            </a>
+            <a href="{% url 'lista_fechamentos' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Voltar
             </a>
         </div>
     </header>

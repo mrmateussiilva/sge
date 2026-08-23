@@ -3,23 +3,15 @@
 
 {% block content %}
 <div class="page-container page-container--wide">
-    <header class="page-header">
-        <div class="page-header__content">
-            <div class="page-header__title">
-                <span class="page-header__icon"><i class="bi bi-archive"></i></span>
-                <h1>Fechamentos de estoque</h1>
-            </div>
-            <p class="page-header__description">Congele a posição atual do estoque para um período e preserve o relatório histórico.</p>
-        </div>
-        <div class="page-header__actions">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fechamentoModal">
-                <i class="bi bi-lock me-1"></i>Novo fechamento
-            </button>
-        </div>
-    </header>
+    {% if usuario_operacional %}
+    {% include 'estoque/components/page_header.html' with page_title='Fechamentos de estoque' page_description='Congele a posição atual do estoque para um período e preserve o relatório histórico.' page_icon='bi-archive' action_modal='fechamentoModal' action_label='Novo fechamento' action_icon='bi-lock' %}
+    {% else %}
+    {% include 'estoque/components/page_header.html' with page_title='Fechamentos de estoque' page_description='Congele a posição atual do estoque para um período e preserve o relatório histórico.' page_icon='bi-archive' %}
+    {% endif %}
 
     {% include 'estoque/fechamentos/_lista.html' %}
 
+    {% if usuario_operacional %}
     <div class="modal fade" id="fechamentoModal" tabindex="-1" aria-labelledby="fechamentoModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-3">
@@ -105,5 +97,6 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

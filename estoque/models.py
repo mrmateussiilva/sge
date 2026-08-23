@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
+from .fields import EncryptedCharField
+
 
 class Categoria(models.Model):
     nome = models.CharField(max_length=100, unique=True)
@@ -102,6 +104,38 @@ class Produto(models.Model):
     preco_venda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
     estoque_minimo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['tipo_produto', 'descricao'], name='produto_tipo_desc_idx'),
+            models.Index(fields=['quantidade_base', 'estoque_minimo'], name='produto_saldo_min_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantidade_base__gte=0),
+                name='produto_quantidade_base_nao_negativa',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(preco_custo__isnull=True) | models.Q(preco_custo__gte=0),
+                name='produto_preco_custo_nao_negativo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(preco_venda__isnull=True) | models.Q(preco_venda__gte=0),
+                name='produto_preco_venda_nao_negativo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estoque_minimo__isnull=True) | models.Q(estoque_minimo__gte=0),
+                name='produto_estoque_minimo_nao_negativo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(metros_por_rolo__isnull=True) | models.Q(metros_por_rolo__gt=0),
+                name='produto_metros_rolo_positivo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(litros_por_vidro__isnull=True) | models.Q(litros_por_vidro__gt=0),
+                name='produto_litros_vidro_positivo',
+            ),
+        ]
+
     def __str__(self):
         if self.tipo_produto == 'TINTA':
             return f"Tinta {self.get_tipo_tinta_display()} - {self.get_cor_tinta_display()} ({self.descricao})"
@@ -183,6 +217,22 @@ class Movimentacao(models.Model):
     data = models.DateTimeField(auto_now_add=True)
     observacao = models.CharField(max_length=255, blank=True, default='')
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['-data'], name='movimentacao_data_idx'),
+            models.Index(fields=['tipo', '-data'], name='movimentacao_tipo_data_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantidade__gt=0),
+                name='movimentacao_quantidade_positiva',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(tipo__in=['ENTRADA', 'SAIDA']),
+                name='movimentacao_tipo_valido',
+            ),
+        ]
+
     def _normalizar_quantidade(self):
         try:
             quantidade = Decimal(str(self.quantidade))
@@ -194,8 +244,33 @@ class Movimentacao(models.Model):
 
         return quantidade
 
+    def clean(self):
+        super().clean()
+        if self.tipo not in dict(self.TIPO_CHOICES):
+            raise ValidationError({'tipo': 'Tipo de movimentação inválido.'})
+        self.quantidade = self._normalizar_quantidade()
+
+        if self.pk:
+            anterior = type(self).objects.only(
+                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao'
+            ).get(pk=self.pk)
+            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao')
+            if any(getattr(anterior, campo) != getattr(self, campo) for campo in campos_imutaveis):
+                raise ValidationError('Movimentações são imutáveis; registre um estorno ou uma nova movimentação.')
+
     def save(self, *args, **kwargs):
         self.quantidade = self._normalizar_quantidade()
+        if self.tipo not in dict(self.TIPO_CHOICES):
+            raise ValidationError('Tipo de movimentação inválido.')
+        if self.pk:
+            anterior = type(self).objects.only(
+                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao'
+            ).get(pk=self.pk)
+            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao')
+            if any(getattr(anterior, campo) != getattr(self, campo) for campo in campos_imutaveis):
+                raise ValidationError('Movimentações são imutáveis; registre um estorno ou uma nova movimentação.')
+            super().save(*args, **kwargs)
+            return
         if not self.pk:
             with transaction.atomic():
                 produto = Produto.objects.select_for_update().get(pk=self.produto.pk)
@@ -212,7 +287,11 @@ class Movimentacao(models.Model):
                 self.produto = produto
                 super().save(*args, **kwargs)
             return
-        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not getattr(self, '_permitir_exclusao_interna', False):
+            raise ValidationError('Movimentações não podem ser excluídas; registre um estorno.')
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f'{self.get_tipo_display()} - {self.produto.descricao} ({self.quantidade})'
@@ -284,6 +363,10 @@ class LogAcao(models.Model):
     data = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        indexes = [
+            models.Index(fields=['-data'], name='logacao_data_idx'),
+            models.Index(fields=['acao', '-data'], name='logacao_acao_data_idx'),
+        ]
         ordering = ['-data']
 
     def __str__(self):
@@ -407,7 +490,7 @@ class ConfiguracaoOmie(models.Model):
     """
 
     app_key = models.CharField(max_length=100, blank=True, default='', verbose_name='App Key Omie')
-    app_secret = models.CharField(max_length=100, blank=True, default='', verbose_name='App Secret Omie')
+    app_secret = EncryptedCharField(max_length=255, blank=True, default='', verbose_name='App Secret Omie')
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,

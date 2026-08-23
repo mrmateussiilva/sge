@@ -3,27 +3,12 @@
 
 {% block content %}
 <div class="page-container">
-    <header class="page-header">
-        <div class="page-header__content">
-            <div class="page-header__title">
-                <span class="page-header__icon"><i class="bi bi-tags"></i></span>
-                <h1>Categorias</h1>
-            </div>
-            <p class="page-header__description">Organize os produtos em grupos de consulta e acompanhamento.</p>
-        </div>
-        <div class="page-header__actions">
-            <button
-                type="button"
-                class="btn btn-primary"
-                hx-get="{% url 'criar_categoria' %}"
-                hx-include="#categoria-busca"
-                hx-target="#modal-categoria-container"
-                hx-disinherit="hx-select"
-            >
-                <i class="bi bi-plus-lg me-1"></i>Nova categoria
-            </button>
-        </div>
-    </header>
+    {% if usuario_operacional %}
+    {% url 'criar_categoria' as criar_categoria_url %}
+    {% include 'estoque/components/page_header.html' with page_title='Categorias' page_description='Organize os produtos em grupos de consulta e acompanhamento.' page_icon='bi-tags' action_htmx_get=criar_categoria_url action_htmx_include='#categoria-busca' action_htmx_target='#modal-categoria-container' action_label='Nova categoria' action_icon='bi-plus-lg' %}
+    {% else %}
+    {% include 'estoque/components/page_header.html' with page_title='Categorias' page_description='Organize os produtos em grupos de consulta e acompanhamento.' page_icon='bi-tags' %}
+    {% endif %}
 
     <div class="filter-bar filter-bar--compact mb-4" role="search" aria-label="Filtro de categorias">
         <div class="filter-bar__search">

@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from ..log_utils import log_acao
 from ..models import Fornecedor, ItemOrdemCompra, Movimentacao, OrdemCompra, Produto
-from .helpers import decimal_ou_none, json_erro, requisicao_htmx
+from .helpers import PERFIS_OPERACIONAIS, exigir_perfil, decimal_ou_none, json_erro, requisicao_htmx
 
 
 @login_required
@@ -132,6 +132,9 @@ def validar_itens_ordem(itens):
 
 @login_required
 def criar_ordem(request):
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     if request.method == 'POST':
         is_json = request.content_type.startswith('application/json')
         try:
@@ -184,11 +187,15 @@ def detalhe_ordem(request, id):
 def aprovar_ordem(request, id):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
-    ordem = get_object_or_404(OrdemCompra, id=id)
-    if ordem.status != 'PENDENTE':
-        return JsonResponse({'ok': False, 'erro': 'Ordem nao esta pendente.'}, status=400)
-    ordem.status = 'APROVADA'
-    ordem.save()
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
+    with transaction.atomic():
+        ordem = get_object_or_404(OrdemCompra.objects.select_for_update(), id=id)
+        if ordem.status != 'PENDENTE':
+            return JsonResponse({'ok': False, 'erro': 'Ordem nao esta pendente.'}, status=400)
+        ordem.status = 'APROVADA'
+        ordem.save(update_fields=['status'])
     log_acao(request.user, 'APROVAR', f'Aprovou ordem de compra #{ordem.id}', 'OrdemCompra', id)
     return JsonResponse({'ok': True})
 
@@ -197,11 +204,15 @@ def aprovar_ordem(request, id):
 def cancelar_ordem(request, id):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
-    ordem = get_object_or_404(OrdemCompra, id=id)
-    if ordem.status in ('RECEBIDA', 'CANCELADA'):
-        return JsonResponse({'ok': False, 'erro': 'Ordem ja finalizada.'}, status=400)
-    ordem.status = 'CANCELADA'
-    ordem.save()
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
+    with transaction.atomic():
+        ordem = get_object_or_404(OrdemCompra.objects.select_for_update(), id=id)
+        if ordem.status in ('RECEBIDA', 'CANCELADA'):
+            return JsonResponse({'ok': False, 'erro': 'Ordem ja finalizada.'}, status=400)
+        ordem.status = 'CANCELADA'
+        ordem.save(update_fields=['status'])
     log_acao(request.user, 'CANCELAR', f'Cancelou ordem de compra #{ordem.id}', 'OrdemCompra', id)
     return JsonResponse({'ok': True})
 
@@ -210,14 +221,21 @@ def cancelar_ordem(request, id):
 def receber_ordem(request, id):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
-    ordem = get_object_or_404(OrdemCompra.objects.select_related('fornecedor'), id=id)
-    if ordem.status != 'APROVADA':
-        return JsonResponse({'ok': False, 'erro': 'Ordem precisa estar aprovada para ser recebida.'}, status=400)
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     with transaction.atomic():
+        ordem = get_object_or_404(
+            OrdemCompra.objects.select_for_update().select_related('fornecedor'),
+            id=id,
+        )
+        if ordem.status != 'APROVADA':
+            return JsonResponse({'ok': False, 'erro': 'Ordem precisa estar aprovada para ser recebida.'}, status=400)
         itens = ordem.itens.select_related('produto').all()
         for item in itens:
             produto = Produto.objects.select_for_update().get(pk=item.produto.pk)
             produto.preco_custo = item.preco_unitario
+            produto._historico_usuario = request.user
             produto.save()
             Movimentacao.objects.create(
                 produto=produto,

@@ -12,19 +12,23 @@
         <p class="page-header__description">Gerencie insumos, estoques mínimos, preços e fornecedores.</p>
     </div>
     <div class="page-header__actions">
+        {% if usuario_operacional %}
         <a href="{% url 'cadastrar_produto' %}" class="btn btn-primary fw-medium">
             <i class="bi bi-plus-lg me-1"></i>Novo Produto
         </a>
+        {% endif %}
         <div class="dropdown">
             <button class="btn btn-outline-secondary dropdown-toggle w-100 fw-medium" type="button" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical me-1"></i>Mais
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
+                {% if usuario_operacional %}
                 <li>
                     <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#importarModal">
                         <i class="bi bi-upload me-2 text-primary"></i>Importar CSV
                     </button>
                 </li>
+                {% endif %}
                 <li>
                     <a href="{% url 'exportar_csv' %}" class="dropdown-item py-2" hx-boost="false">
                         <i class="bi bi-download me-2 text-success"></i>Exportar CSV
@@ -42,6 +46,7 @@
 
 {% include 'estoque/produtos/_lista_resultados.html' %}
 
+{% if usuario_operacional %}
 <div class="modal fade" id="importarModal" tabindex="-1" aria-labelledby="importarModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -72,6 +77,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 </div>
 {% endblock %}
 

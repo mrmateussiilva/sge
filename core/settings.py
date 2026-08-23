@@ -2,29 +2,46 @@
 Django settings for core project.
 """
 
+import base64
+import hashlib
 import os
+import sys
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-9w=pzv3xd%q-)s@q7n(wn#b*rt34&mqk1iqym(p0zj((w-^)z!')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '*').split(',')
+_em_teste = 'test' in sys.argv
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip()
+if not SECRET_KEY:
+    if not DEBUG and not _em_teste:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY é obrigatório quando DEBUG=False.')
+    SECRET_KEY = 'django-insecure-desenvolvimento-local-apenas'
+
+_hosts_configurados = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+if not _hosts_configurados:
+    if not DEBUG and not _em_teste:
+        raise ImproperlyConfigured('DJANGO_ALLOWED_HOSTS é obrigatório quando DEBUG=False.')
+    _hosts_configurados = ['localhost', '127.0.0.1', '[::1]']
+ALLOWED_HOSTS = _hosts_configurados
 
 # Segurança em produção — ativas quando DEBUG=False
 if not DEBUG:
     # Necessário quando atrás de proxy reverso (Caddy, Nginx, etc.)
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    # Caddy já faz o redirecionamento HTTP→HTTPS, evita loop duplo
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = not _em_teste
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = False
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = 'same-origin'
     # Domínios confiáveis para CSRF (ex: https://sge.finderbit.com.br)
     CSRF_TRUSTED_ORIGINS = [
         h.strip() for h in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if h.strip()
@@ -80,7 +97,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'data' / 'db.sqlite3',
+        'NAME': os.getenv('DJANGO_DB_NAME', str(BASE_DIR / 'data' / 'db.sqlite3')),
     }
 }
 
@@ -117,3 +134,8 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # ── Integração Omie ──────────────────────────────────────────────────────────
 OMIE_APP_KEY = os.getenv('OMIE_APP_KEY', '')
 OMIE_APP_SECRET = os.getenv('OMIE_APP_SECRET', '')
+OMIE_ENCRYPTION_KEY = os.getenv('OMIE_ENCRYPTION_KEY', '').strip()
+if not OMIE_ENCRYPTION_KEY:
+    if not DEBUG and not _em_teste:
+        raise ImproperlyConfigured('OMIE_ENCRYPTION_KEY é obrigatória quando DEBUG=False.')
+    OMIE_ENCRYPTION_KEY = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode()).digest()).decode()

@@ -14,9 +14,11 @@
         </p>
     </div>
     <div class="d-flex gap-2">
+        {% if usuario_admin %}
         <button type="button" class="btn btn-outline-primary btn-sm" onclick="abrirModalConfiguracaoOmie()">
             <i class="bi bi-gear-fill me-1"></i> Configurar API Omie
         </button>
+        {% endif %}
         <a href="?pagina={{ pagina }}" class="btn btn-outline-secondary btn-sm" id="btn-atualizar">
             <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
         </a>
@@ -29,7 +31,7 @@
     <div>
         <strong>Erro ao conectar ao Omie</strong><br>
         <span class="small">{{ erro }}</span>
-        {% if 'Credenciais' in erro %}
+        {% if 'Credenciais' in erro and usuario_admin %}
         <div class="mt-2 small d-flex gap-2 align-items-center flex-wrap">
             <button type="button" class="btn btn-sm btn-primary py-1" onclick="abrirModalConfiguracaoOmie()">
                 <i class="bi bi-gear-fill me-1"></i> Configurar Chaves Agora
@@ -132,7 +134,7 @@
             <span class="small text-muted">
                 <i class="bi bi-box me-1"></i>{{ nota.itens|length }} item(s)
             </span>
-            {% if not nota.n_cod_nota_ent in ja_importados %}
+            {% if not nota.n_cod_nota_ent in ja_importados and usuario_admin %}
             <button
                 type="button"
                 class="btn btn-primary btn-sm px-3"
@@ -142,10 +144,12 @@
             >
                 <i class="bi bi-cloud-download me-1"></i> Importar
             </button>
-            {% else %}
+            {% elif nota.n_cod_nota_ent in ja_importados %}
             <span class="text-success small fw-semibold">
                 <i class="bi bi-check-lg me-1"></i>Já importada
             </span>
+            {% else %}
+            <span class="text-muted small"><i class="bi bi-eye me-1"></i>Somente leitura</span>
             {% endif %}
         </div>
     </div>
@@ -215,6 +219,7 @@
 {% endif %}
 
 <!-- ═══ Modal de Importação ════════════════════════════════════════════════ -->
+{% if usuario_admin %}
 <div class="modal fade" id="modalImportacao" tabindex="-1" aria-labelledby="modalImportacaoLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-3">
@@ -248,8 +253,10 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- ═══ Modal de Configuração de API Omie ═══════════════════════════════════ -->
+{% if usuario_admin %}
 <div class="modal fade" id="modalConfiguracaoOmie" tabindex="-1" aria-labelledby="modalConfiguracaoOmieLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-3">
@@ -272,11 +279,11 @@
                     {% endif %}
                     <div class="mb-3">
                         <label for="omie-app-key" class="form-label small fw-semibold text-muted mb-1">App Key <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="omie-app-key" value="{{ config_omie.app_key }}" required placeholder="Ex: 383332717904" {% if not user.is_superuser %}disabled{% endif %}>
+                        <input type="text" class="form-control" id="omie-app-key" value="{% if user.is_superuser %}{{ config_omie.app_key }}{% endif %}" required placeholder="Ex: 383332717904" {% if not user.is_superuser %}disabled{% endif %}>
                     </div>
                     <div class="mb-3">
                         <label for="omie-app-secret" class="form-label small fw-semibold text-muted mb-1">App Secret <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="omie-app-secret" value="{{ config_omie.app_secret }}" required placeholder="Ex: 4725...5821" {% if not user.is_superuser %}disabled{% endif %}>
+                        <input type="password" class="form-control" id="omie-app-secret" value="" data-configurado="{% if config_omie %}true{% else %}false{% endif %}" placeholder="{% if config_omie %}Deixe em branco para manter a configuração atual{% else %}Informe o App Secret{% endif %}" {% if not user.is_superuser %}disabled{% endif %}>
                         <div class="form-check mt-1">
                             <input class="form-check-input" type="checkbox" id="toggleSecretVis" onclick="toggleSecretVisibility()">
                             <label class="form-check-label small text-muted" for="toggleSecretVis">Mostrar chave</label>
@@ -295,6 +302,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -321,8 +329,9 @@ function salvarConfiguracaoOmie(e) {
     const appKey = document.getElementById('omie-app-key').value.trim();
     const appSecret = document.getElementById('omie-app-secret').value.trim();
 
-    if (!appKey || !appSecret) {
-        showToast('App Key e App Secret são obrigatórios.', 'danger');
+    const secretJaConfigurado = document.getElementById('omie-app-secret').dataset.configurado === 'true';
+    if (!appKey || (!appSecret && !secretJaConfigurado)) {
+        showToast('App Key e App Secret são obrigatórios na primeira configuração.', 'danger');
         return;
     }
 

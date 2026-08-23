@@ -4,11 +4,13 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import Group, User
 import json
 from io import BytesIO, StringIO
+from unittest.mock import patch
 
 import openpyxl
 
@@ -17,6 +19,11 @@ from .services.estoque_metrics import agrupar_quantidade_por_unidade
 from .services.estoque_status import BAIXO, NORMAL, SEM_MINIMO, ZERADO, classificar_estoque, filtro_baixo, filtro_zerado
 from .services.estoque_valuation import calcular_valor_estoque
 from .services.units import decimal_br
+
+
+def adicionar_perfil(usuario, nome):
+    grupo = Group.objects.get(name=nome)
+    usuario.groups.add(grupo)
 
 
 class LoginTemplateTestCase(TestCase):
@@ -44,10 +51,66 @@ class LoginTemplateTestCase(TestCase):
         self.assertContains(response, 'value="operador"')
 
 
+class PermissoesTemplateTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='leitura-ui', password='password123')
+        self.client.force_login(self.user)
+        Produto.objects.create(
+            descricao='PRODUTO SOMENTE LEITURA',
+            tipo_produto='OUTRO',
+            quantidade_base=Decimal('10.00'),
+        )
+
+    def test_usuario_sem_perfil_recebe_interface_somente_leitura(self):
+        paginas = (
+            'dashboard',
+            'lista_produtos',
+            'registrar_movimentacao',
+            'lista_ordens',
+            'lista_categorias',
+            'lista_fornecedores',
+            'lista_fechamentos',
+        )
+
+        for nome in paginas:
+            with self.subTest(nome=nome):
+                response = self.client.get(reverse(nome))
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(response.context['usuario_operacional'])
+                self.assertNotContains(response, 'id="globalMoveForm"')
+
+        dashboard = self.client.get(reverse('dashboard'))
+        self.assertNotContains(dashboard, 'Movimentar estoque')
+        self.assertContains(dashboard, 'Nenhuma movimentação em')
+        self.assertContains(dashboard, 'Sem valores para comparar')
+
+        produtos = self.client.get(reverse('lista_produtos'))
+        self.assertNotContains(produtos, 'Novo Produto')
+        self.assertNotContains(produtos, 'id="formImportarCSV"')
+        self.assertNotContains(produtos, 'hx-post="/atualiza-estoque/"')
+
+        movimentacao = self.client.get(reverse('registrar_movimentacao'))
+        self.assertNotContains(movimentacao, 'Nova movimentação')
+        self.assertContains(movimentacao, 'O histórico está disponível abaixo.')
+
+        ordens = self.client.get(reverse('lista_ordens'))
+        self.assertNotContains(ordens, 'Nova ordem')
+
+        categorias = self.client.get(reverse('lista_categorias'))
+        self.assertNotContains(categorias, 'Nova categoria')
+
+        fornecedores = self.client.get(reverse('lista_fornecedores'))
+        self.assertNotContains(fornecedores, 'Novo fornecedor')
+
+        fechamentos = self.client.get(reverse('lista_fechamentos'))
+        self.assertNotContains(fechamentos, 'Novo fechamento')
+
+
 class MovimentacaoTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username='testuser', password='password123')
+        adicionar_perfil(self.user, 'Operador')
         self.client.login(username='testuser', password='password123')
         self.produto = Produto.objects.create(
             descricao='PRODUTO TESTE',
@@ -90,6 +153,45 @@ class MovimentacaoTestCase(TestCase):
         self.assertFalse(response.json()['ok'])
         self.produto.refresh_from_db()
         self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
+
+    def test_tipo_de_movimentacao_invalido_nao_altera_saldo(self):
+        with self.assertRaises(ValidationError):
+            Movimentacao.objects.create(
+                produto=self.produto,
+                usuario=self.user,
+                tipo='AJUSTE_INVALIDO',
+                quantidade=Decimal('2.00'),
+            )
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('10.00'))
+
+    def test_movimentacao_existente_e_immutavel(self):
+        movimentacao = Movimentacao.objects.create(
+            produto=self.produto,
+            usuario=self.user,
+            tipo='ENTRADA',
+            quantidade=Decimal('2.00'),
+        )
+        movimentacao.quantidade = Decimal('3.00')
+        with self.assertRaises(ValidationError):
+            movimentacao.save()
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('12.00'))
+
+    def test_usuario_sem_perfil_nao_registra_movimentacao(self):
+        usuario = User.objects.create_user(username='leitura', password='password123')
+        self.client.force_login(usuario)
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({
+                'produto_id': self.produto.id,
+                'tipo': 'ENTRADA',
+                'quantidade': '1.00',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['ok'])
 
     def test_registrar_saida_sem_saldo_retorna_400_com_erro(self):
         response = self.client.post(
@@ -136,6 +238,23 @@ class MovimentacaoTestCase(TestCase):
         form_end = content.index('</form>', form_start)
         modal_form = content[form_start:form_end]
         self.assertIn('name="csrfmiddlewaretoken"', modal_form)
+
+    def test_dashboard_renderiza_graficos_quando_ha_dados(self):
+        Movimentacao.objects.create(
+            produto=self.produto,
+            usuario=self.user,
+            tipo='ENTRADA',
+            quantidade=Decimal('2.00'),
+        )
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['tem_movimentacoes_ano'])
+        self.assertTrue(response.context['tem_valor_por_tipo'])
+        self.assertContains(response, 'id="chartMovimentacoes"')
+        self.assertContains(response, 'id="chartTipo"')
+        self.assertNotContains(response, 'Sem valores para comparar')
 
     def test_cadastrar_produto_com_campos_minimos(self):
         response = self.client.post(
@@ -311,6 +430,7 @@ class DominioEstoqueTestCase(TestCase):
 class CategoriaHtmxTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='categoriasuser', password='password123')
+        adicionar_perfil(self.user, 'Operador')
         self.client.force_login(self.user)
         self.tecidos = Categoria.objects.create(
             nome='Tecidos',
@@ -412,6 +532,7 @@ class CategoriaHtmxTestCase(TestCase):
 class FornecedorHtmxTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='fornecedoresuser', password='password123')
+        adicionar_perfil(self.user, 'Operador')
         self.client.force_login(self.user)
         self.alpha = Fornecedor.objects.create(
             nome='Fornecedor Alpha',
@@ -566,6 +687,7 @@ class HistoricoPrecoTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(username='priceuser', password='password123')
+        adicionar_perfil(self.user, 'Operador')
         self.client.login(username='priceuser', password='password123')
         self.produto = Produto.objects.create(
             descricao='PRODUTO PRECO',
@@ -675,6 +797,7 @@ class FechamentoTestCase(TestCase):
             username='testuser',
             password='testpassword'
         )
+        adicionar_perfil(self.user, 'Gestor')
         self.client.login(username='testuser', password='testpassword')
         
         self.fornecedor = Fornecedor.objects.create(nome="FORNECEDOR TESTE")
@@ -902,6 +1025,7 @@ class FluxosOperacionaisTestCase(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(username='adminop', password='password123')
         self.operador = User.objects.create_user(username='operadorop', password='password123')
+        adicionar_perfil(self.operador, 'Operador')
         self.fornecedor = Fornecedor.objects.create(nome='Fornecedor Operacional')
         self.produto = Produto.objects.create(
             descricao='TECIDO OPERACIONAL',
@@ -1126,6 +1250,28 @@ class ConfiguracaoOmieTestCase(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_usuario_operacional_nao_recebe_segredo_omie_na_pagina(self):
+        from .models import ConfiguracaoOmie
+
+        ConfiguracaoOmie.objects.create(app_key='KEY_PRIVADA', app_secret='SEGREDO_PRIVADO')
+        self.client.login(username='useromie', password='password123')
+        with patch(
+            'estoque.views.omie.OmieClient.listar_notas_parseadas',
+            return_value=([], 1, 0),
+        ):
+            response = self.client.get(reverse('buscar_notas_omie'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'SEGREDO_PRIVADO')
+
+    def test_importacao_omie_requer_administrador(self):
+        self.client.login(username='useromie', password='password123')
+        response = self.client.post(
+            reverse('importar_nota_omie', args=[12345]),
+            data=json.dumps({'itens': []}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 403)
+
     def test_omie_client_usa_credenciais_do_banco(self):
         from .models import ConfiguracaoOmie
         from .services.omie_client import OmieClient
@@ -1139,9 +1285,39 @@ class ConfiguracaoOmieTestCase(TestCase):
         self.assertEqual(client.app_key, 'KEY_DO_BANCO')
         self.assertEqual(client.app_secret, 'SECRET_DO_BANCO')
 
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT app_secret FROM estoque_configuracaoomie WHERE id = %s', [ConfiguracaoOmie.objects.first().id])
+            segredo_bruto = cursor.fetchone()[0]
+        self.assertNotEqual(segredo_bruto, 'SECRET_DO_BANCO')
+        self.assertTrue(segredo_bruto.startswith('gAAAAA'))
+
     def test_importar_nota_omie_criando_novo_produto(self):
         self.client.login(username='adminomie', password='password123')
         n_cod = 99999
+        from .services.omie_client import ItemNotaEntrada, NotaEntrada
+        from .models import ConfiguracaoOmie
+
+        ConfiguracaoOmie.objects.create(app_key='KEY_TESTE', app_secret='SECRET_TESTE')
+
+        nota_fonte = NotaEntrada(
+            n_cod_nota_ent=n_cod,
+            cod_int_nota_ent='INT999',
+            numero_nfe='999',
+            serie='1',
+            fornecedor_nome='PANIFICADORA TESTE',
+            fornecedor_cnpj='',
+            data_previsao='22/08/2026',
+            status='EMITIDA',
+            itens=[ItemNotaEntrada(
+                cod_item_int='101',
+                n_cod_prod=123,
+                codigo_produto='P001',
+                descricao='PAO FRANCES INTEGRAL',
+                quantidade=100.0,
+                valor_unitario=0.75,
+                cfop='5102',
+            )],
+        )
         payload = {
             'itens': [
                 {
@@ -1162,11 +1338,12 @@ class ConfiguracaoOmieTestCase(TestCase):
             'cod_int_nota_ent': 'INT999',
         }
 
-        response = self.client.post(
-            reverse('importar_nota_omie', args=[n_cod]),
-            data=json.dumps(payload),
-            content_type='application/json',
-        )
+        with patch('estoque.views.omie.OmieClient.consultar_nota_parseada', return_value=nota_fonte):
+            response = self.client.post(
+                reverse('importar_nota_omie', args=[n_cod]),
+                data=json.dumps(payload),
+                content_type='application/json',
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
@@ -1382,6 +1559,27 @@ class HTMXViewsTestCase(TestCase):
         self.assertTrue(response.json()['ok'])
         ordem = OrdemCompra.objects.get(id=response.json()['id'])
         self.assertEqual(ordem.itens.count(), 1)
+
+    def test_recebimento_de_ordem_e_idempotente(self):
+        ordem = OrdemCompra.objects.create(fornecedor=self.fornecedor, status='APROVADA')
+        ItemOrdemCompra.objects.create(
+            ordem=ordem,
+            produto=self.produto,
+            quantidade=Decimal('3.00'),
+            preco_unitario=Decimal('20.00'),
+        )
+
+        primeira = self.client.post(reverse('receber_ordem', args=[ordem.id]))
+        segunda = self.client.post(reverse('receber_ordem', args=[ordem.id]))
+
+        self.assertEqual(primeira.status_code, 200)
+        self.assertEqual(segunda.status_code, 400)
+        self.assertEqual(
+            Movimentacao.objects.filter(observacao=f'Recebimento da Ordem #{ordem.id}').count(),
+            1,
+        )
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('53.00'))
 
     def test_log_acoes_htmx_retorna_partial(self):
         response = self.client.get(reverse('log_acoes'), HTTP_HX_REQUEST='true')

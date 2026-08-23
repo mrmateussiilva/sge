@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, ExpressionWrapper, F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -23,8 +23,10 @@ from ..services.units import decimal_br, dinheiro_br
 from .helpers import (
     decimal_ou_none,
     exigir_admin_json,
+    exigir_perfil,
     json_erro,
     json_ok,
+    PERFIS_OPERACIONAIS,
     requisicao_htmx,
 )
 
@@ -51,44 +53,37 @@ def produtos_querystring(request, **updates):
 
 
 def ordenar_produtos(produtos, sort, direction):
-    reverse = direction == 'desc'
-
-    def text(value):
-        return (value or '').casefold()
-
-    sorters = {
-        'descricao': lambda p: text(p.descricao),
-        'fornecedor': lambda p: text(p.fornecedor.nome if p.fornecedor else ''),
-        'metros_por_rolo': lambda p: p.metros_por_rolo or Decimal('0'),
-        'quantidade': lambda p: p.quantidade_base or Decimal('0'),
-        'preco_custo': lambda p: p.preco_custo if p.preco_custo is not None else Decimal('0'),
+    campos = {
+        'descricao': 'descricao',
+        'fornecedor': 'fornecedor__nome',
+        'metros_por_rolo': 'metros_por_rolo',
+        'quantidade': 'quantidade_base',
+        'preco_custo': 'preco_custo',
     }
-    return sorted(produtos, key=sorters.get(sort, sorters['descricao']), reverse=reverse)
+    campo = campos.get(sort, 'descricao')
+    if direction == 'desc':
+        campo = f'-{campo}'
+    return produtos.order_by(campo, 'id')
 
 
 def resumo_produtos(produtos):
-    valor_custo = Decimal('0')
-    sem_custo = 0
-    baixos = 0
-    zerados = 0
-
-    for produto in produtos:
-        if produto.preco_custo is None and produto.quantidade_base > 0:
-            sem_custo += 1
-        elif produto.preco_custo is not None:
-            valor_custo += produto.quantidade_base * produto.preco_custo
-
-        if produto.status_estoque == 'ZERADO':
-            zerados += 1
-        elif produto.status_estoque == 'BAIXO':
-            baixos += 1
-
+    valor_estoque = ExpressionWrapper(
+        F('quantidade_base') * F('preco_custo'),
+        output_field=Produto._meta.get_field('preco_custo'),
+    )
+    resumo = produtos.aggregate(
+        total_itens=Count('id'),
+        valor_custo=Sum(valor_estoque),
+        sem_custo=Count('id', filter=Q(quantidade_base__gt=0, preco_custo__isnull=True)),
+        baixos=Count('id', filter=filtro_baixo()),
+        zerados=Count('id', filter=filtro_zerado()),
+    )
     return {
-        'total_itens': len(produtos),
-        'valor_custo_formatado': dinheiro_br(valor_custo),
-        'sem_custo': sem_custo,
-        'baixos': baixos,
-        'zerados': zerados,
+        'total_itens': resumo['total_itens'] or 0,
+        'valor_custo_formatado': dinheiro_br(resumo['valor_custo'] or Decimal('0')),
+        'sem_custo': resumo['sem_custo'] or 0,
+        'baixos': resumo['baixos'] or 0,
+        'zerados': resumo['zerados'] or 0,
     }
 
 
@@ -97,7 +92,7 @@ def unidade_label_aba(aba, produtos):
         return 'metros'
     if aba == 'TINTA':
         return 'litros'
-    primeiro = produtos[0] if produtos else None
+    primeiro = produtos.first() if hasattr(produtos, 'first') else (produtos[0] if produtos else None)
     return primeiro.unidade_simbolo if primeiro and primeiro.unidade_simbolo else 'unidades'
 
 
@@ -230,28 +225,31 @@ def lista_produtos(request):
     elif fornecedor_selecionado:
         qs = qs.filter(fornecedor__nome=fornecedor_selecionado)
 
-    produtos_filtrados = list(qs)
-    if (busca or filtro_estoque or fornecedor_selecionado) and not any(p.tipo_produto == aba for p in produtos_filtrados):
-        primeira_aba = next(
-            (tab['key'] for tab in PRODUTO_TABS if any(p.tipo_produto == tab['key'] for p in produtos_filtrados)),
-            None,
-        )
+    tipos_filtrados = set(qs.values_list('tipo_produto', flat=True).distinct())
+    if (busca or filtro_estoque or fornecedor_selecionado) and aba not in tipos_filtrados:
+        primeira_aba = next((tab['key'] for tab in PRODUTO_TABS if tab['key'] in tipos_filtrados), None)
         if primeira_aba:
             aba = primeira_aba
 
-    produtos_aba = [p for p in produtos_filtrados if p.tipo_produto == aba]
-    produtos_aba = ordenar_produtos(produtos_aba, sort, direction)
+    produtos_aba = ordenar_produtos(qs.filter(tipo_produto=aba), sort, direction)
     paginator = Paginator(produtos_aba, 25)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
+    contagens = {
+        row['tipo_produto']: row
+        for row in qs.values('tipo_produto').annotate(
+            count=Count('id'),
+            critical=Count('id', filter=Q(quantidade_base__lte=0) | filtro_baixo()),
+        )
+    }
     tabs = []
     for tab in PRODUTO_TABS:
-        produtos_tab = [p for p in produtos_filtrados if p.tipo_produto == tab['key']]
+        dados_tab = contagens.get(tab['key'], {})
         tabs.append({
             **tab,
             'active': tab['key'] == aba,
-            'count': len(produtos_tab),
-            'critical': any(p.status_estoque in ('ZERADO', 'BAIXO') for p in produtos_tab),
+            'count': dados_tab.get('count', 0),
+            'critical': dados_tab.get('critical', 0) > 0,
             'querystring': produtos_querystring(request, aba=tab['key']),
         })
 
@@ -279,14 +277,14 @@ def lista_produtos(request):
         'page_obj': page_obj,
         'produtos': page_obj,
         'total_produtos': Produto.objects.count(),
-        'total_filtrado': len(produtos_filtrados),
+        'total_filtrado': qs.count(),
         'busca': busca,
         'filtro_estoque': filtro_estoque,
         'fornecedor_selecionado': fornecedor_selecionado,
         'fornecedores_unicos': fornecedores_unicos,
         'tabs': tabs,
         'aba_ativa': aba,
-        'resumo_aba': resumo_produtos(produtos_aba),
+        'resumo_aba': resumo_produtos(qs.filter(tipo_produto=aba)),
         'unidade_label': unidade_label_aba(aba, produtos_aba),
         'colspan_atual': 9 if aba == 'TINTA' else 7 if aba in ('PAPEL', 'TECIDO') else 5,
         'sort': sort,
@@ -305,6 +303,9 @@ def lista_produtos(request):
 @login_required
 def atualiza_estoque(request):
     if request.method == 'POST':
+        perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+        if perm_error:
+            return perm_error
         try:
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
@@ -362,6 +363,9 @@ def inline_edit_estoque(request, id):
         return render(request, 'estoque/produtos/_quantidade_cell.html', {'p': produto})
 
     if request.method == 'POST':
+        perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+        if perm_error:
+            return perm_error
         try:
             nova_qtd = Decimal(str(request.POST.get('quantidade_base', produto.quantidade_base)))
             variacao = nova_qtd - produto.quantidade_base
@@ -411,6 +415,9 @@ def exportar_csv(request):
 
 @login_required
 def cadastrar_produto(request):
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     if request.method == 'POST':
         is_json = request.content_type.startswith('application/json')
         try:
@@ -421,7 +428,7 @@ def cadastrar_produto(request):
             if quantidade_inicial < 0:
                 raise ValidationError('Quantidade não pode ser negativa.')
             with transaction.atomic():
-                produto = Produto.objects.create(
+                produto = Produto(
                     tipo_produto=data['tipo_produto'],
                     descricao=data['descricao'],
                     fornecedor_id=data.get('fornecedor_id') or None,
@@ -436,6 +443,8 @@ def cadastrar_produto(request):
                     unidade_medida=data.get('unidade_medida', 'UN'),
                     categoria_id=data.get('categoria_id') or None,
                 )
+                produto.full_clean()
+                produto.save()
                 registrar_ajuste_saldo(
                     produto,
                     request.user,
@@ -463,6 +472,9 @@ def cadastrar_produto(request):
 
 @login_required
 def editar_produto(request, id):
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     produto = get_object_or_404(Produto, id=id)
     if request.method == 'POST':
         is_json = request.content_type.startswith('application/json')
@@ -470,9 +482,10 @@ def editar_produto(request, id):
             data = json.loads(request.body) if is_json else request.POST
             if not data.get('tipo_produto') or not data.get('descricao'):
                 raise ValidationError('Tipo de insumo e descrição são obrigatórios.')
-            nova_quantidade = decimal_ou_none(data.get('quantidade_base')) or Decimal('0')
             with transaction.atomic():
                 produto = Produto.objects.select_for_update().get(pk=produto.pk)
+                quantidade_informada = decimal_ou_none(data.get('quantidade_base'))
+                nova_quantidade = produto.quantidade_base if quantidade_informada is None else quantidade_informada
                 old_preco_custo = produto.preco_custo
                 old_preco_venda = produto.preco_venda
                 produto.tipo_produto = data['tipo_produto']
@@ -487,6 +500,7 @@ def editar_produto(request, id):
                 produto.litros_por_vidro = decimal_ou_none(data.get('litros_por_vidro'))
                 produto.unidade_medida = data.get('unidade_medida', 'UN')
                 produto.categoria_id = data.get('categoria_id') or None
+                produto.full_clean()
                 preco_custo_mudou = old_preco_custo != produto.preco_custo
                 preco_venda_mudou = old_preco_venda != produto.preco_venda
                 produto._historico_ja_salvo = True
@@ -599,6 +613,9 @@ def parse_decimal_zero(val):
 
 @login_required
 def importar_csv_produtos(request):
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
     if request.method != 'POST':
         return json_erro('Método não permitido.', status=405)
     

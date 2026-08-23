@@ -116,8 +116,12 @@
                             </td>
                         </tr>
                         {% empty %}
-                        {% url 'criar_ordem' as criar_ordem_url %}
-                        {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-cart' empty_title='Nenhuma ordem encontrada' empty_description='Ajuste os filtros ou crie uma nova ordem de compra.' empty_action_url=criar_ordem_url empty_action_label='Nova ordem' empty_action_icon='bi-plus-lg' %}
+                        {% if usuario_operacional %}
+                            {% url 'criar_ordem' as criar_ordem_url %}
+                            {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-cart' empty_title='Nenhuma ordem encontrada' empty_description='Ajuste os filtros ou crie uma nova ordem de compra.' empty_action_url=criar_ordem_url empty_action_label='Nova ordem' empty_action_icon='bi-plus-lg' %}
+                        {% else %}
+                            {% include 'estoque/components/empty_state.html' with table_colspan=6 empty_icon='bi-cart' empty_title='Nenhuma ordem encontrada' empty_description='Ajuste os filtros para consultar as ordens de compra.' %}
+                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

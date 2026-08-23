@@ -12,9 +12,13 @@
         <i class="bi bi-box-seam fs-5 mb-1"></i><span class="bottom-nav__label">Produtos</span>
     </a>
     <!-- FAB de Movimentação Centralizado na Bottom Nav -->
+    {% if usuario_operacional %}
     <button type="button" class="bottom-nav__action btn btn-primary rounded-circle shadow d-flex align-items-center justify-content-center" onclick="openGlobalMoveModal()" title="Registrar movimentação" aria-label="Registrar movimentação rápida">
         <i class="bi bi-plus-lg fs-3"></i>
     </button>
+    {% else %}
+    <span class="bottom-nav__action-placeholder" aria-hidden="true"></span>
+    {% endif %}
     <a href="/ordens/" class="nav-link text-center d-flex flex-column align-items-center px-2 py-1 text-secondary {% if '/ordens/' in request.path %}text-primary fw-bold{% endif %}" {% if '/ordens/' in request.path %}aria-current="page"{% endif %}>
         <i class="bi bi-cart fs-5 mb-1"></i><span class="bottom-nav__label">Ordens</span>
     </a>
