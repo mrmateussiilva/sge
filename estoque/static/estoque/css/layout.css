@@ -145,6 +145,10 @@ body {
     white-space: nowrap;
 }
 
+.page-header__actions--dashboard {
+    align-items: stretch;
+}
+
 #sidebar-backdrop {
     position: fixed;
     z-index: 1040;
@@ -340,6 +344,19 @@ body {
     .page-actions .dropdown-toggle {
         justify-content: center;
         width: 100%;
+    }
+
+    .page-header__actions--dashboard {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
+    .page-header__actions--dashboard > #btnToggleValores {
+        grid-column: 1 / -1;
+        justify-self: end;
+        width: 2.75rem;
+        padding-inline: 0;
     }
 
     .page-content {

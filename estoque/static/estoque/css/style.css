@@ -82,6 +82,13 @@
 }
 
 @media (max-width: 767.98px) {
+    #menu-toggle,
+    #mobileSearchToggle,
+    #darkModeToggleHeader {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
     .markup-input {
         width: 100%;
     }
@@ -92,6 +99,51 @@
 
     .btn-sm {
         min-height: 2.25rem;
+    }
+
+    .page-header__actions .btn,
+    .page-actions .btn {
+        min-height: 2.75rem;
+    }
+
+    .filter-bar,
+    .filter-bar--compact,
+    .filter-bar--dates,
+    .filter-bar--activity {
+        grid-template-columns: 1fr;
+        gap: var(--sge-space-3);
+        padding: var(--sge-space-3);
+    }
+
+    .filter-bar__actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .filter-bar__actions > .btn {
+        flex: 1 1 auto;
+        min-height: 2.75rem;
+    }
+
+    .filter-bar__actions--compact {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 2.75rem;
+    }
+
+    .filter-bar__actions--compact > .btn {
+        width: 100%;
+    }
+
+    .filter-bar__actions--compact > .btn:last-child {
+        padding-inline: 0;
+    }
+
+    .filter-bar--activity > .d-flex {
+        flex-direction: column;
+    }
+
+    .data-table td .btn {
+        min-height: 2.5rem;
     }
 
     .modal-dialog {

@@ -25,16 +25,16 @@
     </header>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             {% include 'estoque/components/metric_card.html' with metric_label='Produtos congelados' metric_value=itens|length metric_icon='bi-boxes' metric_variant='info' %}
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             {% include 'estoque/components/metric_card.html' with metric_label='Valor conhecido (custo)' metric_value=valor_total_formatado metric_icon='bi-cash-stack' metric_variant='success' %}
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             {% include 'estoque/components/metric_card.html' with metric_label='Valor conhecido (venda)' metric_value=valor_total_venda_formatado metric_icon='bi-graph-up-arrow' metric_variant='info' %}
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-md-3">
             {% include 'estoque/components/metric_card.html' with metric_label='Produtos sem custo' metric_value=produtos_sem_custo metric_icon='bi-exclamation-triangle' metric_variant='warning' %}
         </div>
     </div>

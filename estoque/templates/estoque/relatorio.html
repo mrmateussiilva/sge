@@ -30,7 +30,7 @@
                 <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
             </div>
             </div>
-            <div class="filter-bar__actions">
+            <div class="filter-bar__actions filter-bar__actions--compact">
                 <button type="submit" class="btn btn-primary flex-grow-1">
                     <i class="bi bi-search me-1"></i>Filtrar
                 </button>
@@ -41,7 +41,7 @@
 </form>
 
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="metric-card metric-card--success">
             <span class="metric-card__icon"><i class="bi bi-arrow-up"></i></span>
             <span class="metric-card__body"><span class="metric-card__label">Entradas por unidade</span>
@@ -53,7 +53,7 @@
             </span>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="metric-card metric-card--danger">
             <span class="metric-card__icon"><i class="bi bi-arrow-down"></i></span>
             <span class="metric-card__body"><span class="metric-card__label">Saídas por unidade</span>
@@ -65,10 +65,10 @@
             </span>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         {% include 'estoque/components/metric_card.html' with metric_label='Movimentações no período' metric_value=total_movimentacoes metric_icon='bi-arrow-left-right' metric_variant='info' %}
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         {% include 'estoque/components/metric_card.html' with metric_label='Produtos movimentados' metric_value=produtos_afetados|length metric_icon='bi-boxes' metric_variant='success' %}
     </div>
 </div>
@@ -80,6 +80,7 @@
         </h5>
     </div>
     <div class="card-body p-0">
+        <div class="table-responsive data-table-responsive">
         <table class="data-table table table-hover">
             <thead class="table-light">
                 <tr>
@@ -102,6 +103,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </section>
 </div>
