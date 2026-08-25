@@ -261,6 +261,38 @@ body {
 }
 
 @media (max-width: 991.98px) {
+    html {
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #wrapper {
+        min-height: 100dvh;
+        height: auto;
+        overflow: visible;
+    }
+
+    #page-content-wrapper {
+        min-height: 100dvh;
+        height: auto;
+        overflow: visible;
+    }
+
+    #main-content {
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: visible;
+        overscroll-behavior-y: auto;
+    }
+
     #sidebar-wrapper {
         position: fixed;
         top: 0;
