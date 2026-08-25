@@ -1,5 +1,11 @@
+from django.conf import settings
+
 from .models import Produto
 from .services.estoque_status import filtro_baixo
+
+
+def app_info(request):
+    return {'app_version': settings.APP_VERSION}
 
 
 def estoque_baixo(request):

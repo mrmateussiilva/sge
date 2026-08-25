@@ -11,6 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+APP_VERSION = '1.3.5'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -85,6 +86,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'estoque.context_processors.estoque_baixo',
+                'estoque.context_processors.app_info',
             ],
         },
     },

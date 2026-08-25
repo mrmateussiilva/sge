@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
+from django.conf import settings
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import Group, User
@@ -83,6 +84,8 @@ class PermissoesTemplateTestCase(TestCase):
         self.assertNotContains(dashboard, 'Movimentar estoque')
         self.assertContains(dashboard, 'Nenhuma movimentação em')
         self.assertContains(dashboard, 'Sem valores para comparar')
+        self.assertContains(dashboard, f'v{settings.APP_VERSION}')
+        self.assertContains(dashboard, f'/releases/tag/v{settings.APP_VERSION}')
 
         produtos = self.client.get(reverse('lista_produtos'))
         self.assertNotContains(produtos, 'Novo Produto')
