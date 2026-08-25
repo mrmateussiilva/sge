@@ -47,6 +47,7 @@ body {
     flex-direction: column;
     width: 100%;
     min-width: 0;
+    min-height: 0;
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
@@ -61,7 +62,9 @@ body {
 
 #main-content {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
 }
 
