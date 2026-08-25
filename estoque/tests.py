@@ -52,6 +52,19 @@ class LoginTemplateTestCase(TestCase):
         self.assertContains(response, 'value="operador"')
 
 
+class HealthCheckTestCase(TestCase):
+    def test_health_check_retorna_status_da_aplicacao(self):
+        response = self.client.get(reverse('health_check'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'version': settings.APP_VERSION})
+
+    def test_health_check_rejeita_metodos_diferentes_de_get(self):
+        response = self.client.post(reverse('health_check'))
+
+        self.assertEqual(response.status_code, 405)
+
+
 class PermissoesTemplateTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='leitura-ui', password='password123')
@@ -1393,6 +1406,23 @@ class ConfiguracaoOmieTestCase(TestCase):
                 'dEmiFinal': '28/07/2026',
             }
         )
+
+    def test_buscar_notas_omie_normaliza_pagina_invalida(self):
+        self.client.login(username='adminomie', password='password123')
+        from .models import ConfiguracaoOmie
+
+        ConfiguracaoOmie.objects.create(app_key='KEY_TESTE', app_secret='SECRET_TESTE')
+
+        with patch(
+            'estoque.views.omie.OmieClient.listar_notas_parseadas',
+            return_value=([], 1, 0),
+        ) as listar_notas:
+            response = self.client.get(reverse('buscar_notas_omie'), {'pagina': 'invalida'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['pagina'], 1)
+        listar_notas.assert_called_once()
+        self.assertEqual(listar_notas.call_args.kwargs['pagina'], 1)
 
 
 class HTMXViewsTestCase(TestCase):

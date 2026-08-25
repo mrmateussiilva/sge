@@ -26,6 +26,21 @@ jobs:
             echo "==> Rebuilding e subindo container..."
             docker compose up -d --build
 
+            echo "==> Verificando saúde da aplicação..."
+            for tentativa in $(seq 1 30); do
+              if curl --fail --silent --show-error http://127.0.0.1:8000/health/; then
+                echo
+                echo "==> Health check OK!"
+                break
+              fi
+              if [ "$tentativa" -eq 30 ]; then
+                echo "==> Health check falhou após 60 segundos."
+                docker compose logs --tail=100 sge || true
+                exit 1
+              fi
+              sleep 2
+            done
+
             echo "==> Limpando imagens antigas..."
             docker image prune -f
 

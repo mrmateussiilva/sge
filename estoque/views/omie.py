@@ -24,7 +24,10 @@ def buscar_notas_omie(request):
 
     GET: Lista notas do Omie (com paginação e busca por fornecedor/data), marcando quais já foram importadas.
     """
-    pagina = int(request.GET.get('pagina', 1))
+    try:
+        pagina = max(int(request.GET.get('pagina', 1)), 1)
+    except (TypeError, ValueError):
+        pagina = 1
     busca = request.GET.get('q', '').strip()
     cnpj_fornecedor = request.GET.get('cnpj', '').strip()
     data_inicio = request.GET.get('data_inicio', '').strip()
