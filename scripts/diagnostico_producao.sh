@@ -6,10 +6,13 @@
 set -u
 set -o pipefail
 
-PROJECT_PATH="${PROJECT_PATH:-$(pwd)}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_PATH="${PROJECT_PATH:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
 PUBLIC_URL="${1:-${PUBLIC_URL:-https://sge.finderbit.com.br}}"
 SERVICE="${2:-${COMPOSE_SERVICE:-sge}}"
 PUBLIC_URL="${PUBLIC_URL%/}"
+PUBLIC_HOST="${PUBLIC_HOST:-$(printf '%s\n' "$PUBLIC_URL" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:]+).*#\1#')}"
+LOCAL_CURL_HEADERS=(-H "Host: $PUBLIC_HOST" -H 'X-Forwarded-Proto: https')
 EXPECTED_FIX_COMMIT="1b9400a"
 STATIC_RELATIVE_PATH="estoque/css/layout.css"
 TMP_DIR="$(mktemp -d /tmp/sge-diagnostico.XXXXXX)"
@@ -106,13 +109,16 @@ compose_exec() {
     docker compose exec -T "$SERVICE" "$@"
 }
 
+CONTAINER_PYTHON_CMD=(uv run python)
+
 if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -n "${CONTAINER_ID:-}" ]; then
     section '3. Versão e health check do container'
 
-    HEALTH_LOCAL="$(curl -fsS --max-time 10 http://127.0.0.1:8000/health/ 2>&1 || true)"
+    HEALTH_LOCAL="$(curl -fsS "${LOCAL_CURL_HEADERS[@]}" --max-time 10 http://127.0.0.1:8000/health/ 2>&1 || true)"
     if [ -n "$HEALTH_LOCAL" ]; then
         printf 'Health local: %s\n' "$HEALTH_LOCAL"
-        if [ -n "${LOCAL_VERSION:-}" ] && printf '%s' "$HEALTH_LOCAL" | grep -Eq "\\\"version\\\"[[:space:]]*:[[:space:]]*\\\"$LOCAL_VERSION\\\""; then
+        HEALTH_VERSION="$(printf '%s' "$HEALTH_LOCAL" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+        if [ -n "${LOCAL_VERSION:-}" ] && [ "$HEALTH_VERSION" = "$LOCAL_VERSION" ]; then
             ok 'A versão informada pelo container coincide com APP_VERSION do checkout.'
         else
             warn 'A versão do health check não coincide com a versão do checkout.'
@@ -121,7 +127,7 @@ if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -n "${CONTAINER_ID:-}" ]; then
         warn 'O endpoint local /health/ não respondeu.'
     fi
 
-    CONTAINER_VERSION="$(compose_exec python -c 'from django.conf import settings; print(settings.APP_VERSION)' 2>/dev/null || true)"
+    CONTAINER_VERSION="$(compose_exec "${CONTAINER_PYTHON_CMD[@]}" -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings"); import django; django.setup(); from django.conf import settings; print(settings.APP_VERSION)' 2>/dev/null || true)"
     printf 'APP_VERSION no container: %s\n' "${CONTAINER_VERSION:-indisponível}"
     if [ -n "${LOCAL_VERSION:-}" ] && [ "$CONTAINER_VERSION" = "$LOCAL_VERSION" ]; then
         ok 'APP_VERSION do container coincide com o checkout da VPS.'
@@ -132,7 +138,7 @@ if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -n "${CONTAINER_ID:-}" ]; then
     section '4. Configuração efetiva de estáticos'
 
     STATIC_CONFIG_CODE='import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings"); import django; django.setup(); from django.conf import settings; print("STATIC_URL=" + str(settings.STATIC_URL)); print("STATIC_ROOT=" + str(settings.STATIC_ROOT)); print("STATICFILES_STORAGE=" + str(getattr(settings, "STATICFILES_STORAGE", None))); print("STORAGES_STATICFILES_BACKEND=" + str(settings.STORAGES.get("staticfiles", {}).get("BACKEND", "")))'
-    compose_exec python -c "$STATIC_CONFIG_CODE" 2>&1 || warn 'Não foi possível ler a configuração Django dentro do container.'
+    compose_exec "${CONTAINER_PYTHON_CMD[@]}" -c "$STATIC_CONFIG_CODE" 2>&1 || warn 'Não foi possível ler a configuração Django dentro do container.'
 
     section '5. Cópias do layout.css dentro do container'
 
@@ -158,12 +164,12 @@ if [ "$DOCKER_AVAILABLE" -eq 1 ] && [ -n "${CONTAINER_ID:-}" ]; then
 
     section '6. collectstatic em modo dry-run'
 
-    COLLECTSTATIC_OUTPUT="$(compose_exec python manage.py collectstatic --noinput --dry-run --verbosity 1 2>&1 || true)"
+    COLLECTSTATIC_OUTPUT="$(compose_exec "${CONTAINER_PYTHON_CMD[@]}" manage.py collectstatic --noinput --dry-run --verbosity 1 2>&1 || true)"
     printf '%s\n' "$COLLECTSTATIC_OUTPUT" | tail -n 30
 
     section '7. Headers e CSS servido pelo container'
 
-    curl -fsS -H 'Accept-Encoding: identity' -H 'Cache-Control: no-cache' \
+    curl -fsS "${LOCAL_CURL_HEADERS[@]}" -H 'Accept-Encoding: identity' -H 'Cache-Control: no-cache' \
         --max-time 10 \
         -D "$TMP_DIR/container.headers" \
         -o "$TMP_DIR/container.css" \

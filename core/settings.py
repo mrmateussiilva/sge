@@ -11,7 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = '1.3.6'
+APP_VERSION = '1.3.7'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
