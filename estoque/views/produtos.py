@@ -56,6 +56,7 @@ def ordenar_produtos(produtos, sort, direction):
     campos = {
         'descricao': 'descricao',
         'fornecedor': 'fornecedor__nome',
+        'categoria': 'categoria__nome',
         'metros_por_rolo': 'metros_por_rolo',
         'quantidade': 'quantidade_base',
         'preco_custo': 'preco_custo',
@@ -201,13 +202,14 @@ def lista_produtos(request):
         'TODOS': '',
     }.get(filtro_raw, '')
     fornecedor_selecionado = (request.GET.get('fornecedor') or '').strip()
+    categoria_selecionada = (request.GET.get('categoria') or '').strip()
     aba = (request.GET.get('aba') or 'PAPEL').strip().upper()
     abas_validas = {tab['key'] for tab in PRODUTO_TABS}
     if aba not in abas_validas:
         aba = 'PAPEL'
 
     sort = (request.GET.get('sort') or 'descricao').strip()
-    if sort not in {'descricao', 'fornecedor', 'metros_por_rolo', 'quantidade', 'preco_custo'}:
+    if sort not in {'descricao', 'fornecedor', 'categoria', 'metros_por_rolo', 'quantidade', 'preco_custo'}:
         sort = 'descricao'
     direction = 'desc' if request.GET.get('dir') == 'desc' else 'asc'
 
@@ -224,9 +226,11 @@ def lista_produtos(request):
         qs = qs.filter(fornecedor__isnull=True)
     elif fornecedor_selecionado:
         qs = qs.filter(fornecedor__nome=fornecedor_selecionado)
+    if categoria_selecionada:
+        qs = qs.filter(categoria__nome=categoria_selecionada)
 
     tipos_filtrados = set(qs.values_list('tipo_produto', flat=True).distinct())
-    if (busca or filtro_estoque or fornecedor_selecionado) and aba not in tipos_filtrados:
+    if (busca or filtro_estoque or fornecedor_selecionado or categoria_selecionada) and aba not in tipos_filtrados:
         primeira_aba = next((tab['key'] for tab in PRODUTO_TABS if tab['key'] in tipos_filtrados), None)
         if primeira_aba:
             aba = primeira_aba
@@ -255,18 +259,22 @@ def lista_produtos(request):
 
     sort_links = {}
     sort_icons = {}
-    for campo in ('descricao', 'fornecedor', 'metros_por_rolo', 'quantidade', 'preco_custo'):
+    for campo in ('descricao', 'categoria', 'fornecedor', 'metros_por_rolo', 'quantidade', 'preco_custo'):
         proxima_direcao = 'desc' if sort == campo and direction == 'asc' else 'asc'
         sort_links[campo] = produtos_querystring(request, sort=campo, dir=proxima_direcao)
         if sort != campo:
             sort_icons[campo] = 'bi-arrow-down-up opacity-25 ms-1'
-        elif campo in ('descricao', 'fornecedor'):
+        elif campo in ('descricao', 'categoria', 'fornecedor'):
             sort_icons[campo] = 'bi-sort-alpha-down text-primary ms-1' if direction == 'asc' else 'bi-sort-alpha-down-alt text-primary ms-1'
         else:
             sort_icons[campo] = 'bi-sort-numeric-down text-primary ms-1' if direction == 'asc' else 'bi-sort-numeric-down-alt text-primary ms-1'
 
     fornecedores_unicos = list(
         Fornecedor.objects.filter(produto__isnull=False)
+        .values_list('nome', flat=True).distinct().order_by('nome')
+    )
+    categorias_unicas = list(
+        Categoria.objects.filter(produtos__isnull=False)
         .values_list('nome', flat=True).distinct().order_by('nome')
     )
     extra_params = request.GET.copy()
@@ -282,17 +290,19 @@ def lista_produtos(request):
         'filtro_estoque': filtro_estoque,
         'fornecedor_selecionado': fornecedor_selecionado,
         'fornecedores_unicos': fornecedores_unicos,
+        'categoria_selecionada': categoria_selecionada,
+        'categorias_unicas': categorias_unicas,
         'tabs': tabs,
         'aba_ativa': aba,
         'resumo_aba': resumo_produtos(qs.filter(tipo_produto=aba)),
         'unidade_label': unidade_label_aba(aba, produtos_aba),
-        'colspan_atual': 9 if aba == 'TINTA' else 7 if aba in ('PAPEL', 'TECIDO') else 5,
+        'colspan_atual': 10 if aba == 'TINTA' else 8 if aba in ('PAPEL', 'TECIDO') else 6,
         'sort': sort,
         'direction': direction,
         'sort_links': sort_links,
         'sort_icons': sort_icons,
         'extra_params': extra_params,
-        'tem_filtros_ativos': bool(busca or filtro_estoque or fornecedor_selecionado),
+        'tem_filtros_ativos': bool(busca or filtro_estoque or fornecedor_selecionado or categoria_selecionada),
         'limpar_busca_url': produtos_querystring(request, busca=None, q=None),
     }
     if requisicao_htmx(request):

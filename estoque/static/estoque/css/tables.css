@@ -276,6 +276,12 @@
         order: 2;
     }
 
+    .product-table .product-card__stock .stock-ratio {
+        flex: 1 0 100%;
+        order: 3;
+        text-align: right;
+    }
+
     .product-table td.product-card__price {
         align-items: flex-start;
     }

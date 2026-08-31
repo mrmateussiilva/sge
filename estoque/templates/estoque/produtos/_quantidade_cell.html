@@ -14,9 +14,11 @@
         <div class="stock-progress progress mt-1">
             <div class="progress-bar {% if p.status_estoque == 'ZERADO' %}bg-secondary{% elif p.status_estoque == 'BAIXO' %}bg-danger{% else %}bg-success{% endif %}"
                  role="progressbar"
-                 style="width: {{ p.porcentagem_estoque_minimo }}%;">
+                 style="width: {{ p.porcentagem_estoque_minimo }}%;"
+                 title="{{ p.porcentagem_estoque_minimo|floatformat:0 }}% do estoque mínimo">
             </div>
         </div>
+        <span class="stock-ratio text-muted">mín. {{ p.estoque_minimo|floatformat:"-2" }}</span>
         {% endif %}
         {% if p.status_estoque == 'ZERADO' %}
         <span class="status-badge status-badge--zero ms-1"><i class="bi bi-slash-circle me-1"></i>Estoque zerado</span>
@@ -28,5 +30,15 @@
     <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
         {{ p.quantidade_formatada }}
     </strong>
+    {% if p.estoque_minimo and p.estoque_minimo > 0 %}
+    <div class="stock-progress progress mt-1">
+        <div class="progress-bar {% if p.status_estoque == 'ZERADO' %}bg-secondary{% elif p.status_estoque == 'BAIXO' %}bg-danger{% else %}bg-success{% endif %}"
+             role="progressbar"
+             style="width: {{ p.porcentagem_estoque_minimo }}%;"
+             title="{{ p.porcentagem_estoque_minimo|floatformat:0 }}% do estoque mínimo">
+        </div>
+    </div>
+    <span class="stock-ratio text-muted">mín. {{ p.estoque_minimo|floatformat:"-2" }}</span>
+    {% endif %}
     {% endif %}
 </td>

@@ -263,6 +263,10 @@
     width: 100%;
 }
 
+.filter-bar--products {
+    grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(130px, 1fr)) auto;
+}
+
 
 .filter-bar__search,
 .filter-bar__fields,
@@ -467,7 +471,16 @@
 .stock-progress {
     width: 100%;
     max-width: 100px;
-    height: 4px;
+    height: 5px;
+}
+
+.stock-ratio {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .ink-swatch {

@@ -8,7 +8,7 @@
           hx-push-url="true"
           hx-select="#produtos-conteudo"
           data-sge-loading="inline"
-          class="filter-bar mb-4"
+          class="filter-bar filter-bar--products mb-4"
           role="search"
           aria-label="Filtros de produtos">
 
@@ -49,6 +49,18 @@
                     <option value="BAIXO" {% if filtro_estoque == 'BAIXO' %}selected{% endif %}>Estoque baixo</option>
                     <option value="ZERADO" {% if filtro_estoque == 'ZERADO' %}selected{% endif %}>Estoque zerado</option>
                     <option value="OK" {% if filtro_estoque == 'OK' %}selected{% endif %}>Estoque normal</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-tag text-muted"></i></span>
+                <select name="categoria" class="form-select">
+                    <option value="" {% if not categoria_selecionada %}selected{% endif %}>Todas Categorias</option>
+                    {% for cat in categorias_unicas %}
+                    <option value="{{ cat }}" {% if categoria_selecionada == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
                 </select>
             </div>
         </div>
@@ -161,6 +173,11 @@
                                 </a>
                             </th>
                             <th>
+                                <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.categoria }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.categoria }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
+                                    Categoria <i class="bi {{ sort_icons.categoria }}"></i>
+                                </a>
+                            </th>
+                            <th>
                                 <a class="text-decoration-none text-reset" href="{% url 'lista_produtos' %}{{ sort_links.fornecedor }}" hx-get="{% url 'lista_produtos' %}{{ sort_links.fornecedor }}" hx-target="#produtos-conteudo" hx-swap="outerHTML" hx-push-url="true" hx-select="#produtos-conteudo">
                                     Fornecedor <i class="bi {{ sort_icons.fornecedor }}"></i>
                                 </a>
@@ -200,7 +217,26 @@
                         <tr class="{% if p.status_estoque == 'ZERADO' %}estoque-zerado{% elif p.status_estoque == 'BAIXO' %}estoque-baixo{% endif %}">
                             <td class="product-card__title ps-4" data-label="Descrição">
                                 <a href="{% url 'detalhe_produto' p.id %}" class="text-decoration-none fw-medium product-link">{{ p.descricao }}</a>
-                                <span class="product-card__meta d-md-none">{{ p.fornecedor.nome|default:'Sem fornecedor' }}</span>
+                                <div class="product-card__meta d-md-none d-flex align-items-center gap-1.5 flex-wrap">
+                                    {% if p.categoria %}
+                                    <span class="d-inline-flex align-items-center gap-1">
+                                        <span class="category-swatch" style="background-color: {{ p.categoria.cor }}; width: 0.65rem; height: 0.65rem;"></span>
+                                        <span>{{ p.categoria.nome }}</span>
+                                    </span>
+                                    <span>·</span>
+                                    {% endif %}
+                                    <span>{{ p.fornecedor.nome|default:'Sem fornecedor' }}</span>
+                                </div>
+                            </td>
+                            <td class="product-card__secondary" data-label="Categoria">
+                                {% if p.categoria %}
+                                <div class="d-flex align-items-center gap-1.5">
+                                    <span class="category-swatch" style="background-color: {{ p.categoria.cor }};"></span>
+                                    <span class="small">{{ p.categoria.nome }}</span>
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
                             </td>
                             <td class="product-card__secondary" data-label="Fornecedor">
                                 <span class="text-muted small">{{ p.fornecedor.nome|default:'—' }}</span>

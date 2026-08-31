@@ -442,6 +442,39 @@ class DominioEstoqueTestCase(TestCase):
         self.assertContains(response, 'Baixo nesta categoria')
         self.assertContains(response, 'Zerado nesta categoria')
 
+    def test_lista_produtos_filtro_e_coluna_categoria(self):
+        user = User.objects.create_user(username='catlistuser', password='password123')
+        self.client.login(username='catlistuser', password='password123')
+        cat_tecidos = Categoria.objects.create(nome='Linha Especial', cor='#ff5733')
+        cat_papeis = Categoria.objects.create(nome='Papéis Premium', cor='#00b4d8')
+        p1 = self.criar_produto(descricao='PAPEL GLOSSY', tipo_produto='PAPEL', categoria=cat_papeis, quantidade_base=Decimal('50'))
+        p2 = self.criar_produto(descricao='PAPEL COMUM', tipo_produto='PAPEL', quantidade_base=Decimal('30'))
+
+        # Sem filtro
+        response = self.client.get(reverse('lista_produtos'), {'aba': 'PAPEL'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PAPEL GLOSSY')
+        self.assertContains(response, 'PAPEL COMUM')
+        self.assertContains(response, 'Papéis Premium')
+        self.assertContains(response, 'background-color: #00b4d8')
+
+        # Filtrando por categoria
+        response_cat = self.client.get(reverse('lista_produtos'), {'aba': 'PAPEL', 'categoria': 'Papéis Premium'})
+        self.assertEqual(response_cat.status_code, 200)
+        self.assertContains(response_cat, 'PAPEL GLOSSY')
+        self.assertNotContains(response_cat, 'PAPEL COMUM')
+
+    def test_lista_produtos_exibe_minimo_e_barra_estoque(self):
+        user = User.objects.create_user(username='stockuser', password='password123')
+        self.client.login(username='stockuser', password='password123')
+        self.criar_produto(descricao='PAPEL BOBINA', tipo_produto='PAPEL', quantidade_base=Decimal('15'), estoque_minimo=Decimal('50'))
+
+        response = self.client.get(reverse('lista_produtos'), {'aba': 'PAPEL'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'stock-ratio')
+        self.assertContains(response, 'mín. 50')
+        self.assertContains(response, '30% do estoque mínimo')
+
 
 class CategoriaHtmxTestCase(TestCase):
     def setUp(self):
