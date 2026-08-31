@@ -445,8 +445,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateGlobalMoveSubmitLabel() {
         const tipoEl = document.getElementById('globalMoveTipo');
         const btn = document.getElementById('globalMoveSubmitBtn');
+        const optEntrada = document.getElementById('globalMoveOptEntrada');
+        const optSaida = document.getElementById('globalMoveOptSaida');
+        const motivoEl = document.getElementById('globalMoveMotivo');
         if (tipoEl && btn) {
-            btn.textContent = tipoEl.value === 'SAIDA' ? 'Registrar saída' : 'Registrar entrada';
+            const isSaida = tipoEl.value === 'SAIDA';
+            btn.textContent = isSaida ? 'Registrar saída' : 'Registrar entrada';
+            if (optEntrada && optSaida && motivoEl) {
+                if (isSaida) {
+                    optEntrada.classList.add('d-none');
+                    optSaida.classList.remove('d-none');
+                    motivoEl.value = 'PRODUCAO';
+                } else {
+                    optSaida.classList.add('d-none');
+                    optEntrada.classList.remove('d-none');
+                    motivoEl.value = 'COMPRA';
+                }
+            }
         }
     }
 
@@ -509,9 +524,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
 
+        const motivoEl = document.getElementById('globalMoveMotivo');
         const payload = {
             produto_id: pid,
             tipo: document.getElementById('globalMoveTipo').value,
+            motivo: motivoEl ? motivoEl.value : '',
             quantidade: parseFloat(document.getElementById('globalMoveQuantidade').value),
             observacao: document.getElementById('globalMoveObservacao').value
         };

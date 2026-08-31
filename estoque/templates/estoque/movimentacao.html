@@ -52,11 +52,28 @@
                     <div class="col-12">
                         <label class="form-label fw-medium">Tipo</label>
                         <div class="btn-group w-100" role="group">
-                            <input class="btn-check" type="radio" name="tipo" value="ENTRADA" id="tipo_entrada" checked>
+                            <input class="btn-check" type="radio" name="tipo" value="ENTRADA" id="tipo_entrada" checked onchange="updateMotivoOptions('ENTRADA')">
                             <label class="btn btn-outline-success" for="tipo_entrada"><i class="bi bi-box-arrow-in-down me-1"></i>Entrada</label>
-                            <input class="btn-check" type="radio" name="tipo" value="SAIDA" id="tipo_saida">
+                            <input class="btn-check" type="radio" name="tipo" value="SAIDA" id="tipo_saida" onchange="updateMotivoOptions('SAIDA')">
                             <label class="btn btn-outline-danger" for="tipo_saida"><i class="bi bi-box-arrow-up me-1"></i>Saída</label>
                         </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="select-motivo-mov" class="form-label fw-medium">Motivo</label>
+                        <select id="select-motivo-mov" name="motivo" class="form-select">
+                            <option value="">Selecione o motivo (opcional)</option>
+                            <optgroup id="optgroup-entrada" label="Entrada">
+                                {% for val, label in motivos_entrada %}
+                                <option value="{{ val }}" {% if val == 'COMPRA' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup id="optgroup-saida" label="Saída" class="d-none">
+                                {% for val, label in motivos_saida %}
+                                <option value="{{ val }}">{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
                     </div>
 
                     <div class="col-12">
@@ -91,4 +108,24 @@
     </div>
 </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateMotivoOptions(tipo) {
+    const optEntrada = document.getElementById('optgroup-entrada');
+    const optSaida = document.getElementById('optgroup-saida');
+    const select = document.getElementById('select-motivo-mov');
+    if (!select || !optEntrada || !optSaida) return;
+    if (tipo === 'SAIDA') {
+        optEntrada.classList.add('d-none');
+        optSaida.classList.remove('d-none');
+        select.value = 'PRODUCAO';
+    } else {
+        optSaida.classList.add('d-none');
+        optEntrada.classList.remove('d-none');
+        select.value = 'COMPRA';
+    }
+}
+</script>
 {% endblock %}

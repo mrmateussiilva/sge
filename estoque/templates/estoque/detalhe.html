@@ -171,6 +171,9 @@
                     <td class="ps-4 text-muted small" data-label="Data">{{ m.data|date:"d/m/Y H:i" }}</td>
                     <td data-label="Tipo">
                         {% include 'estoque/components/status_badge.html' with status=m.tipo %}
+                        {% if m.motivo %}
+                        <div class="small text-muted mt-1">{{ m.get_motivo_display }}</div>
+                        {% endif %}
                     </td>
                     <td data-label="Quantidade">{{ m.quantidade }} {{ produto.unidade_simbolo }}</td>
                     <td class="text-muted" data-label="Observação">{{ m.observacao|default:'-' }}</td>

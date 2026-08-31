@@ -33,33 +33,47 @@
         <a href="/relatorio/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/relatorio/' in request.path %}active{% endif %}">
             <i class="bi bi-file-earmark-bar-graph me-3"></i> Relatórios
         </a>
-        <div class="mt-3 mb-2 px-3 small text-uppercase text-secondary fw-semibold">Configurações</div>
-        <a href="/fornecedores/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/fornecedores/' in request.path %}active{% endif %}">
-            <i class="bi bi-truck me-3"></i> Fornecedores
-        </a>
-        <a href="/categorias/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/categorias/' in request.path %}active{% endif %}">
-            <i class="bi bi-tags me-3"></i> Categorias
-        </a>
-        <a href="/fechamentos/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/fechamentos/' in request.path %}active{% endif %}">
-            <i class="bi bi-archive me-3"></i> Fechamentos
-        </a>
-        <a href="/log/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/log/' in request.path %}active{% endif %}">
-            <i class="bi bi-activity me-3"></i> Atividades
-        </a>
-        {% if usuario_admin %}
-        <a href="/usuarios/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/usuarios/' in request.path %}active{% endif %}">
-            <i class="bi bi-people me-3"></i> Usuários
-        </a>
-        {% endif %}
-        <div class="mt-3 mb-2 px-3 small text-uppercase text-secondary fw-semibold">Integrações</div>
-        <a href="/omie/notas/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/omie/' in request.path %}active{% endif %}">
-            <i class="bi bi-cloud-download me-3"></i> Importar NF-e Omie
-        </a>
-        {% if usuario_staff %}
-        <a href="/admin/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2" target="_blank" hx-boost="false">
-            <i class="bi bi-gear-fill me-3"></i> Administração
-        </a>
-        {% endif %}
+        <div class="my-2 border-top border-secondary border-opacity-25"></div>
+
+        <!-- Menu recolhível de Configurações e Cadastros -->
+        <button class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between w-100 border-0 bg-transparent text-start {% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}active{% endif %}"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#sidebarConfigSubmenu"
+                aria-expanded="{% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}true{% else %}false{% endif %}"
+                aria-controls="sidebarConfigSubmenu">
+            <span><i class="bi bi-gear me-3"></i> Configurações</span>
+            <i class="bi bi-chevron-down small sidebar-collapse-arrow"></i>
+        </button>
+
+        <div class="collapse sidebar-submenu {% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}show{% endif %}"
+             id="sidebarConfigSubmenu">
+            <a href="/fornecedores/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/fornecedores/' in request.path %}active{% endif %}">
+                <i class="bi bi-truck me-2"></i> Fornecedores
+            </a>
+            <a href="/categorias/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/categorias/' in request.path %}active{% endif %}">
+                <i class="bi bi-tags me-2"></i> Categorias
+            </a>
+            <a href="/fechamentos/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/fechamentos/' in request.path %}active{% endif %}">
+                <i class="bi bi-archive me-2"></i> Fechamentos
+            </a>
+            <a href="/log/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/log/' in request.path %}active{% endif %}">
+                <i class="bi bi-activity me-2"></i> Atividades
+            </a>
+            <a href="/omie/notas/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/omie/' in request.path %}active{% endif %}">
+                <i class="bi bi-cloud-download me-2"></i> Importar NF-e
+            </a>
+            {% if usuario_admin %}
+            <a href="/usuarios/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/usuarios/' in request.path %}active{% endif %}">
+                <i class="bi bi-people me-2"></i> Usuários
+            </a>
+            {% endif %}
+            {% if usuario_staff %}
+            <a href="/admin/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small" target="_blank" hx-boost="false">
+                <i class="bi bi-shield-lock me-2"></i> Django Admin
+            </a>
+            {% endif %}
+        </div>
     </div>
     <div class="px-3 pb-1 pt-2">
         <a href="https://github.com/mrmateussiilva/sge/releases/tag/v{{ app_version }}"

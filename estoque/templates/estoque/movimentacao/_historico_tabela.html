@@ -26,6 +26,12 @@
                             </td>
                             <td data-label="Tipo">
                                 {% include 'estoque/components/status_badge.html' with status=m.tipo %}
+                                {% if m.motivo %}
+                                <div class="small text-muted mt-1">{{ m.get_motivo_display }}</div>
+                                {% endif %}
+                                {% if m.observacao %}
+                                <div class="small text-muted" style="font-size: 0.75rem;">{{ m.observacao }}</div>
+                                {% endif %}
                             </td>
                             <td class="fw-semibold" data-label="Qtd">{{ m.quantidade }} {{ m.produto.unidade_simbolo }}</td>
                             <td class="text-muted small" data-label="Usuário">{{ m.usuario.username|default:"Sistema" }}</td>

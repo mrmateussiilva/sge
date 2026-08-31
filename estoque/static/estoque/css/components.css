@@ -38,6 +38,20 @@
     font-weight: 600;
 }
 
+.sidebar-collapse-arrow {
+    transition: transform 0.2s ease;
+}
+
+.nav-link-custom[aria-expanded="true"] .sidebar-collapse-arrow {
+    transform: rotate(180deg);
+}
+
+.sidebar-submenu {
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+    margin-left: 1.25rem;
+    padding-left: 0.5rem;
+}
+
 .card,
 .content-panel {
     border: 1px solid var(--sge-border);

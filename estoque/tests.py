@@ -186,6 +186,7 @@ class MovimentacaoTestCase(TestCase):
             produto=self.produto,
             usuario=self.user,
             tipo='ENTRADA',
+            motivo='COMPRA',
             quantidade=Decimal('2.00'),
         )
         movimentacao.quantidade = Decimal('3.00')
@@ -193,6 +194,27 @@ class MovimentacaoTestCase(TestCase):
             movimentacao.save()
         self.produto.refresh_from_db()
         self.assertEqual(self.produto.quantidade_base, Decimal('12.00'))
+
+    def test_registrar_movimentacao_com_motivo(self):
+        response = self.client.post(
+            reverse('registrar_movimentacao'),
+            data=json.dumps({
+                'produto_id': self.produto.id,
+                'tipo': 'SAIDA',
+                'motivo': 'PRODUCAO',
+                'quantidade': '3.00',
+                'observacao': 'Produção de camisetas',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        mov = Movimentacao.objects.filter(produto=self.produto, tipo='SAIDA').latest('id')
+        self.assertEqual(mov.motivo, 'PRODUCAO')
+        self.assertEqual(mov.get_motivo_display(), 'Uso em Produção / Consumo')
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.quantidade_base, Decimal('7.00'))
 
     def test_usuario_sem_perfil_nao_registra_movimentacao(self):
         usuario = User.objects.create_user(username='leitura', password='password123')

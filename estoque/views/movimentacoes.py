@@ -49,6 +49,10 @@ def registrar_movimentacao(request):
             tipo = data.get('tipo')
             quantidade_raw = data.get('quantidade')
             observacao = data.get('observacao', '')
+            motivo = (data.get('motivo') or '').strip().upper()
+            motivos_validos = dict(Movimentacao.MOTIVO_CHOICES)
+            if motivo and motivo not in motivos_validos:
+                motivo = 'OUTRO'
 
             if not produto_id or not tipo or not quantidade_raw:
                 err_msg = 'Campos obrigatórios ausentes.'
@@ -72,11 +76,13 @@ def registrar_movimentacao(request):
                 produto=produto,
                 usuario=request.user,
                 tipo=tipo,
+                motivo=motivo,
                 quantidade=quantidade,
                 observacao=observacao,
             )
             produto.refresh_from_db()
-            log_acao(request.user, tipo, f'{tipo} de {quantidade} {produto.unidade_simbolo} de {produto.descricao}', 'Movimentacao')
+            motivo_desc = f" ({dict(Movimentacao.MOTIVO_CHOICES).get(motivo)})" if motivo else ""
+            log_acao(request.user, tipo, f'{tipo}{motivo_desc} de {quantidade} {produto.unidade_simbolo} de {produto.descricao}', 'Movimentacao')
 
             if is_json:
                 return json_ok(
@@ -116,11 +122,27 @@ def registrar_movimentacao(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
+    motivos_saida = [
+        ('PRODUCAO', 'Uso em Produção / Consumo'),
+        ('AVARIA', 'Avaria / Defeito / Perda'),
+        ('VENCIMENTO', 'Vencimento / Descarte'),
+        ('AJUSTE', 'Ajuste de Inventário'),
+        ('OUTRO', 'Outro'),
+    ]
+    motivos_entrada = [
+        ('COMPRA', 'Compra / Reposição'),
+        ('DEVOLUCAO', 'Devolução'),
+        ('AJUSTE', 'Ajuste de Inventário'),
+        ('OUTRO', 'Outro'),
+    ]
+
     context = {
         'produtos': produtos,
         'lista_produtos_qs': lista_produtos_qs,
         'page_obj': page_obj,
         'movimentacoes': page_obj,
+        'motivos_saida': motivos_saida,
+        'motivos_entrada': motivos_entrada,
     }
 
     if requisicao_htmx(request):

@@ -210,9 +210,20 @@ class Movimentacao(models.Model):
         ('SAIDA', 'Saída'),
     ]
 
+    MOTIVO_CHOICES = [
+        ('PRODUCAO', 'Uso em Produção / Consumo'),
+        ('AVARIA', 'Avaria / Defeito / Perda'),
+        ('VENCIMENTO', 'Vencimento / Descarte'),
+        ('AJUSTE', 'Ajuste de Inventário'),
+        ('COMPRA', 'Compra / Reposição'),
+        ('DEVOLUCAO', 'Devolução'),
+        ('OUTRO', 'Outro'),
+    ]
+
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='movimentacoes')
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
+    motivo = models.CharField(max_length=20, choices=MOTIVO_CHOICES, blank=True, default='', verbose_name='Motivo')
     quantidade = models.DecimalField(max_digits=10, decimal_places=2)
     data = models.DateTimeField(auto_now_add=True)
     observacao = models.CharField(max_length=255, blank=True, default='')
@@ -252,9 +263,9 @@ class Movimentacao(models.Model):
 
         if self.pk:
             anterior = type(self).objects.only(
-                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao'
+                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao', 'motivo'
             ).get(pk=self.pk)
-            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao')
+            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao', 'motivo')
             if any(getattr(anterior, campo) != getattr(self, campo) for campo in campos_imutaveis):
                 raise ValidationError('Movimentações são imutáveis; registre um estorno ou uma nova movimentação.')
 
@@ -264,9 +275,9 @@ class Movimentacao(models.Model):
             raise ValidationError('Tipo de movimentação inválido.')
         if self.pk:
             anterior = type(self).objects.only(
-                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao'
+                'produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao', 'motivo'
             ).get(pk=self.pk)
-            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao')
+            campos_imutaveis = ('produto_id', 'usuario_id', 'tipo', 'quantidade', 'data', 'observacao', 'motivo')
             if any(getattr(anterior, campo) != getattr(self, campo) for campo in campos_imutaveis):
                 raise ValidationError('Movimentações são imutáveis; registre um estorno ou uma nova movimentação.')
             super().save(*args, **kwargs)
