@@ -108,6 +108,34 @@ No boot do container, `entrypoint.sh` executa:
 
 O banco SQLite do container fica persistido no volume `sqlite_data`.
 
+### Backup local na VPS
+
+O volume Docker garante persistência, mas não substitui backup. Para instalar o
+backup automático na VPS, atualize o checkout e execute uma vez, como root:
+
+```bash
+sudo bash scripts/install_sge_backup.sh "$PWD"
+```
+
+O instalador configura cópias consistentes do SQLite em `/var/backups/sge`,
+com execução às 02h, 08h, 14h e 20h, validação de integridade e rotação local:
+
+- backups de 6 em 6 horas por 7 dias;
+- uma cópia diária por 30 dias;
+- uma cópia mensal por 365 dias.
+
+O deploy via GitHub Actions exige que o backup esteja instalado e executa uma
+cópia antes de atualizar o código ou recriar o container.
+
+Para restaurar uma cópia, primeiro confirme o arquivo e execute explicitamente:
+
+```bash
+sudo SGE_CONFIRM_RESTORE=YES /usr/local/sbin/sge-restore /var/backups/sge/daily/ARQUIVO.sqlite3.gz
+```
+
+O backup permanece na mesma VPS; portanto, não cobre perda total do servidor
+ou do disco.
+
 ## Comandos Uteis
 
 Rodar testes:

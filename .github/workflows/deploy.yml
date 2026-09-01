@@ -20,6 +20,15 @@ jobs:
             set -e
             cd ${{ secrets.VPS_DEPLOY_PATH }}
 
+            echo "==> Executando backup antes do deploy..."
+            if [ -x /usr/local/sbin/sge-backup ]; then
+              sudo -n /usr/local/sbin/sge-backup
+            else
+              echo "==> ERRO: backup não está instalado na VPS."
+              echo "==> Execute: sudo bash scripts/install_sge_backup.sh \"$PWD\""
+              exit 1
+            fi
+
             echo "==> Atualizando código..."
             git pull origin main
 

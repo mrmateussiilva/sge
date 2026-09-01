@@ -1,0 +1,9 @@
+[Unit]
+Description=Agendamento do backup local do SGE
+
+[Timer]
+OnCalendar=*-*-* 02,08,14,20:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
