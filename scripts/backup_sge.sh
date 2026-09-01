@@ -111,7 +111,7 @@ fi
 
 # O primeiro backup executado em cada mês vira a cópia mensal.
 MONTH="$(date +%Y%m)"
-if [[ -z "$(find "$BACKUP_DIR/monthly" -maxdepth 1 -type f -name "sge-${MONTH}-*.sqlite3.gz" -print -quit)" ]]; then
+if [[ -z "$(find "$BACKUP_DIR/monthly" -maxdepth 1 -type f -name "sge-${MONTH}??-*.sqlite3.gz" -print -quit)" ]]; then
     link_snapshot "$BACKUP_DIR/monthly"
 fi
 

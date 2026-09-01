@@ -32,6 +32,9 @@ jobs:
             echo "==> Atualizando código..."
             git pull origin main
 
+            echo "==> Atualizando rotina de backup instalada..."
+            sudo -n bash scripts/install_sge_backup.sh "$PWD"
+
             echo "==> Rebuilding e subindo container..."
             docker compose up -d --build
 
