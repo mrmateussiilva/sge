@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Search,
@@ -41,7 +41,7 @@ export function ProdutosPage() {
   const [produtoExcluindo, setProdutoExcluindo] = useState<ProdutoItem | null>(null)
 
   // Query de produtos
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['produtos', { aba, busca, filtroEstoque, page }],
     queryFn: () => {
       const params = new URLSearchParams()
@@ -52,6 +52,7 @@ export function ProdutosPage() {
       params.set('page_size', '25')
       return api.get<ProdutosResponse>(`/api/v1/produtos/?${params.toString()}`)
     },
+    placeholderData: keepPreviousData,
   })
 
   // Mutation de exclusão
@@ -205,6 +206,12 @@ export function ProdutosPage() {
 
       {/* Lista / Tabela */}
       <Card>
+        {/* Barra de progresso sutil para re-fetches (troca de aba, filtro, paginação) */}
+        <div
+          className={`h-0.5 rounded-t-xl transition-all duration-300 ${
+            isFetching && !isLoading ? 'bg-primary animate-pulse' : 'bg-transparent'
+          }`}
+        />
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted-foreground space-y-2">
