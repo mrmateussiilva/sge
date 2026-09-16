@@ -113,7 +113,7 @@
                 <span class="metric-card__icon"><i class="bi bi-currency-dollar"></i></span>
                 <span class="metric-card__body">
                     <span class="metric-card__label">Valor conhecido nesta categoria</span>
-                    <span class="metric-card__value">{{ resumo_aba.valor_custo_formatado }}</span>
+                    <span class="metric-card__value valor-sensivel">{{ resumo_aba.valor_custo_formatado }}</span>
                     {% if resumo_aba.sem_custo > 0 %}<span class="metric-card__helper">Parcial: {{ resumo_aba.sem_custo }} sem custo</span>{% endif %}
                 </span>
             </div>
@@ -217,15 +217,35 @@
                         <tr class="{% if p.status_estoque == 'ZERADO' %}estoque-zerado{% elif p.status_estoque == 'BAIXO' %}estoque-baixo{% endif %}">
                             <td class="product-card__title ps-4" data-label="Descrição">
                                 <a href="{% url 'detalhe_produto' p.id %}" class="text-decoration-none fw-medium product-link">{{ p.descricao }}</a>
-                                <div class="product-card__meta d-md-none d-flex align-items-center gap-1.5 flex-wrap">
+                                <div class="product-card__meta d-md-none d-flex align-items-center gap-1 flex-wrap">
                                     {% if p.categoria %}
                                     <span class="d-inline-flex align-items-center gap-1">
-                                        <span class="category-swatch" style="background-color: {{ p.categoria.cor }}; width: 0.65rem; height: 0.65rem;"></span>
+                                        <span class="category-swatch" style="background-color: {{ p.categoria.cor }}; width: 0.6rem; height: 0.6rem;"></span>
                                         <span>{{ p.categoria.nome }}</span>
                                     </span>
                                     <span>·</span>
                                     {% endif %}
                                     <span>{{ p.fornecedor.nome|default:'Sem fornecedor' }}</span>
+                                    {% if aba_ativa == 'PAPEL' or aba_ativa == 'TECIDO' %}
+                                        {% if p.metros_por_rolo and p.metros_por_rolo > 0 %}
+                                        <span>·</span>
+                                        <span class="badge bg-opacity-10 {% if aba_ativa == 'PAPEL' %}bg-primary text-primary{% else %}bg-success text-success{% endif %} py-0.5 px-1.5">
+                                            {{ p.quantidade_rolos_estimada }} rolos ({{ p.metros_por_rolo|floatformat:0 }}m/un)
+                                        </span>
+                                        {% endif %}
+                                    {% elif aba_ativa == 'TINTA' %}
+                                        <span>·</span>
+                                        <span class="d-inline-flex align-items-center gap-1">
+                                            <span class="ink-swatch" style="background-color: {{ p.cor_tinta_hex }}; width: 0.6rem; height: 0.6rem;"></span>
+                                            <span>{{ p.get_cor_tinta_display }}</span>
+                                        </span>
+                                        {% if p.litros_por_vidro and p.litros_por_vidro > 0 %}
+                                        <span>·</span>
+                                        <span class="badge bg-info bg-opacity-10 text-info py-0.5 px-1.5">
+                                            {{ p.quantidade_vidros_estimada }} garrafas
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
                                 </div>
                             </td>
                             <td class="product-card__secondary" data-label="Categoria">
@@ -282,12 +302,13 @@
                             {% include 'estoque/produtos/_quantidade_cell.html' with p=p %}
 
                             <td class="product-card__price" data-label="Preços">
+                                <span class="d-md-none text-muted fw-semibold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">Preço</span>
                                 <div class="small">
-                                    <div class="text-muted">C: {% if p.preco_custo is not None %}R$ {{ p.preco_custo|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
-                                    <div class="fw-semibold text-primary">V: {% if p.preco_venda is not None %}R$ {{ p.preco_venda|floatformat:2 }}{% else %}Não cadastrado{% endif %}</div>
+                                    <div class="text-muted">C: {% if p.preco_custo is not None %}<span class="valor-sensivel">R$ {{ p.preco_custo|floatformat:2 }}</span>{% else %}Não cadastrado{% endif %}</div>
+                                    <div class="fw-semibold text-primary">V: {% if p.preco_venda is not None %}<span class="valor-sensivel">R$ {{ p.preco_venda|floatformat:2 }}</span>{% else %}Não cadastrado{% endif %}</div>
                                     {% if p.margem_lucro is not None %}
                                     <div class="mt-1">
-                                        <span class="badge bg-opacity-10 {% if p.margem_lucro >= 0 %}bg-success text-success{% else %}bg-danger text-danger{% endif %}">
+                                        <span class="badge bg-opacity-10 {% if p.margem_lucro >= 0 %}bg-success text-success{% else %}bg-danger text-danger{% endif %} valor-sensivel">
                                             {% if p.margem_lucro >= 0 %}+{% endif %}{{ p.margem_lucro }}% margem
                                         </span>
                                     </div>
@@ -296,46 +317,29 @@
                             </td>
 
                             <td class="data-table__actions pe-4 text-end" data-label="Ações">
-                                <div class="btn-group btn-group-sm data-table__action-group">
+                                <div class="d-flex align-items-center justify-content-end gap-1.5 data-table__action-group">
                                     {% if usuario_operacional %}
-                                    <form class="btn-group btn-group-sm" onsubmit="return false;">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="id" value="{{ p.id }}">
-                                        <button type="button"
-                                                class="btn btn-outline-success"
-                                                name="variacao"
-                                                value="1"
-                                                hx-post="{% url 'atualiza_estoque' %}"
-                                                hx-include="closest form"
-                                                hx-boost="false"
-                                                hx-target="#quantidade-cell-{{ p.id }}"
-                                                hx-swap="outerHTML"
-                                                hx-disinherit="hx-select"
-                                                data-sge-loading="inline"
-                                                title="Adicionar 1 {{ p.unidade_simbolo }}"
-                                                aria-label="Adicionar 1 unidade em {{ p.descricao }}"><i class="bi bi-plus-lg"></i></button>
-                                        <button type="button"
-                                                class="btn btn-outline-danger"
-                                                name="variacao"
-                                                value="-1"
-                                                hx-post="{% url 'atualiza_estoque' %}"
-                                                hx-include="closest form"
-                                                hx-boost="false"
-                                                hx-target="#quantidade-cell-{{ p.id }}"
-                                                hx-swap="outerHTML"
-                                                hx-disinherit="hx-select"
-                                                data-sge-loading="inline"
-                                                title="Remover 1 {{ p.unidade_simbolo }}"
-                                                aria-label="Remover 1 unidade de {{ p.descricao }}"><i class="bi bi-dash-lg"></i></button>
-                                    </form>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary py-1 px-2 text-nowrap"
+                                            onclick="openGlobalMoveModal({{ p.id }}, '{{ p.descricao|escapejs }}')"
+                                            title="Movimentar estoque de {{ p.descricao }}"
+                                            aria-label="Movimentar estoque de {{ p.descricao }}">
+                                        <i class="bi bi-arrow-left-right me-1"></i>Movimentar
+                                    </button>
                                     {% endif %}
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" aria-label="Mais ações para {{ p.descricao }}"><i class="bi bi-three-dots-vertical"></i></button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li><a href="{% url 'detalhe_produto' p.id %}" class="dropdown-item"><i class="bi bi-eye me-2"></i>Ver detalhes</a></li>
+                                    <a href="{% url 'detalhe_produto' p.id %}" class="btn btn-sm btn-outline-secondary d-md-none" title="Ver detalhes" aria-label="Ver detalhes de {{ p.descricao }}">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Mais ações" aria-label="Mais ações para {{ p.descricao }}">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                            <li><a href="{% url 'detalhe_produto' p.id %}" class="dropdown-item"><i class="bi bi-eye me-2 text-muted"></i>Ver detalhes</a></li>
                                             {% if usuario_operacional %}
-                                            <li><a href="{% url 'editar_produto' p.id %}" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                            <li><a href="{% url 'editar_produto' p.id %}" class="dropdown-item"><i class="bi bi-pencil me-2 text-muted"></i>Editar</a></li>
                                             {% endif %}
+                                            <li><a href="{% url 'etiqueta_produto' p.id %}" class="dropdown-item" target="_blank" hx-boost="false"><i class="bi bi-tag me-2 text-muted"></i>Imprimir Etiqueta</a></li>
                                         </ul>
                                     </div>
                                 </div>

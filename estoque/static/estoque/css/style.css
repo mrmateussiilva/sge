@@ -107,6 +107,7 @@
     }
 
     .filter-bar,
+    .filter-bar--products,
     .filter-bar--compact,
     .filter-bar--dates,
     .filter-bar--activity {

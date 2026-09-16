@@ -38,6 +38,8 @@
   function updateTypeFields() {
     const tipo = typeSelect ? typeSelect.value : '';
     if (details) details.classList.toggle('d-none', !tipo);
+    const prompt = form.querySelector('#select-type-prompt');
+    if (prompt) prompt.classList.toggle('d-none', !!tipo);
 
     if (autoUnidade && unidadeSelect) {
       if (tipo === 'PAPEL' || tipo === 'TECIDO') {

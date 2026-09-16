@@ -1532,11 +1532,9 @@ class HTMXViewsTestCase(TestCase):
     def test_acoes_rapidas_de_estoque_nao_sao_navegacao_boosted(self):
         response = self.client.get(reverse('lista_produtos'))
 
-        self.assertContains(response, 'hx-post="/atualiza-estoque/"')
+        self.assertContains(response, 'openGlobalMoveModal')
         self.assertContains(response, 'hx-boost="false"')
-        self.assertContains(response, 'hx-include="closest form"')
-        self.assertContains(response, 'onsubmit="return false;"')
-        self.assertContains(response, 'data-sge-loading="inline"', count=3)
+        self.assertContains(response, 'data-sge-loading="inline"')
 
     def test_filtros_de_produtos_atualizam_apenas_a_lista(self):
         response = self.client.get(reverse('lista_produtos'))

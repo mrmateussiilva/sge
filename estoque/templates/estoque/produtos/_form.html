@@ -3,154 +3,209 @@
     <form method="post"
           action="{{ form_action }}"
           hx-boost="false"
-          class="row g-3"
+          class="row g-4"
           data-product-form
           data-auto-unidade="{{ auto_unidade|yesno:'true,false' }}"
           data-submit-label="{{ submit_label }}"
           data-loading-label="{{ loading_label }}">
       {% csrf_token %}
 
+      <!-- Seletor Principal de Tipo -->
       <div class="col-12">
-        <label class="form-label fw-medium small text-uppercase text-secondary" for="id_tipo_produto">Tipo de Insumo</label>
-        <select id="id_tipo_produto" name="tipo_produto" class="form-select form-select-lg" required data-product-type>
-          <option value="" {% if not form_data.tipo_produto %}selected{% endif %} disabled>Selecione o tipo de insumo...</option>
-          {% for value, label in tipo_produto_choices %}
-          <option value="{{ value }}" {% if form_data.tipo_produto == value %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
+        <div class="p-3 rounded-3 bg-body-tertiary border">
+          <label class="form-label fw-bold text-uppercase text-secondary text-2xs mb-1" for="id_tipo_produto">
+            <i class="bi bi-tag-fill text-primary me-1"></i>Tipo de Insumo *
+          </label>
+          <select id="id_tipo_produto" name="tipo_produto" class="form-select form-select-lg" required data-product-type>
+            <option value="" {% if not form_data.tipo_produto %}selected{% endif %} disabled>Selecione o tipo de insumo (Tecido, Papel, Tinta, etc)...</option>
+            {% for value, label in tipo_produto_choices %}
+            <option value="{{ value }}" {% if form_data.tipo_produto == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted small mt-1">A escolha do tipo define a unidade de medida padrão e os campos técnicos (metros/rolo ou cor/garrafa).</div>
+        </div>
       </div>
 
-      <div class="product-form-fields row g-3 {% if not form_data.tipo_produto %}d-none{% endif %}" data-product-details>
-        <div class="col-12">
-          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_descricao">Descrição</label>
-          <input id="id_descricao" name="descricao" type="text" class="form-control form-control-lg" value="{{ form_data.descricao }}" placeholder="Ex: Papel Vinil Adesivo Branco" required data-description-input>
-        </div>
+      <!-- Prompt quando nenhum tipo foi escolhido ainda -->
+      <div class="col-12 text-center py-4 text-muted {% if form_data.tipo_produto %}d-none{% endif %}" id="select-type-prompt">
+        <i class="bi bi-arrow-up-circle fs-2 d-block mb-2 text-primary opacity-75"></i>
+        <span class="fw-medium">Selecione o tipo de insumo acima para continuar o preenchimento.</span>
+      </div>
 
-        <div class="col-md-3">
-          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_quantidade_base">{{ quantidade_label }}</label>
-          <input id="id_quantidade_base" name="quantidade_base" type="text" inputmode="decimal" class="form-control" value="{{ form_data.quantidade_base }}" placeholder="0,00" {% if quantidade_readonly %}readonly{% endif %} data-decimal-input>
-          {% if quantidade_help %}<div class="form-text">{{ quantidade_help }}</div>{% endif %}
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_unidade_medida">Unid. Medida</label>
-          <select id="id_unidade_medida" name="unidade_medida" class="form-select" data-unidade-select>
-            {% for value, label in unidade_medida_choices %}
-            <option value="{{ value }}" {% if form_data.unidade_medida == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_estoque_minimo">Est. Mínimo</label>
-          <input id="id_estoque_minimo" name="estoque_minimo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.estoque_minimo }}" placeholder="0,00" data-decimal-input>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-medium small text-uppercase text-secondary" for="id_fornecedor">Fornecedor</label>
-          <select id="id_fornecedor" name="fornecedor_id" class="form-select">
-            <option value="">-</option>
-            {% for fornecedor in fornecedores %}
-            <option value="{{ fornecedor.id }}" {% if form_data.fornecedor_id == fornecedor.id_str %}selected{% endif %}>{{ fornecedor.nome }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-12 mt-2">
-          <button class="btn btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#camposAvancados">
-            <i class="bi bi-sliders me-1"></i>Campos avançados
-          </button>
-        </div>
-
-        <div class="collapse col-12" id="camposAvancados">
-          <div class="row g-3 mt-1">
-            <div class="col-md-4">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_categoria">Categoria</label>
-              <select id="id_categoria" name="categoria_id" class="form-select">
-                <option value="">- Sem Categoria -</option>
-                {% for categoria in categorias %}
-                <option value="{{ categoria.id }}" {% if form_data.categoria_id == categoria.id_str %}selected{% endif %}>{{ categoria.nome }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_custo">Preço de Custo</label>
-              <div class="input-group">
-                <span class="input-group-text">R$</span>
-                <input id="id_preco_custo" name="preco_custo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_custo }}" placeholder="0,00" data-decimal-input data-preco-custo>
+      <!-- Campos do Produto (Exibidos ao escolher o tipo) -->
+      <div class="product-form-fields col-12 {% if not form_data.tipo_produto %}d-none{% endif %}" data-product-details>
+        <div class="row g-4">
+          <!-- 1. Informações Básicas -->
+          <div class="col-12">
+            <div class="p-3.5 rounded-3 bg-body-tertiary border">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-card-text text-primary"></i>
+                <h6 class="fw-bold mb-0 text-body">1. Informações Gerais</h6>
               </div>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_venda">Preço de Venda</label>
-              <div class="input-group">
-                <span class="input-group-text">R$</span>
-                <input id="id_preco_venda" name="preco_venda" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_venda }}" placeholder="0,00" data-decimal-input data-preco-venda>
-              </div>
-            </div>
-
-            <div class="col-12 d-none" data-financial-summary>
-              <div class="financial-summary p-3 d-flex flex-wrap gap-4 align-items-center justify-content-between">
-                <div class="d-flex gap-4 flex-wrap">
-                  <div>
-                    <small class="metric-card__label">Lucro Estimado</small>
-                    <strong class="fs-5" data-lucro-valor>R$ 0,00</strong>
-                  </div>
-                  <div>
-                    <small class="metric-card__label">Margem de Lucro (Markup)</small>
-                    <strong class="fs-5" data-markup-valor>0,0%</strong>
-                  </div>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_descricao">Descrição do Insumo *</label>
+                  <input id="id_descricao" name="descricao" type="text" class="form-control form-control-lg" value="{{ form_data.descricao }}" placeholder="Ex: Papel Sublimático 100g, Vinil Adesivo Branco..." required data-description-input>
                 </div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <span class="small text-muted fw-medium">Simular Markup:</span>
-                  <div class="input-group input-group-sm markup-input">
-                    <input type="number" class="form-control" min="0" step="0.1" placeholder="Ex: 50" data-markup-input>
-                    <span class="input-group-text">%</span>
-                  </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_categoria">Categoria</label>
+                  <select id="id_categoria" name="categoria_id" class="form-select">
+                    <option value="">- Sem Categoria -</option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}" {% if form_data.categoria_id == categoria.id_str %}selected{% endif %}>{{ categoria.nome }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_fornecedor">Fornecedor Principal</label>
+                  <select id="id_fornecedor" name="fornecedor_id" class="form-select">
+                    <option value="">- Nenhum fornecedor selecionado -</option>
+                    {% for fornecedor in fornecedores %}
+                    <option value="{{ fornecedor.id }}" {% if form_data.fornecedor_id == fornecedor.id_str %}selected{% endif %}>{{ fornecedor.nome }}</option>
+                    {% endfor %}
+                  </select>
                 </div>
               </div>
-            </div>
-
-            <div class="col-md-4 d-none" data-type-field="TINTA">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_tipo_tinta">Tipo de Tinta</label>
-              <select id="id_tipo_tinta" name="tipo_tinta" class="form-select">
-                {% for value, label in tipo_tinta_choices %}
-                <option value="{{ value }}" {% if form_data.tipo_tinta == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-md-4 d-none" data-type-field="TINTA">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_cor_tinta">Cor</label>
-              <select id="id_cor_tinta" name="cor_tinta" class="form-select">
-                {% for value, label in cor_tinta_choices %}
-                <option value="{{ value }}" {% if form_data.cor_tinta == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-md-4 d-none" data-type-field="TINTA">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_litros_por_vidro">Litros / Vidro</label>
-              <input id="id_litros_por_vidro" name="litros_por_vidro" type="text" inputmode="decimal" class="form-control" value="{{ form_data.litros_por_vidro }}" placeholder="Ex: 3,6" data-decimal-input>
-            </div>
-
-            <div class="col-md-4 d-none" data-type-field="PAPEL TECIDO">
-              <label class="form-label fw-medium small text-uppercase text-secondary" for="id_metros_por_rolo">Metros / Rolo</label>
-              <input id="id_metros_por_rolo" name="metros_por_rolo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.metros_por_rolo }}" placeholder="Ex: 50" data-decimal-input>
             </div>
           </div>
-        </div>
 
-        <div class="col-12 mt-4">
-          <button type="submit" class="btn btn-primary btn-lg px-5 w-100" data-submit-button>
-            <i class="bi bi-check-lg me-2"></i><span data-submit-text>{{ submit_label }}</span>
-          </button>
-          {% if cancel_url %}
-          <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-lg px-5 w-100 mt-2">
-            <i class="bi bi-arrow-left me-2"></i>Cancelar
-          </a>
-          {% endif %}
+          <!-- 2. Estoque e Unidade -->
+          <div class="col-12">
+            <div class="p-3.5 rounded-3 bg-body-tertiary border">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-box-seam text-primary"></i>
+                <h6 class="fw-bold mb-0 text-body">2. Controle de Estoque</h6>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_quantidade_base">{{ quantidade_label }}</label>
+                  <input id="id_quantidade_base" name="quantidade_base" type="text" inputmode="decimal" class="form-control" value="{{ form_data.quantidade_base }}" placeholder="0,00" {% if quantidade_readonly %}readonly{% endif %} data-decimal-input>
+                  {% if quantidade_help %}<div class="form-text small">{{ quantidade_help }}</div>{% endif %}
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_unidade_medida">Unidade de Medida</label>
+                  <select id="id_unidade_medida" name="unidade_medida" class="form-select" data-unidade-select>
+                    {% for value, label in unidade_medida_choices %}
+                    <option value="{{ value }}" {% if form_data.unidade_medida == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_estoque_minimo">Estoque Mínimo de Alerta</label>
+                  <input id="id_estoque_minimo" name="estoque_minimo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.estoque_minimo }}" placeholder="0,00" data-decimal-input>
+                  <div class="form-text small text-muted">Abaixo deste saldo o sistema acionará alerta amarelo.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Especificações Técnicas (Tinta ou Papel/Tecido) -->
+          <div class="col-12 d-none" data-type-field="TINTA PAPEL TECIDO">
+            <div class="p-3.5 rounded-3 bg-body-tertiary border">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-sliders text-primary"></i>
+                <h6 class="fw-bold mb-0 text-body">3. Especificações do Material</h6>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-4 d-none" data-type-field="TINTA">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_tipo_tinta">Tipo de Tinta</label>
+                  <select id="id_tipo_tinta" name="tipo_tinta" class="form-select">
+                    {% for value, label in tipo_tinta_choices %}
+                    <option value="{{ value }}" {% if form_data.tipo_tinta == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-4 d-none" data-type-field="TINTA">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_cor_tinta">Cor da Tinta</label>
+                  <select id="id_cor_tinta" name="cor_tinta" class="form-select">
+                    {% for value, label in cor_tinta_choices %}
+                    <option value="{{ value }}" {% if form_data.cor_tinta == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-4 d-none" data-type-field="TINTA">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_litros_por_vidro">Litros por Garrafa</label>
+                  <input id="id_litros_por_vidro" name="litros_por_vidro" type="text" inputmode="decimal" class="form-control" value="{{ form_data.litros_por_vidro }}" placeholder="Ex: 3,6 ou 1,0" data-decimal-input>
+                </div>
+
+                <div class="col-md-6 d-none" data-type-field="PAPEL TECIDO">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_metros_por_rolo">Metros por Rolo</label>
+                  <input id="id_metros_por_rolo" name="metros_por_rolo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.metros_por_rolo }}" placeholder="Ex: 50, 100..." data-decimal-input>
+                  <div class="form-text small text-muted">Usado para estimar quantos rolos inteiros existem no estoque.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Precificação e Margem -->
+          <div class="col-12">
+            <div class="p-3.5 rounded-3 bg-body-tertiary border">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-currency-dollar text-success"></i>
+                <h6 class="fw-bold mb-0 text-body">4. Precificação & Margem de Lucro</h6>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_custo">Preço de Custo Unitário</label>
+                  <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input id="id_preco_custo" name="preco_custo" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_custo }}" placeholder="0,00" data-decimal-input data-preco-custo>
+                  </div>
+                  <div class="form-text small text-muted">Necessário para o cálculo de valuation do estoque.</div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-medium small text-uppercase text-secondary" for="id_preco_venda">Preço de Venda Unitário</label>
+                  <div class="input-group">
+                    <span class="input-group-text">R$</span>
+                    <input id="id_preco_venda" name="preco_venda" type="text" inputmode="decimal" class="form-control" value="{{ form_data.preco_venda }}" placeholder="0,00" data-decimal-input data-preco-venda>
+                  </div>
+                </div>
+
+                <div class="col-12 d-none" data-financial-summary>
+                  <div class="financial-summary p-3 d-flex flex-wrap gap-4 align-items-center justify-content-between">
+                    <div class="d-flex gap-4 flex-wrap">
+                      <div>
+                        <small class="metric-card__label">Lucro Estimado</small>
+                        <strong class="fs-5" data-lucro-valor>R$ 0,00</strong>
+                      </div>
+                      <div>
+                        <small class="metric-card__label">Margem de Lucro (Markup)</small>
+                        <strong class="fs-5" data-markup-valor>0,0%</strong>
+                      </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <span class="small text-muted fw-medium">Simular Markup:</span>
+                      <div class="input-group input-group-sm markup-input">
+                        <input type="number" class="form-control" min="0" step="0.1" placeholder="Ex: 50" data-markup-input>
+                        <span class="input-group-text">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ações do Formulário -->
+          <div class="col-12 mt-2">
+            <div class="d-flex gap-3 align-items-center flex-wrap">
+              <button type="submit" class="btn btn-primary btn-lg flex-grow-1" data-submit-button>
+                <i class="bi bi-check-lg me-2"></i><span data-submit-text>{{ submit_label }}</span>
+              </button>
+              {% if cancel_url %}
+              <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>Cancelar
+              </a>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
     </form>

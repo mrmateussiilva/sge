@@ -7,6 +7,7 @@
          hx-trigger="dblclick"
          hx-disinherit="hx-select"
          title="Duplo clique para editar saldo">
+        <span class="d-md-none text-muted fw-semibold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">Saldo</span>
         <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
             {{ p.quantidade_formatada }}
         </strong>
@@ -27,6 +28,7 @@
         {% endif %}
     </div>
     {% else %}
+    <span class="d-md-none text-muted fw-semibold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.05em; display: block; margin-bottom: 2px;">Saldo</span>
     <strong class="{% if p.status_estoque == 'ZERADO' %}text-muted text-decoration-line-through{% elif p.status_estoque == 'BAIXO' %}text-danger{% endif %}">
         {{ p.quantidade_formatada }}
     </strong>

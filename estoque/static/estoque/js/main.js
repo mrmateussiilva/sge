@@ -269,6 +269,54 @@ document.addEventListener('htmx:historyRestore', updateActiveSidebarLink);
     });
 })();
 
+// Ocultar Valores Sensíveis (Global)
+(function() {
+    function applySensitiveValues(hidden) {
+        document.body.classList.toggle('valores-ocultos', hidden);
+        document.body.classList.toggle('values-hidden', hidden);
+
+        document.querySelectorAll('.btn-toggle-valores, #toggleValoresSidebar, #toggleValoresNavbar, #btnToggleValores').forEach(function(btn) {
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = hidden ? 'bi bi-eye-slash' : 'bi bi-eye';
+            }
+            btn.title = hidden ? 'Mostrar valores financeiros' : 'Ocultar valores financeiros';
+            btn.setAttribute('aria-label', hidden ? 'Mostrar valores financeiros' : 'Ocultar valores financeiros');
+        });
+
+        var label = document.getElementById('labelToggleValores');
+        if (label) {
+            label.textContent = hidden ? 'Mostrar Valores' : 'Ocultar Valores';
+        }
+
+        localStorage.setItem('sgeValoresOcultos', hidden ? 'true' : 'false');
+        localStorage.setItem('dashValoresOcultos', hidden ? 'true' : 'false');
+    }
+
+    function isStoredHidden() {
+        var stored = localStorage.getItem('sgeValoresOcultos');
+        if (stored === null) {
+            stored = localStorage.getItem('dashValoresOcultos');
+        }
+        return stored === 'true';
+    }
+
+    applySensitiveValues(isStoredHidden());
+
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-toggle-valores, #toggleValoresSidebar, #toggleValoresNavbar, #btnToggleValores');
+        if (btn) {
+            e.preventDefault();
+            var currentlyHidden = document.body.classList.contains('valores-ocultos');
+            applySensitiveValues(!currentlyHidden);
+        }
+    });
+
+    document.addEventListener('htmx:afterSwap', function() {
+        applySensitiveValues(isStoredHidden());
+    });
+})();
+
 // Busca Global (Ctrl+K)
 function escapeHtml(value) {
     return String(value || '')

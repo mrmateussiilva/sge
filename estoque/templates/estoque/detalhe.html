@@ -5,11 +5,17 @@
 <div class="page-container page-container--wide">
 <header class="page-header">
     <div class="page-header__content">
-        <div class="page-header__title"><span class="page-header__icon"><i class="bi bi-box-seam"></i></span><h1>{{ produto.descricao }}</h1></div>
-        <p class="page-header__description">Consulte os dados, o saldo e o histórico deste produto.</p>
+        <div class="page-header__title">
+            <span class="page-header__icon"><i class="bi bi-box-seam"></i></span>
+            <h1>{{ produto.descricao }}</h1>
+        </div>
+        <p class="page-header__description">Consulte especificações, saldo em tempo real e histórico de movimentações.</p>
     </div>
     <div class="page-header__actions">
         {% if usuario_operacional %}
+        <button type="button" class="btn btn-primary" onclick="openGlobalMoveModal({{ produto.id }}, '{{ produto.descricao|escapejs }}')">
+            <i class="bi bi-arrow-left-right me-1"></i>Movimentar estoque
+        </button>
         <a href="{% url 'editar_produto' produto.id %}" class="btn btn-outline-primary">
             <i class="bi bi-pencil me-1"></i>Editar
         </a>
@@ -18,16 +24,14 @@
             <i class="bi bi-tag me-1"></i>Etiqueta
         </a>
         <div class="dropdown">
-            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                Ações
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-label="Mais ações">
+                <i class="bi bi-three-dots-vertical"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="{% url 'detalhe_produto' produto.id %}">Ver</a></li>
-                {% if usuario_operacional %}<li><a class="dropdown-item" href="{% url 'editar_produto' produto.id %}">Editar</a></li>{% endif %}
-                <li><a class="dropdown-item" href="#historico">Histórico</a></li>
+                <li><a class="dropdown-item" href="#historico-movimentacoes"><i class="bi bi-clock-history me-2"></i>Histórico</a></li>
                 {% if user.is_superuser %}
                 <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item text-danger" type="button" onclick="excluirProduto({{ produto.id }}, '{{ produto.descricao|escapejs }}')">Excluir</button></li>
+                <li><button class="dropdown-item text-danger" type="button" onclick="excluirProduto({{ produto.id }}, '{{ produto.descricao|escapejs }}')"><i class="bi bi-trash me-2"></i>Excluir Produto</button></li>
                 {% endif %}
             </ul>
         </div>
@@ -37,118 +41,238 @@
     </div>
 </header>
 
-<div class="content-panel mb-4">
+<!-- Hero Panel: Destaque do Saldo e Identidade -->
+<section class="content-panel mb-4">
     <div class="card-body p-4">
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <h4 class="mb-0 fw-bold">{{ produto.descricao }}</h4>
-            <span class="badge bg-primary rounded-pill">{{ produto.get_tipo_produto_display }}</span>
-            {% include 'estoque/components/status_badge.html' with status=produto.status_estoque %}
-        </div>
-        <div class="row g-3">
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Fornecedor</small>
-                    <span class="fw-medium">{{ produto.fornecedor.nome|default:'-' }}</span>
+        <div class="row align-items-center g-4">
+            <!-- Identificação e Tags -->
+            <div class="col-12 col-lg-7">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge bg-primary rounded-pill px-3 py-1">{{ produto.get_tipo_produto_display }}</span>
+                    {% if produto.categoria %}
+                    <span class="d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill bg-body-tertiary border text-secondary small fw-medium">
+                        <span class="category-swatch" style="background-color: {{ produto.categoria.cor }}; width: 0.65rem; height: 0.65rem;"></span>
+                        {{ produto.categoria.nome }}
+                    </span>
+                    {% endif %}
+                    {% include 'estoque/components/status_badge.html' with status=produto.status_estoque %}
+                </div>
+                <h2 class="h3 fw-bold mb-2 text-body">{{ produto.descricao }}</h2>
+                <div class="d-flex flex-wrap align-items-center gap-3 text-muted small">
+                    <div><i class="bi bi-truck me-1"></i>Fornecedor: <span class="fw-semibold text-body">{{ produto.fornecedor.nome|default:'Não informado' }}</span></div>
+                    <span>·</span>
+                    <div><i class="bi bi-rulers me-1"></i>Unidade: <span class="fw-semibold text-body">{{ produto.get_unidade_medida_display }}</span></div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3 d-flex justify-content-between align-items-center h-100">
-                    <div>
-                        <small class="text-muted d-block">Quantidade Atual</small>
-                        <span class="fw-medium fs-4" id="detalhe-qtd-{{ produto.id }}">{{ produto.quantidade_base }}</span> <span class="fs-6 text-muted">{{ produto.get_unidade_medida_display }}</span>
+
+            <!-- Destaque Operacional do Saldo -->
+            <div class="col-12 col-lg-5">
+                <div class="p-3.5 rounded-3 bg-body-tertiary border">
+                    <div class="d-flex align-items-start justify-content-between mb-2">
+                        <div>
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Saldo atual</span>
+                            <div class="d-flex align-items-baseline gap-2 mt-1">
+                                <span class="display-6 fw-bold text-body" id="detalhe-qtd-{{ produto.id }}">{{ produto.quantidade_base }}</span>
+                                <span class="fs-5 text-muted fw-semibold">{{ produto.get_unidade_medida_display }}</span>
+                            </div>
+                        </div>
+                        {% if usuario_operacional %}
+                        <button class="btn btn-sm btn-primary" onclick="openGlobalMoveModal({{ produto.id }}, '{{ produto.descricao|escapejs }}')" title="Registrar movimentação rápida">
+                            <i class="bi bi-arrow-left-right me-1"></i>Movimentar
+                        </button>
+                        {% endif %}
                     </div>
-                    {% if usuario_operacional %}
-                    <div class="d-flex flex-column gap-1">
-                        <button class="btn btn-sm btn-outline-success border-0 px-2" onclick="atualizaEstoqueRapido({{ produto.id }}, 1)" title="Adicionar 1">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger border-0 px-2" onclick="atualizaEstoqueRapido({{ produto.id }}, -1)" title="Remover 1">
-                            <i class="bi bi-dash-lg"></i>
-                        </button>
+
+                    <!-- Estimativas Físicas de Rolos ou Vidros -->
+                    {% if produto.tipo_produto == 'TECIDO' or produto.tipo_produto == 'PAPEL' %}
+                        {% if produto.metros_por_rolo and produto.metros_por_rolo > 0 %}
+                        <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="bi bi-collection me-1 text-primary"></i>Rolos estimados:</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold">{{ produto.quantidade_rolos_estimada }} rolos ({{ produto.metros_por_rolo|floatformat:2 }}m/rolo)</span>
+                        </div>
+                        {% endif %}
+                    {% elif produto.tipo_produto == 'TINTA' %}
+                        {% if produto.litros_por_vidro and produto.litros_por_vidro > 0 %}
+                        <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="bi bi-droplet me-1 text-info"></i>Garrafas estimadas:</span>
+                            <span class="badge bg-info bg-opacity-10 text-info fw-semibold">{{ produto.quantidade_vidros_estimada }} garrafas ({{ produto.litros_por_vidro|floatformat:2 }}L/garrafa)</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <!-- Barra de Saúde do Estoque Mínimo -->
+                    <div class="mt-2.5 pt-2 border-top">
+                        <div class="d-flex justify-content-between align-items-center text-2xs text-muted mb-1">
+                            <span>Mínimo configurado: <strong>{{ produto.estoque_minimo }} {{ produto.get_unidade_medida_display }}</strong></span>
+                            {% if produto.estoque_minimo > 0 %}
+                            <span>{{ produto.porcentagem_estoque_minimo|floatformat:0 }}%</span>
+                            {% endif %}
+                        </div>
+                        {% if produto.estoque_minimo and produto.estoque_minimo > 0 %}
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar {% if produto.status_estoque == 'ZERADO' %}bg-secondary{% elif produto.status_estoque == 'BAIXO' %}bg-danger{% else %}bg-success{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ produto.porcentagem_estoque_minimo }}%;"
+                                 aria-valuenow="{{ produto.porcentagem_estoque_minimo }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Grid Setorizado: Especificações vs Financeiro -->
+<div class="row g-4 mb-4">
+    <!-- Card 1: Especificações e Dimensões -->
+    <div class="col-12 col-lg-6">
+        <section class="content-panel h-100">
+            <div class="content-panel__header d-flex align-items-center gap-2">
+                <i class="bi bi-sliders text-primary"></i>
+                <h5 class="mb-0 fw-semibold">Especificações do Material</h5>
+            </div>
+            <div class="content-panel__body p-3">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Tipo de Insumo</span>
+                            <span class="fw-semibold text-body">{{ produto.get_tipo_produto_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Unidade Base</span>
+                            <span class="fw-semibold text-body">{{ produto.get_unidade_medida_display }} ({{ produto.unidade_simbolo }})</span>
+                        </div>
+                    </div>
+
+                    {% if produto.tipo_produto == 'TINTA' %}
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Tipo de Tinta</span>
+                            <span class="fw-semibold text-body">{{ produto.get_tipo_tinta_display }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Cor</span>
+                            <div class="d-flex align-items-center gap-1.5 mt-0.5">
+                                <span class="ink-swatch" style="background-color: {{ produto.cor_tinta_hex }}; border-color: {{ produto.cor_tinta_hex }};"></span>
+                                <span class="fw-semibold text-body">{{ produto.get_cor_tinta_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Litros por Vidro</span>
+                            <span class="fw-semibold text-body">{% if produto.litros_por_vidro %}{{ produto.litros_por_vidro|floatformat:2 }} L{% else %}—{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Vidros Estimados</span>
+                            <span class="fw-semibold text-info">{{ produto.quantidade_vidros_estimada }}</span>
+                        </div>
                     </div>
                     {% endif %}
+
+                    {% if produto.tipo_produto == 'TECIDO' or produto.tipo_produto == 'PAPEL' %}
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Metros por Rolo</span>
+                            <span class="fw-semibold text-body">{% if produto.metros_por_rolo %}{{ produto.metros_por_rolo|floatformat:2 }} m{% else %}—{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Rolos Estimados</span>
+                            <span class="fw-semibold text-primary">{{ produto.quantidade_rolos_estimada }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="col-12">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Fornecedor Vinculado</span>
+                            <span class="fw-semibold text-body">{{ produto.fornecedor.nome|default:'Nenhum fornecedor vinculado' }}</span>
+                            {% if produto.fornecedor.cnpj %}<span class="small text-muted d-block mt-0.5">CNPJ: {{ produto.fornecedor.cnpj }}</span>{% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Estoque Mínimo</small>
-                    <span class="fw-medium">{{ produto.estoque_minimo }} {{ produto.get_unidade_medida_display }}</span>
+        </section>
+    </div>
+
+    <!-- Card 2: Indicadores Financeiros e Margem -->
+    <div class="col-12 col-lg-6">
+        <section class="content-panel h-100">
+            <div class="content-panel__header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-currency-dollar text-success"></i>
+                    <h5 class="mb-0 fw-semibold">Gestão Financeira & Margem</h5>
+                </div>
+                {% if margem is not None %}
+                <span class="badge {% if margem >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 text-{% if margem >= 0 %}success{% else %}danger{% endif %} fw-semibold valor-sensivel">
+                    {% if margem >= 0 %}+{% endif %}{{ margem }}% margem
+                </span>
+                {% endif %}
+            </div>
+            <div class="content-panel__body p-3">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Preço de Custo</span>
+                            <span class="fw-bold fs-5 text-body">{% if produto.preco_custo is not None %}<span class="valor-sensivel">R$ {{ produto.preco_custo|floatformat:2 }}</span>{% else %}<span class="text-muted fs-6">Não cadastrado</span>{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Preço de Venda</span>
+                            <span class="fw-bold fs-5 text-primary">{% if produto.preco_venda is not None %}<span class="valor-sensivel">R$ {{ produto.preco_venda|floatformat:2 }}</span>{% else %}<span class="text-muted fs-6">Não cadastrado</span>{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Lucro Unitário</span>
+                            <span class="fw-bold fs-5 {% if lucro and lucro >= 0 %}text-success{% elif lucro and lucro < 0 %}text-danger{% else %}text-muted fs-6{% endif %}">
+                                {% if lucro is not None %}<span class="valor-sensivel">R$ {{ lucro|floatformat:2 }}</span>{% else %}—{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-2 bg-body-tertiary border">
+                            <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Markup / Margem</span>
+                            <span class="fw-bold fs-5 {% if margem and margem >= 0 %}text-success{% elif margem and margem < 0 %}text-danger{% else %}text-muted fs-6{% endif %}">
+                                {% if margem is not None %}<span class="valor-sensivel">{{ margem }}%</span>{% else %}—{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="p-3 rounded-2 bg-body-tertiary border d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-uppercase tracking-wide text-muted fw-bold text-2xs d-block">Valor Total em Estoque deste Item</span>
+                                <span class="small text-muted">Baseado na quantidade atual × preço de custo</span>
+                            </div>
+                            <div class="text-end">
+                                {% if produto.preco_custo is not None and produto.quantidade_base is not None %}
+                                <span class="fw-bold fs-5 text-body valor-sensivel">R$ {{ produto.valor_estoque|floatformat:2|default:"0,00" }}</span>
+                                {% else %}
+                                <span class="text-muted small">Custo não definido</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Preço de Custo</small>
-                    <span class="fw-medium">R$ {{ produto.preco_custo }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Preço de Venda</small>
-                    <span class="fw-medium">R$ {{ produto.preco_venda }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Lucro por Unidade</small>
-                    <span class="fw-medium {% if lucro >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        R$ {{ lucro|floatformat:2 }}
-                        <span class="badge {% if margem >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
-                            {{ margem }}%
-                        </span>
-                    </span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Tipo</small>
-                    <span class="fw-medium">{{ produto.get_tipo_produto_display }}</span>
-                </div>
-            </div>
-            {% if produto.tipo_produto == 'TINTA' %}
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Tipo de Tinta</small>
-                    <span class="fw-medium">{{ produto.get_tipo_tinta_display }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Cor</small>
-                    <span class="fw-medium">{{ produto.get_cor_tinta_display }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Litros por Vidro</small>
-                    <span class="fw-medium">{{ produto.litros_por_vidro|default:'-' }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Vidros Estimados</small>
-                    <span class="fw-medium">{{ produto.quantidade_vidros_estimada }}</span>
-                </div>
-            </div>
-            {% endif %}
-            {% if produto.tipo_produto == 'TECIDO' or produto.tipo_produto == 'PAPEL' %}
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Metros por Rolo</small>
-                    <span class="fw-medium">{{ produto.metros_por_rolo|default:'-' }}</span>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="financial-summary p-3">
-                    <small class="text-muted d-block">Rolos Estimados</small>
-                    <span class="fw-medium">{{ produto.quantidade_rolos_estimada }}</span>
-                </div>
-            </div>
-            {% endif %}
-        </div>
+        </section>
     </div>
 </div>
 
-<div class="content-panel">
+<div class="content-panel" id="historico-movimentacoes">
     <div class="content-panel__header">
         <h5 class="mb-0 fw-semibold">
             <i class="bi bi-clock-history text-primary me-1"></i>Histórico de Movimentações

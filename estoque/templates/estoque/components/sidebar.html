@@ -19,7 +19,7 @@
         <a href="/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if request.path == '/' %}active{% endif %}">
             <i class="bi bi-grid-1x2-fill me-3"></i> Dashboard
         </a>
-        <a href="/produtos/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between {% if '/produtos/' in request.path %}active{% endif %}">
+        <a href="/produtos/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between {% if '/produtos/' in request.path or '/produto/' in request.path or '/cadastrar-produto/' in request.path %}active{% endif %}">
             <span><i class="bi bi-box-seam me-3"></i> Produtos</span>
             {% if user.is_authenticated and estoque_baixo_count > 0 %}
             <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 px-2 py-0.5 text-2xs" title="{{ estoque_baixo_count }} produto(s) com estoque baixo">
@@ -30,30 +30,30 @@
         <a href="/movimentacao/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/movimentacao/' in request.path %}active{% endif %}">
             <i class="bi bi-arrow-left-right me-3"></i> Movimentar
         </a>
+        <a href="/fornecedores/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/fornecedores/' in request.path %}active{% endif %}">
+            <i class="bi bi-truck me-3"></i> Fornecedores
+        </a>
+        <a href="/categorias/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/categorias/' in request.path %}active{% endif %}">
+            <i class="bi bi-tags me-3"></i> Categorias
+        </a>
         <a href="/relatorio/" class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 {% if '/relatorio/' in request.path %}active{% endif %}">
             <i class="bi bi-file-earmark-bar-graph me-3"></i> Relatórios
         </a>
         <div class="my-2 border-top border-secondary border-opacity-25"></div>
 
-        <!-- Menu recolhível de Configurações e Cadastros -->
-        <button class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between w-100 border-0 bg-transparent text-start {% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}active{% endif %}"
+        <!-- Menu recolhível de Configurações e Administração -->
+        <button class="nav-link nav-link-custom rounded-3 py-2 px-3 mb-2 d-flex align-items-center justify-content-between w-100 border-0 bg-transparent text-start {% if '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}active{% endif %}"
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target="#sidebarConfigSubmenu"
-                aria-expanded="{% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}true{% else %}false{% endif %}"
+                aria-expanded="{% if '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}true{% else %}false{% endif %}"
                 aria-controls="sidebarConfigSubmenu">
             <span><i class="bi bi-gear me-3"></i> Configurações</span>
             <i class="bi bi-chevron-down small sidebar-collapse-arrow"></i>
         </button>
 
-        <div class="collapse sidebar-submenu {% if '/fornecedores/' in request.path or '/categorias/' in request.path or '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}show{% endif %}"
+        <div class="collapse sidebar-submenu {% if '/fechamentos/' in request.path or '/log/' in request.path or '/usuarios/' in request.path or '/omie/' in request.path %}show{% endif %}"
              id="sidebarConfigSubmenu">
-            <a href="/fornecedores/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/fornecedores/' in request.path %}active{% endif %}">
-                <i class="bi bi-truck me-2"></i> Fornecedores
-            </a>
-            <a href="/categorias/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/categorias/' in request.path %}active{% endif %}">
-                <i class="bi bi-tags me-2"></i> Categorias
-            </a>
             <a href="/fechamentos/" class="nav-link nav-link-custom rounded-3 py-1.5 px-3 mb-1 small {% if '/fechamentos/' in request.path %}active{% endif %}">
                 <i class="bi bi-archive me-2"></i> Fechamentos
             </a>
@@ -93,6 +93,9 @@
                 <i class="bi bi-person-circle me-2 text-secondary"></i>{% if user.is_authenticated %}{{ user.username }}{% else %}Visitante{% endif %}
             </span>
             <div class="d-flex align-items-center gap-1">
+                <button id="toggleValoresSidebar" class="btn btn-sm btn-outline-light border-0 p-1 btn-toggle-valores" type="button" title="Ocultar/Exibir valores financeiros" aria-label="Ocultar ou exibir valores financeiros">
+                    <i class="bi bi-eye"></i>
+                </button>
                 <button id="darkModeToggle" class="btn btn-sm btn-outline-light border-0 p-1" type="button" title="Alternar tema" aria-label="Alternar tema">
                     <i class="bi bi-moon-stars"></i>
                 </button>
