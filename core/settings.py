@@ -11,7 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = '1.4.0'
+APP_VERSION = '1.5.0'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -31,6 +31,19 @@ if not _hosts_configurados:
     _hosts_configurados = ['localhost', '127.0.0.1', '[::1]']
 ALLOWED_HOSTS = _hosts_configurados
 
+# Domínios confiáveis para CSRF (necessário para requisições com Origin no Django 4+)
+_trusted_origins = [
+    h.strip() for h in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if h.strip()
+]
+if DEBUG or _em_teste:
+    _trusted_origins.extend([
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ])
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(_trusted_origins))
+
 # Segurança em produção — ativas quando DEBUG=False
 if not DEBUG:
     # Necessário quando atrás de proxy reverso (Caddy, Nginx, etc.)
@@ -43,10 +56,6 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = False
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
-    # Domínios confiáveis para CSRF (ex: https://sge.finderbit.com.br)
-    CSRF_TRUSTED_ORIGINS = [
-        h.strip() for h in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if h.strip()
-    ]
 
 
 # Application definition
@@ -126,6 +135,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Whitenoise — compressão e cache de estáticos
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+FRONTEND_DIST_DIR = BASE_DIR / 'frontend' / 'dist'
+STATICFILES_DIRS = [FRONTEND_DIST_DIR] if FRONTEND_DIST_DIR.exists() else []
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

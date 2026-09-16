@@ -4,3 +4,5 @@ __pycache__
 .env
 .git
 *.sqlite3
+frontend/node_modules
+
