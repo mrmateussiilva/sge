@@ -1,16 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { Sidebar } from './Sidebar'
 import { Navbar } from './Navbar'
 import { MobileNav } from './MobileNav'
+import { CommandPalette } from './CommandPalette'
 import { useAuth } from '@/hooks/useAuth'
 import { X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const { isLoading, isError } = useAuth()
+
+  // Atalho global Ctrl+K / Cmd+K para abrir busca rápida
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setCommandPaletteOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   if (isLoading) {
     return (
@@ -76,7 +90,10 @@ export function AppLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-6">
-        <Navbar onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)} />
+        <Navbar
+          onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        />
         <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto animate-in fade-in-50 duration-200">
           <Outlet />
         </main>
@@ -87,6 +104,12 @@ export function AppLayout() {
 
       {/* Global Notifications Toaster */}
       <Toaster position="top-right" richColors closeButton />
+
+      {/* Global Command Palette (Ctrl+K) */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
   PackageX,
   Plus,
   ArrowLeftRight,
+  RefreshCw,
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -23,9 +24,10 @@ export function DashboardPage() {
   const [modalMovOpen, setModalMovOpen] = useState(false)
   const [produtoParaMov, setProdutoParaMov] = useState<any>(null)
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get<DashboardResponse>('/api/v1/dashboard/'),
+    refetchInterval: 60_000,
   })
 
   if (isLoading) {
@@ -64,6 +66,17 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Atualizar dados agora"
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-primary' : ''}`} />
+            <span className="hidden sm:inline">Atualizar</span>
+          </Button>
           <Button
             size="sm"
             className="gap-1.5 shadow-sm"

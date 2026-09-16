@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   ArrowLeftRight,
   Plus,
@@ -19,15 +21,35 @@ import type { MovimentacaoItem, Paginacao } from '@/types'
 
 export function MovimentacoesPage() {
   const [modalOpen, setModalOpen] = useState(false)
-  const [busca, setBusca] = useState('')
-  const [tipo, setTipo] = useState('')
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['movimentacoes', { busca, tipo, page }],
+  const tipo = searchParams.get('tipo') || ''
+  const page = Number(searchParams.get('page')) || 1
+
+  const [busca, setBusca] = useState(searchParams.get('busca') || '')
+  const debouncedBusca = useDebounce(busca, 350)
+
+  // Sincroniza busca na URL
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (debouncedBusca) {
+          next.set('busca', debouncedBusca)
+        } else {
+          next.delete('busca')
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }, [debouncedBusca, setSearchParams])
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['movimentacoes', { busca: debouncedBusca, tipo, page }],
     queryFn: () => {
       const params = new URLSearchParams()
-      if (busca) params.set('busca', busca)
+      if (debouncedBusca) params.set('busca', debouncedBusca)
       if (tipo) params.set('tipo', tipo)
       params.set('page', String(page))
       params.set('page_size', '25')
@@ -35,7 +57,35 @@ export function MovimentacoesPage() {
         `/api/v1/movimentacoes/?${params.toString()}`
       )
     },
+    placeholderData: keepPreviousData,
   })
+
+  function handleTipoChange(novoTipo: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (novoTipo) {
+          next.set('tipo', novoTipo)
+        } else {
+          next.delete('tipo')
+        }
+        next.set('page', '1')
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  function handlePageChange(novaPagina: number) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('page', String(novaPagina))
+        return next
+      },
+      { replace: true }
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -66,7 +116,7 @@ export function MovimentacoesPage() {
             value={busca}
             onChange={(e) => {
               setBusca(e.target.value)
-              setPage(1)
+              handlePageChange(1)
             }}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
@@ -81,10 +131,7 @@ export function MovimentacoesPage() {
           ].map((t) => (
             <button
               key={t.key}
-              onClick={() => {
-                setTipo(t.key)
-                setPage(1)
-              }}
+              onClick={() => handleTipoChange(t.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 tipo === t.key
                   ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
@@ -99,6 +146,12 @@ export function MovimentacoesPage() {
 
       {/* Tabela de Movimentações */}
       <Card>
+        {/* Barra de progresso sutil para re-fetches */}
+        <div
+          className={`h-0.5 rounded-t-xl transition-all duration-300 ${
+            isFetching && !isLoading ? 'bg-primary animate-pulse' : 'bg-transparent'
+          }`}
+        />
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted-foreground space-y-2">
@@ -219,7 +272,7 @@ export function MovimentacoesPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_anterior}
-                      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() => handlePageChange(Math.max(page - 1, 1))}
                       className="h-8 gap-1 text-xs"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -229,7 +282,7 @@ export function MovimentacoesPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_proxima}
-                      onClick={() => setPage((prev) => prev + 1)}
+                      onClick={() => handlePageChange(page + 1)}
                       className="h-8 gap-1 text-xs"
                     >
                       <span>Próxima</span>

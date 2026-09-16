@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   FileSpreadsheet,
   Plus,
@@ -20,15 +21,35 @@ import type { OrdemCompraItem, Paginacao } from '@/types'
 
 export function OrdensPage() {
   const [modalOpen, setModalOpen] = useState(false)
-  const [busca, setBusca] = useState('')
-  const [status, setStatus] = useState('')
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['ordens', { busca, status, page }],
+  const status = searchParams.get('status') || ''
+  const page = Number(searchParams.get('page')) || 1
+
+  const [busca, setBusca] = useState(searchParams.get('busca') || '')
+  const debouncedBusca = useDebounce(busca, 350)
+
+  // Sincroniza busca na URL
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (debouncedBusca) {
+          next.set('busca', debouncedBusca)
+        } else {
+          next.delete('busca')
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }, [debouncedBusca, setSearchParams])
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['ordens', { busca: debouncedBusca, status, page }],
     queryFn: () => {
       const params = new URLSearchParams()
-      if (busca) params.set('busca', busca)
+      if (debouncedBusca) params.set('busca', debouncedBusca)
       if (status) params.set('status', status)
       params.set('page', String(page))
       params.set('page_size', '25')
@@ -36,7 +57,35 @@ export function OrdensPage() {
         `/api/v1/ordens/?${params.toString()}`
       )
     },
+    placeholderData: keepPreviousData,
   })
+
+  function handleStatusChange(novoStatus: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (novoStatus) {
+          next.set('status', novoStatus)
+        } else {
+          next.delete('status')
+        }
+        next.set('page', '1')
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  function handlePageChange(novaPagina: number) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('page', String(novaPagina))
+        return next
+      },
+      { replace: true }
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -67,7 +116,7 @@ export function OrdensPage() {
             value={busca}
             onChange={(e) => {
               setBusca(e.target.value)
-              setPage(1)
+              handlePageChange(1)
             }}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
@@ -84,10 +133,7 @@ export function OrdensPage() {
           ].map((st) => (
             <button
               key={st.key}
-              onClick={() => {
-                setStatus(st.key)
-                setPage(1)
-              }}
+              onClick={() => handleStatusChange(st.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 status === st.key
                   ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
@@ -102,6 +148,12 @@ export function OrdensPage() {
 
       {/* Tabela de Ordens */}
       <Card>
+        {/* Barra de progresso sutil para re-fetches */}
+        <div
+          className={`h-0.5 rounded-t-xl transition-all duration-300 ${
+            isFetching && !isLoading ? 'bg-primary animate-pulse' : 'bg-transparent'
+          }`}
+        />
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted-foreground space-y-2">
@@ -256,7 +308,7 @@ export function OrdensPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_anterior}
-                      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() => handlePageChange(Math.max(page - 1, 1))}
                       className="h-8 gap-1 text-xs"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -266,7 +318,7 @@ export function OrdensPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_proxima}
-                      onClick={() => setPage((prev) => prev + 1)}
+                      onClick={() => handlePageChange(page + 1)}
                       className="h-8 gap-1 text-xs"
                     >
                       <span>Próxima</span>

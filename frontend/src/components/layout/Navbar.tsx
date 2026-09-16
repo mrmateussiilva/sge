@@ -7,6 +7,7 @@ import {
   EyeOff,
   LogOut,
   Bell,
+  Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,6 +16,7 @@ import { api } from '@/api/client'
 
 interface NavbarProps {
   onToggleMobileMenu: () => void
+  onOpenCommandPalette: () => void
 }
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -30,7 +32,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/usuarios': 'Usuários & Permissões',
 }
 
-export function Navbar({ onToggleMobileMenu }: NavbarProps) {
+export function Navbar({ onToggleMobileMenu, onOpenCommandPalette }: NavbarProps) {
   const location = useLocation()
   const { user, alertas } = useAuth()
   const { isDark, toggleTheme, ocultarValores, toggleOcultarValores } = usePreferences()
@@ -73,6 +75,31 @@ export function Navbar({ onToggleMobileMenu }: NavbarProps) {
 
       {/* Lado Direito: Ações Rápidas, Tema e Usuário */}
       <div className="flex items-center gap-1.5 md:gap-2">
+        {/* Trigger de Busca Rápida (Command Palette) */}
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors mr-1"
+          title="Abrir busca rápida (Ctrl+K)"
+        >
+          <Search className="w-3.5 h-3.5 text-muted-foreground" />
+          <span>Buscar ou comando...</span>
+          <kbd className="ml-1 text-[10px] bg-card border border-border px-1.5 py-0.5 rounded font-mono font-medium text-muted-foreground">
+            Ctrl K
+          </kbd>
+        </button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sm:hidden text-muted-foreground"
+          onClick={onOpenCommandPalette}
+          aria-label="Buscar"
+          title="Buscar"
+        >
+          <Search className="w-4 h-4" />
+        </Button>
+
         {/* Toggle Ocultar Valores */}
         <Button
           variant="ghost"

@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useDebounce } from '@/hooks/useDebounce'
 import { toast } from 'sonner'
 import {
   Search,
@@ -26,10 +27,17 @@ import type { ProdutosResponse, ProdutoItem } from '@/types'
 
 export function ProdutosPage() {
   const queryClient = useQueryClient()
-  const [aba, setAba] = useState('PAPEL')
-  const [busca, setBusca] = useState('')
-  const [filtroEstoque, setFiltroEstoque] = useState('')
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const aba = searchParams.get('aba') || 'PAPEL'
+  const filtroEstoque = searchParams.get('filtro') || ''
+  const page = Number(searchParams.get('page')) || 1
+
+  const [busca, setBusca] = useState(searchParams.get('busca') || '')
+  const debouncedBusca = useDebounce(busca, 350)
+
+  // Estado para highlight de item recém alterado/movimentado
+  const [recemAlteradoId, setRecemAlteradoId] = useState<number | null>(null)
 
   // Estados de Modais
   const [modalFormOpen, setModalFormOpen] = useState(false)
@@ -39,14 +47,31 @@ export function ProdutosPage() {
   const [produtoMovimentando, setProdutoMovimentando] = useState<ProdutoItem | null>(null)
 
   const [produtoExcluindo, setProdutoExcluindo] = useState<ProdutoItem | null>(null)
+  const [confirmacaoExcluirTexto, setConfirmacaoExcluirTexto] = useState('')
+
+  // Sincroniza debouncedBusca na URL sem poluir o histórico
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (debouncedBusca) {
+          next.set('busca', debouncedBusca)
+        } else {
+          next.delete('busca')
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }, [debouncedBusca, setSearchParams])
 
   // Query de produtos
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['produtos', { aba, busca, filtroEstoque, page }],
+    queryKey: ['produtos', { aba, busca: debouncedBusca, filtroEstoque, page }],
     queryFn: () => {
       const params = new URLSearchParams()
       if (aba) params.set('aba', aba)
-      if (busca) params.set('busca', busca)
+      if (debouncedBusca) params.set('busca', debouncedBusca)
       if (filtroEstoque) params.set('filtro', filtroEstoque)
       params.set('page', String(page))
       params.set('page_size', '25')
@@ -85,8 +110,47 @@ export function ProdutosPage() {
   }
 
   function handleAbaChange(novaAba: string) {
-    setAba(novaAba)
-    setPage(1)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('aba', novaAba)
+        next.set('page', '1')
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  function handleFiltroEstoqueChange(novoFiltro: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (novoFiltro) {
+          next.set('filtro', novoFiltro)
+        } else {
+          next.delete('filtro')
+        }
+        next.set('page', '1')
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  function handlePageChange(novaPagina: number) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('page', String(novaPagina))
+        return next
+      },
+      { replace: true }
+    )
+  }
+
+  function triggerItemHighlight(id: number) {
+    setRecemAlteradoId(id)
+    setTimeout(() => setRecemAlteradoId(null), 3000)
   }
 
   return (
@@ -144,7 +208,7 @@ export function ProdutosPage() {
             value={busca}
             onChange={(e) => {
               setBusca(e.target.value)
-              setPage(1)
+              handlePageChange(1)
             }}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
@@ -160,10 +224,7 @@ export function ProdutosPage() {
           ].map((status) => (
             <button
               key={status.key}
-              onClick={() => {
-                setFiltroEstoque(status.key)
-                setPage(1)
-              }}
+              onClick={() => handleFiltroEstoqueChange(status.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 filtroEstoque === status.key
                   ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
@@ -225,7 +286,7 @@ export function ProdutosPage() {
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 Não encontramos produtos correspondentes aos filtros aplicados nesta aba.
               </p>
-              <Button size="sm" variant="outline" onClick={() => { setBusca(''); setFiltroEstoque(''); }}>
+              <Button size="sm" variant="outline" onClick={() => { setBusca(''); handleFiltroEstoqueChange(''); }}>
                 Limpar filtros
               </Button>
             </div>
@@ -247,7 +308,14 @@ export function ProdutosPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {data?.itens?.map((p) => (
-                      <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                      <tr
+                        key={p.id}
+                        className={`transition-colors group ${
+                          recemAlteradoId === p.id
+                            ? 'bg-emerald-500/10 ring-1 ring-emerald-500/40'
+                            : 'hover:bg-muted/30'
+                        }`}
+                      >
                         <td className="px-4 py-3">
                           <Link
                             to={`/produtos/${p.id}`}
@@ -446,7 +514,7 @@ export function ProdutosPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_anterior}
-                      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() => handlePageChange(Math.max(page - 1, 1))}
                       className="h-8 gap-1 text-xs"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -456,7 +524,7 @@ export function ProdutosPage() {
                       variant="outline"
                       size="sm"
                       disabled={!data.paginacao.tem_proxima}
-                      onClick={() => setPage((prev) => prev + 1)}
+                      onClick={() => handlePageChange(page + 1)}
                       className="h-8 gap-1 text-xs"
                     >
                       <span>Próxima</span>
@@ -478,7 +546,10 @@ export function ProdutosPage() {
           setProdutoMovimentando(null)
         }}
         produtoPadrao={produtoMovimentando}
-        onSuccess={refetch}
+        onSuccess={() => {
+          if (produtoMovimentando) triggerItemHighlight(produtoMovimentando.id)
+          refetch()
+        }}
       />
 
       {/* Modal de Cadastro / Edição */}
@@ -489,13 +560,19 @@ export function ProdutosPage() {
           setProdutoEditando(null)
         }}
         produtoParaEditar={produtoEditando}
-        onSuccess={refetch}
+        onSuccess={() => {
+          if (produtoEditando?.id) triggerItemHighlight(produtoEditando.id)
+          refetch()
+        }}
       />
 
-      {/* Modal de Confirmação de Exclusão */}
+      {/* Modal de Confirmação de Exclusão Segura */}
       <Modal
         isOpen={Boolean(produtoExcluindo)}
-        onClose={() => setProdutoExcluindo(null)}
+        onClose={() => {
+          setProdutoExcluindo(null)
+          setConfirmacaoExcluirTexto('')
+        }}
         title="Confirmar Exclusão de Produto"
         description="Esta ação removerá o cadastro do produto do sistema."
         maxWidth="sm"
@@ -503,24 +580,41 @@ export function ProdutosPage() {
         <div className="space-y-4">
           <p className="text-sm text-foreground">
             Tem certeza de que deseja excluir o produto{' '}
-            <strong>{produtoExcluindo?.descricao}</strong>?
+            <strong className="text-destructive">{produtoExcluindo?.descricao}</strong>?
           </p>
           <p className="text-xs text-muted-foreground">
-            Produtos que possuem movimentações ou ordens vinculadas não podem ser excluídos pelo sistema para preservar o histórico contábil.
+            Produtos que possuem movimentações ou ordens vinculadas não podem ser excluídos pelo sistema para preservar a integridade contábil.
           </p>
+
+          <div className="space-y-1.5 pt-1">
+            <label className="text-xs font-semibold text-foreground">
+              Para confirmar, digite <span className="font-mono text-destructive font-bold">EXCLUIR</span> abaixo:
+            </label>
+            <input
+              type="text"
+              placeholder="Digite EXCLUIR"
+              value={confirmacaoExcluirTexto}
+              onChange={(e) => setConfirmacaoExcluirTexto(e.target.value)}
+              className="w-full px-3 py-1.5 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
+              autoFocus
+            />
+          </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setProdutoExcluindo(null)}
+              onClick={() => {
+                setProdutoExcluindo(null)
+                setConfirmacaoExcluirTexto('')
+              }}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || confirmacaoExcluirTexto.trim().toUpperCase() !== 'EXCLUIR'}
               onClick={() => {
                 if (produtoExcluindo) {
                   deleteMutation.mutate(produtoExcluindo.id)

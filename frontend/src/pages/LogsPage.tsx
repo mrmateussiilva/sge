@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   History,
   Search,
@@ -19,17 +20,19 @@ export function LogsPage() {
   const [pagina, setPagina] = useState(1)
   const [busca, setBusca] = useState('')
   const [acaoFiltro, setAcaoFiltro] = useState('')
+  const debouncedBusca = useDebounce(busca, 350)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['logs', pagina, busca, acaoFiltro],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['logs', pagina, debouncedBusca, acaoFiltro],
     queryFn: () => {
       const params = new URLSearchParams()
       params.set('page', String(pagina))
       params.set('page_size', '20')
-      if (busca.trim()) params.set('busca', busca.trim())
+      if (debouncedBusca.trim()) params.set('busca', debouncedBusca.trim())
       if (acaoFiltro) params.set('acao', acaoFiltro)
       return api.get<any>(`/api/v1/logs/?${params.toString()}`)
     },
+    placeholderData: keepPreviousData,
   })
 
   const itens = data?.itens || []
@@ -143,6 +146,12 @@ export function LogsPage() {
 
       {/* Tabela de Logs */}
       <Card>
+        {/* Barra de progresso sutil para re-fetches */}
+        <div
+          className={`h-0.5 rounded-t-xl transition-all duration-300 ${
+            isFetching && !isLoading ? 'bg-primary animate-pulse' : 'bg-transparent'
+          }`}
+        />
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-12 text-center text-sm text-muted-foreground">
