@@ -1,219 +1,129 @@
-# SGE - Sistema de Gestao de Estoque
+# SGE - Sistema de Gestão de Estoque
 
-Sistema web para controle de estoque, movimentacoes, fornecedores, categorias, ordens de compra, fechamentos mensais e relatorios.
+Sistema moderno e completo para controle de estoque físico, movimentações, ordens de compra, fornecedores, categorias, fechamentos contábeis mensais e relatórios gerenciais.
 
-## Stack
+---
 
-- Python 3.13
-- Django 6
-- SQLite
-- Bootstrap 5, Bootstrap Icons, HTMX, Vue global em paginas pontuais e Chart.js
-- WhiteNoise para arquivos estaticos
-- Docker, Gunicorn e Caddy para deploy
+## 🏗️ Arquitetura e Stack Tecnológica
 
-## Estrutura Principal
+O sistema adota uma arquitetura híbrida de alto desempenho: **Frontend SPA desacoplado + Backend Django REST proprietário das regras de negócio**.
 
-- `core/`: configuracao principal do Django.
-- `estoque/`: app principal do sistema.
-- `omie/`: app legado mantido apenas para migrations de remocao de tabelas antigas.
-- `estoque/templates/estoque/`: templates das telas do sistema.
-- `estoque/static/estoque/css/style.css`: CSS global.
-- `data/db.sqlite3`: banco SQLite local.
-- `PROJECT_CONTEXT.md`: contexto de dominio e regras principais.
-- `AGENTS.md`: orientacoes para agentes de codigo trabalhando no repositorio.
+### Backend (Regras de Negócio & Persistência)
+- **Python 3.13** & **Django 6**
+- **SQLite** com integridade transacional (`transaction.atomic` + `select_for_update`)
+- **API RESTful JSON** (`/api/v1/`) protegida por sessão e CSRF tokens
+- **WhiteNoise** com `CompressedManifestStaticFilesStorage`
+- **uv** como gerenciador rápido de pacotes e ambientes virtuais
 
-## Requisitos
+### Frontend (SPA & Experiência do Usuário)
+- **React 19** & **TypeScript**
+- **Vite** para compilação ultrarrápida e HMR
+- **Tailwind CSS** para design system coeso e responsivo
+- **TanStack Query (React Query v5)** para cache, auto-refresh e sincronização de estado servidor
+- **React Router v7** com roteamento SPA e persistência de estado na URL
+- **Sonner** para toasts e notificações acessíveis
+- **Lucide React** para iconografia consistente
 
-- Python 3.13+
-- `uv`
-- Docker e Docker Compose, caso use container
+### Infraestrutura & Deploy
+- **Docker Multi-Stage Build**: Estágio 1 compila o frontend Node.js; Estágio 2 prepara o runtime Python otimizado
+- **Gunicorn** como WSGI server em produção
+- **Caddy** como reverse proxy com HTTPS automático
 
-Instalacao do `uv`, se necessario:
+---
 
+## ⚡ Recursos de Destaque & UX (v1.6.0)
+
+- 🔍 **Command Palette Global (`Ctrl + K`)**: Busca instantânea de insumos por nome/fornecedor, atalhos para todas as páginas e ações rápidas sem sair da tela atual.
+- ⚡ **Busca com Debounce (`useDebounce`)**: O usuário digita de forma fluida e instantânea; o backend só é consultado quando a digitação pausa (350ms), eliminando requisições redundantes.
+- 🎯 **Navegação Sem "Piscadas" (`keepPreviousData`)**: Transição suave entre abas, filtros e páginas mantendo os dados anteriores visíveis durante o carregamento com barra de progresso discreta.
+- 🔗 **Filtros e Paginação na URL (`useSearchParams`)**: Compartilhe links ou dê F5 sem perder os filtros ou a página selecionada.
+- 🔄 **Dashboard em Tempo Real**: Métricas atualizadas automaticamente a cada 60s em segundo plano, com botão manual de atualização.
+- 🛡️ **Exclusão Segura**: Operações destrutivas exigem confirmação explícita digitando `EXCLUIR`.
+- ✨ **Feedback Visual de Alterações**: Destaque suave em verde (`emerald ring`) na linha da tabela do item recém-movimentado ou alterado.
+
+---
+
+## 📐 Regras de Negócio & Diretrizes de Código
+
+### 1. Saldo e Unidade Base
+- `Produto.quantidade_base` é a **fonte única da verdade** do saldo físico:
+  - Tecidos e papéis: **metros**.
+  - Tintas: **litros**.
+  - Outros materiais: unidade cadastrada em `unidade_medida`.
+- Rolos e vidros são **sempre projeções calculadas** para visualização (`embalagens_estimadas`), nunca saldo fixo.
+
+### 2. Mutação de Estoque
+- **Nunca** altere saldo de produtos diretamente em views ou páginas. Toda entrada ou saída física deve gerar um registro em `Movimentacao`.
+- `Movimentacao.save()` valida quantidades estritamente positivas, roda sob `transaction.atomic()` com bloqueio pessimista (`select_for_update()`) e impede saídas sem saldo suficiente.
+- Ações críticas de usuários geram auditoria automática em `LogAcao`.
+
+### 3. Padrões do Frontend React
+- Ao criar novos campos de busca em tabelas, sempre use o hook `useDebounce(busca, 350)`.
+- Ao utilizar `useQuery` para listagens paginadas ou com filtros, sempre configure `placeholderData: keepPreviousData` e desestruture `isFetching` para indicar carregamento secundário sem apagar a tela.
+- Mantenha valores e textos em **Português (pt-BR)** e use `Intl.NumberFormat` para valores monetários e quantidades formatadas.
+
+---
+
+## 🚀 Como Executar Localmente
+
+### Pré-requisitos
+- Python 3.13+ e [`uv`](https://docs.astral.sh/uv/)
+- Node.js 20+ e `npm`
+
+### 1. Configurar Backend (Django)
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+# Clone o repositório
+git clone https://github.com/mrmateussiilva/sge.git
+cd sge
 
-## Configuracao Local
-
-Copie o arquivo de exemplo:
-
-```bash
-cp .env.example .env
-```
-
-Para desenvolvimento local, ajuste pelo menos:
-
-```env
-PORT=8000
-DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
-```
-
-Defina tambem `DJANGO_SECRET_KEY` e as variaveis de superusuario se for usar Docker.
-
-## Rodando Localmente
-
-Instale as dependencias:
-
-```bash
+# Sincronize o ambiente Python
 uv sync
-```
 
-Aplique as migrations:
+# Configure as variáveis de ambiente
+cp .env.example .env
 
-```bash
+# Execute as migrations
 uv run python manage.py migrate
-```
 
-Crie um superusuario, se ainda nao existir:
-
-```bash
-uv run python manage.py createsuperuser
-```
-
-Inicie o servidor:
-
-```bash
+# Inicie o servidor Django
 uv run python manage.py runserver
 ```
 
-Acesse:
+### 2. Configurar Frontend (React SPA)
+Em outro terminal:
+```bash
+cd frontend
 
-```text
-http://127.0.0.1:8000/
+# Instale as dependências
+npm install
+
+# Inicie o servidor Vite em modo desenvolvimento
+npm run dev
 ```
+O frontend estará acessível em `http://localhost:5173` conectando ao backend Django em `http://localhost:8000`.
 
-## Rodando com Docker
+---
 
-Configure o `.env` e execute:
+## 🐳 Executando com Docker
+
+O Dockerfile utiliza build multi-estágio automático:
 
 ```bash
 docker compose up --build
 ```
+O build compila o frontend React, executa `collectstatic`, aplica migrations no banco SQLite e inicia o Gunicorn em `http://localhost:8000`.
 
-O servico sobe em:
+---
 
-```text
-http://127.0.0.1:8000/
-```
+## 🧪 Testes Automatizados
 
-No boot do container, `entrypoint.sh` executa:
-
-- `manage.py migrate --noinput`
-- criacao de superusuario via variaveis de ambiente, se possivel
-- `collectstatic --noinput`
-- Gunicorn em `0.0.0.0:$PORT`
-
-O banco SQLite do container fica persistido no volume `sqlite_data`.
-
-### Backup local na VPS
-
-O volume Docker garante persistência, mas não substitui backup. Para instalar o
-backup automático na VPS, atualize o checkout e execute uma vez, como root:
-
-```bash
-sudo bash scripts/install_sge_backup.sh "$PWD"
-```
-
-O instalador configura cópias consistentes do SQLite em `/var/backups/sge`,
-com execução às 02h, 08h, 14h e 20h, validação de integridade e rotação local:
-
-- backups de 6 em 6 horas por 7 dias;
-- uma cópia diária por 30 dias;
-- uma cópia mensal por 365 dias.
-
-O deploy via GitHub Actions exige que o backup esteja instalado e executa uma
-cópia antes de atualizar o código ou recriar o container.
-
-Para restaurar uma cópia, primeiro confirme o arquivo e execute explicitamente:
-
-```bash
-sudo SGE_CONFIRM_RESTORE=YES /usr/local/sbin/sge-restore /var/backups/sge/daily/ARQUIVO.sqlite3.gz
-```
-
-O backup permanece na mesma VPS; portanto, não cobre perda total do servidor
-ou do disco.
-
-## Comandos Uteis
-
-Rodar testes:
-
+Para rodar os testes unitários e de integração do backend:
 ```bash
 uv run python manage.py test
 ```
 
-Coletar arquivos estaticos:
-
+Para validar a tipagem e compilação do frontend:
 ```bash
-uv run python manage.py collectstatic --noinput
+cd frontend
+npm run build
 ```
-
-Criar migrations apos alterar modelos:
-
-```bash
-uv run python manage.py makemigrations
-```
-
-Aplicar migrations:
-
-```bash
-uv run python manage.py migrate
-```
-
-Abrir shell Django:
-
-```bash
-uv run python manage.py shell
-```
-
-## Regras Importantes de Estoque
-
-- `Produto.quantidade_base` e o saldo real.
-- Tecidos e papeis usam metros como base.
-- Tintas usam litros como base.
-- Rolos e vidros sao estimativas calculadas para exibicao.
-- Entradas e saidas operacionais devem passar por `Movimentacao`.
-- `Movimentacao.save()` valida quantidade positiva, usa transacao e impede saida sem saldo.
-- Fechamentos mensais geram snapshot historico do estoque.
-- Acoes significativas devem ser registradas em `LogAcao`.
-
-Para detalhes completos de dominio, consulte `PROJECT_CONTEXT.md`.
-
-## Testes
-
-A suite atual cobre fluxos de movimentacao, paginas operacionais, cadastro minimo de produto, fechamento mensal e exportacoes XLSX.
-
-Execute antes de concluir mudancas em modelos, views, estoque, fechamento, importacao/exportacao ou autenticacao:
-
-```bash
-uv run python manage.py test
-```
-
-## Deploy
-
-O deploy previsto usa Docker com Gunicorn atras de proxy reverso Caddy.
-
-Arquivos relacionados:
-
-- `Dockerfile`
-- `docker-compose.yml`
-- `entrypoint.sh`
-- `Caddyfile.example`
-- `.env.example`
-
-Em producao:
-
-- use `DJANGO_DEBUG=False`;
-- configure `DJANGO_SECRET_KEY` com valor seguro;
-- configure `DJANGO_ALLOWED_HOSTS`;
-- configure `CSRF_TRUSTED_ORIGINS` com o dominio HTTPS;
-- mantenha o volume SQLite persistente.
-
-## Observacoes para Manutencao
-
-- Nao commite `.env` nem dados sensiveis.
-- Evite alterar diretamente `data/db.sqlite3` sem backup.
-- Antes de mudancas de dominio, leia `PROJECT_CONTEXT.md` e `AGENTS.md`.
-- Ao alterar UI, valide desktop e mobile, pois o sistema usa sidebar, bottom navigation, modais globais e navegacao HTMX.

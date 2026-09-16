@@ -4,11 +4,13 @@ Orientacoes para agentes trabalhando neste repositorio.
 
 ## Visao Geral
 
-- Projeto: SGE, um Sistema de Gestao de Estoque em Django.
-- Stack principal: Python 3.13, Django 6, SQLite, templates Django, Bootstrap 5, HTMX, Vue global em paginas pontuais, Chart.js e CSS vanilla.
+- Projeto: SGE, um Sistema de Gestao de Estoque hibrido (Django REST + React SPA).
+- Stack principal:
+  - Backend: Python 3.13, Django 6, SQLite, API RESTful JSON em `/api/v1/`.
+  - Frontend: React 19, TypeScript, Vite, Tailwind CSS, TanStack Query v5, React Router v7, Sonner, Lucide React (localizado em `frontend/`).
 - Apps Django:
-  - `estoque`: app principal, com modelos, views, templates, estaticos, logs e testes.
-  - `omie`: app legado mantido apenas para migrations de remocao de tabelas antigas. Nao adicione novas regras de negocio nele sem motivo explicito.
+  - `estoque`: app principal com modelos, views, rotas de API em `estoque/api/`, estaticos e testes.
+  - `omie`: app legado mantido apenas para migrations de remocao de tabelas antigas. Nao adicione novas regras nele.
 - Banco padrao: `data/db.sqlite3`.
 - Idioma/timezone da aplicacao: `pt-br` e `America/Sao_Paulo`.
 
@@ -16,14 +18,20 @@ Leia tambem `PROJECT_CONTEXT.md` antes de mudancas relevantes de dominio.
 
 ## Comandos
 
-Use `uv` como gerenciador do projeto.
+Use `uv` para o backend e `npm` para o frontend.
 
 ```bash
+# Backend Django
 uv sync
 uv run python manage.py migrate
 uv run python manage.py runserver
 uv run python manage.py test
-uv run python manage.py collectstatic --noinput
+
+# Frontend React
+cd frontend
+npm install
+npm run dev
+npm run build
 ```
 
 Para Docker:
@@ -84,12 +92,19 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
 - Evite refatorar `estoque/views.py` inteiro em tarefas pequenas; ele e grande e central, entao prefira alteracoes localizadas.
 - Preserve nomes, mensagens e formatos em portugues nas telas e respostas ao usuario.
 
-## Frontend
+## Frontend (React SPA)
 
-- A UI usa templates Django com Bootstrap Icons, Bootstrap 5, HTMX global (`hx-boost`) e scripts inline em templates.
-- O conteudo principal e trocado em `#main-content`; ao adicionar scripts por pagina, confira comportamento com navegação HTMX.
-- Estilos globais ficam em `estoque/static/estoque/css/style.css`; mantenha consistencia com cards, tabelas, tema claro/escuro e layout responsivo existentes.
-- Nao introduza frameworks de frontend ou build steps sem necessidade clara.
+- O frontend oficial vive em `frontend/` e e servido como Single Page Application:
+  - `frontend/src/pages/`: Paginas principais da SPA.
+  - `frontend/src/components/`: Componentes reutilizaveis e modais por modulo.
+  - `frontend/src/hooks/`: Hooks customizados (`useAuth`, `useDebounce`, `usePreferences`).
+  - `frontend/src/api/client.ts`: Cliente HTTP com suporte a CSRF token do Django.
+- **Command Palette (`Ctrl + K`)**: Componente global em `src/components/layout/CommandPalette.tsx` para busca instantanea de insumos e navegacao no sistema.
+- **Busca com Debounce**: Em buscas de texto, use sempre `useDebounce(termo, 350)` para evitar sobrecarga de requisicoes ao backend.
+- **Transicoes Fluídas**: Em `useQuery` de tabelas com filtros/paginacao, utilize `placeholderData: keepPreviousData` e `isFetching` para feedback visual sutil sem apagar o conteudo da tela.
+- **Estado na URL**: Sincronize filtros e paginacao com `useSearchParams` sempre que fizer sentido para manter historico e permitir compartilhamento.
+- **Exclusoes Seguras**: Modais destrutivos devem exigir digitacao de confirmacao (ex: `EXCLUIR`) antes de habilitar a exclusao.
+- Em producao, o build do React (`dist/`) e servido pelo Django via `spa_view` e WhiteNoise. Rode `npm run build` na pasta `frontend` para checar tipos com TypeScript antes de concluir tarefas de frontend.
 
 ## Testes e Verificacao
 
@@ -102,7 +117,7 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
 
 - `data/db.sqlite3`, `.env`, `estoque.xlsx` e arquivos de importacao local podem conter dados de ambiente. Nao os altere ou remova sem pedido explicito.
 - `importar_estoque.py` e utilitario de importacao inicial baseado em planilha; trate como script operacional, nao como codigo de runtime web.
-- `README.md` esta vazio no momento; nao assuma que ele documenta o projeto.
+- `README.md` contem a visao geral e instrucoes atualizadas do projeto.
 
 ## Cuidados Antes de Finalizar
 
