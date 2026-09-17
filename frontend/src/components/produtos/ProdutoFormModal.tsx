@@ -21,9 +21,27 @@ interface OpcoesProduto {
 interface ProdutoFormModalProps {
   isOpen: boolean
   onClose: () => void
-  produtoParaEditar?: ProdutoItem | null
+  produtoParaEditar?: Pick<ProdutoItem, 'id' | 'descricao'> | null
   onSuccess?: () => void
 }
+
+interface ProdutoEdicao {
+  descricao: string
+  tipo_produto: string
+  unidade_medida: string
+  fornecedor: { id: number } | null
+  categoria: { id: number } | null
+  quantidade: number
+  estoque_minimo: number | null
+  preco_custo: number | null
+  preco_venda: number | null
+  metros_por_rolo: number | null
+  litros_por_vidro: number | null
+  tipo_tinta: string
+  cor_tinta: string
+}
+
+const valorCampo = (valor: number | null | undefined) => valor == null ? '' : String(valor)
 
 export function ProdutoFormModal({
   isOpen,
@@ -33,6 +51,11 @@ export function ProdutoFormModal({
 }: ProdutoFormModalProps) {
   const queryClient = useQueryClient()
   const isEditing = Boolean(produtoParaEditar)
+  const { data: detalhe, isFetching: carregandoDetalhe, isError: erroDetalhe } = useQuery({
+    queryKey: ['produto-edicao', produtoParaEditar?.id],
+    queryFn: () => api.get<{ produto: ProdutoEdicao }>(`/api/v1/produtos/${produtoParaEditar!.id}/`),
+    enabled: isOpen && isEditing,
+  })
 
   // Opções de selects
   const { data: opcoes } = useQuery({
@@ -59,19 +82,21 @@ export function ProdutoFormModal({
   // Popula campos ao abrir para edição ou resetar
   useEffect(() => {
     if (produtoParaEditar) {
-      setDescricao(produtoParaEditar.descricao || '')
-      setTipoProduto(produtoParaEditar.tipo_produto || 'PAPEL')
-      setUnidadeMedida(produtoParaEditar.tipo_produto === 'TINTA' ? 'L' : ['PAPEL', 'TECIDO'].includes(produtoParaEditar.tipo_produto) ? 'M' : 'UN')
-      setFornecedorId(produtoParaEditar.fornecedor ? '' : '') // id pode ser recuperado ou selecionado
-      setCategoriaId('')
-      setQuantidadeBase(produtoParaEditar.quantidade ? String(produtoParaEditar.quantidade) : '')
-      setEstoqueMinimo(produtoParaEditar.estoque_minimo ? String(produtoParaEditar.estoque_minimo) : '')
-      setPrecoCusto(produtoParaEditar.preco_custo ? String(produtoParaEditar.preco_custo) : '')
-      setPrecoVenda(produtoParaEditar.preco_venda ? String(produtoParaEditar.preco_venda) : '')
-      setMetrosPorRolo(produtoParaEditar.metros_por_rolo ? String(produtoParaEditar.metros_por_rolo) : '')
-      setTipoTinta(produtoParaEditar.tipo_tinta || 'N/A')
-      setCorTinta(produtoParaEditar.cor_tinta || 'INCOLOR')
-      setLitrosPorVidro(produtoParaEditar.litros_por_vidro ? String(produtoParaEditar.litros_por_vidro) : '')
+      if (!detalhe) return
+      const produto = detalhe.produto
+      setDescricao(produto.descricao)
+      setTipoProduto(produto.tipo_produto)
+      setUnidadeMedida(produto.unidade_medida)
+      setFornecedorId(valorCampo(produto.fornecedor?.id))
+      setCategoriaId(valorCampo(produto.categoria?.id))
+      setQuantidadeBase(valorCampo(produto.quantidade))
+      setEstoqueMinimo(valorCampo(produto.estoque_minimo))
+      setPrecoCusto(valorCampo(produto.preco_custo))
+      setPrecoVenda(valorCampo(produto.preco_venda))
+      setMetrosPorRolo(valorCampo(produto.metros_por_rolo))
+      setTipoTinta(produto.tipo_tinta)
+      setCorTinta(produto.cor_tinta)
+      setLitrosPorVidro(valorCampo(produto.litros_por_vidro))
     } else {
       setDescricao('')
       setTipoProduto('PAPEL')
@@ -87,7 +112,7 @@ export function ProdutoFormModal({
       setCorTinta('INCOLOR')
       setLitrosPorVidro('')
     }
-  }, [produtoParaEditar, isOpen])
+  }, [produtoParaEditar, detalhe, isOpen])
 
   // Ajusta unidade base recomendada ao mudar o tipo
   function handleTipoChange(novoTipo: string) {
@@ -132,6 +157,7 @@ export function ProdutoFormModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isEditing && (carregandoDetalhe || erroDetalhe || !detalhe)) return
     if (!descricao.trim()) {
       toast.warning('A descrição do produto é obrigatória.')
       return
@@ -164,7 +190,11 @@ export function ProdutoFormModal({
       description="Preencha os dados do material, especificações e precificação."
       maxWidth="xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {isEditing && (carregandoDetalhe || erroDetalhe || !detalhe) ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {erroDetalhe ? 'Não foi possível carregar o produto. Feche e tente novamente.' : 'Carregando dados do produto...'}
+        </p>
+      ) : <form onSubmit={handleSubmit} className="space-y-6">
         {/* Seção 1: Dados Principais */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">
@@ -451,7 +481,7 @@ export function ProdutoFormModal({
             )}
           </Button>
         </div>
-      </form>
+      </form>}
     </Modal>
   )
 }

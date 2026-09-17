@@ -93,7 +93,7 @@ def logs_api(request):
     acao = request.GET.get('acao', '').strip()
 
     try:
-        page_size = min(int(request.GET.get('page_size', 25)), 100)
+        page_size = max(1, min(int(request.GET.get('page_size', 25)), 100))
     except (TypeError, ValueError):
         page_size = 25
 

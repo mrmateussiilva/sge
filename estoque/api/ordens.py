@@ -40,7 +40,7 @@ def listar_ordens_api(request):
     fornecedor_selecionado = request.GET.get('fornecedor', '').strip()
 
     try:
-        page_size = min(int(request.GET.get('page_size', 25)), 100)
+        page_size = max(1, min(int(request.GET.get('page_size', 25)), 100))
     except (TypeError, ValueError):
         page_size = 25
 

@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 
 from ..models import Categoria, Fornecedor, HistoricoPreco, Movimentacao, Produto
 from ..services.estoque_status import filtro_baixo, filtro_zerado
-from ..services.units import dinheiro_br, embalagens_estimadas, unidade_info
+from ..services.units import dinheiro_br, embalagens_estimadas, formatar_quantidade, unidade_info
 from ..views.helpers import json_ok, produto_lista_vue_json
 from ..views.produtos import PRODUTO_TABS, ordenar_produtos
 
@@ -81,7 +81,7 @@ def listar_produtos_api(request):
     direction = 'desc' if request.GET.get('dir') == 'desc' else 'asc'
 
     try:
-        page_size = min(int(request.GET.get('page_size', 25)), 100)
+        page_size = max(1, min(int(request.GET.get('page_size', 25)), 100))
     except (TypeError, ValueError):
         page_size = 25
 
@@ -205,7 +205,7 @@ def detalhe_produto_api(request, id):
             'motivo': mov.motivo,
             'motivo_display': mov.get_motivo_display(),
             'quantidade': float(mov.quantidade),
-            'quantidade_formatada': mov.quantidade_formatada,
+            'quantidade_formatada': formatar_quantidade(mov.quantidade, produto.unidade_base_codigo),
             'usuario': mov.usuario.username if mov.usuario else '-',
             'data': mov.data.isoformat(),
             'data_formatada': mov.data.strftime('%d/%m/%Y %H:%M'),

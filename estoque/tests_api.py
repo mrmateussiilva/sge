@@ -160,6 +160,53 @@ class ApiV1Tests(TestCase):
         self.assertGreaterEqual(len(lista_data['itens']), 1)
         self.assertEqual(lista_data['itens'][0]['tipo'], 'ENTRADA')
 
+    def test_detalhe_produto_com_movimentacao_formata_unidade_base(self):
+        self.client.force_login(self.operador_user)
+        Movimentacao.objects.create(produto=self.produto_papel, tipo='ENTRADA', quantidade='2.50')
+        response = self.client.get(reverse('api_v1:produtos_detalhe', args=[self.produto_papel.pk]))
+        self.assertEqual(response.status_code, 200)
+        mov = response.json()['movimentacoes'][0]
+        self.assertEqual(mov['quantidade'], 2.5)
+        self.assertEqual(mov['quantidade_formatada'], '2,50 m')
+
+    def test_detalhe_fornece_campos_para_edicao_sem_perda(self):
+        self.client.force_login(self.operador_user)
+        produto = Produto.objects.create(
+            descricao='Material em kg', tipo_produto='OUTRO', unidade_medida='KG',
+            fornecedor=self.fornecedor, categoria=self.categoria,
+            preco_custo=Decimal('0'), preco_venda=None, estoque_minimo=Decimal('0'),
+        )
+        detalhe = self.client.get(reverse('api_v1:produtos_detalhe', args=[produto.pk])).json()['produto']
+        self.assertEqual(detalhe['unidade_medida'], 'KG')
+        self.assertEqual(detalhe['fornecedor']['id'], self.fornecedor.pk)
+        self.assertEqual(detalhe['categoria']['id'], self.categoria.pk)
+        self.assertEqual(detalhe['preco_custo'], 0)
+        self.assertIsNone(detalhe['preco_venda'])
+        self.assertEqual(detalhe['estoque_minimo'], 0)
+
+    def test_paginacao_normaliza_tamanho_em_todas_as_listagens(self):
+        self.client.force_login(self.admin_user)
+        for endpoint in ('produtos_lista', 'movimentacoes_lista', 'ordens_lista', 'logs'):
+            for informado, esperado in [('0', 1), ('-1', 1), ('abc', 25), ('', 25), ('101', 100), ('10', 10)]:
+                with self.subTest(endpoint=endpoint, page_size=informado):
+                    response = self.client.get(reverse(f'api_v1:{endpoint}'), {'page_size': informado})
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json()['paginacao']['itens_por_pagina'], esperado)
+
+    def test_busca_e_paginacao_alcancam_produtos_apos_os_primeiros_cem(self):
+        self.client.force_login(self.operador_user)
+        Produto.objects.bulk_create([
+            Produto(descricao=f'Insumo {index:03d}') for index in range(101)
+        ])
+        url = reverse('api_v1:produtos_lista')
+        primeira = self.client.get(url, {'aba': 'TODOS', 'page_size': 100}).json()
+        self.assertEqual(len(primeira['itens']), 100)
+        self.assertNotIn('Insumo 100', [p['descricao'] for p in primeira['itens']])
+        segunda = self.client.get(url, {'aba': 'TODOS', 'page_size': 100, 'page': 2}).json()
+        self.assertIn('Insumo 100', [p['descricao'] for p in segunda['itens']])
+        busca = self.client.get(url, {'aba': 'TODOS', 'busca': 'Insumo 100'}).json()
+        self.assertEqual([p['descricao'] for p in busca['itens']], ['Insumo 100'])
+
     def test_ordens_api(self):
         self.client.force_login(self.operador_user)
         # Criar ordem de compra via POST JSON

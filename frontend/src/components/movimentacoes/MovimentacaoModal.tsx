@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowDownRight, ArrowUpRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/api/client'
+import { ProdutoSelect } from '@/components/produtos/ProdutoSelect'
+import type { ProdutoItem } from '@/types'
 
 interface ProdutoSimples {
   id: number
@@ -47,25 +49,15 @@ export function MovimentacaoModal({
 }: MovimentacaoModalProps) {
   const queryClient = useQueryClient()
 
-  const [produtoId, setProdutoId] = useState<number | ''>(produtoPadrao?.id || '')
+  const [produtoEscolhido, setProdutoEscolhido] = useState<ProdutoItem | null>(null)
+  const produtoId = produtoPadrao?.id || produtoEscolhido?.id || ''
   const [tipo, setTipo] = useState<'ENTRADA' | 'SAIDA'>('SAIDA')
   const [motivo, setMotivo] = useState('PRODUCAO')
   const [quantidadeStr, setQuantidadeStr] = useState('')
   const [observacao, setObservacao] = useState('')
 
-  // Carrega produtos para o select se não houver produto pré-selecionado
-  const { data: produtosData } = useQuery({
-    queryKey: ['produtos-select'],
-    queryFn: () => api.get<{ ok: boolean; itens: ProdutoSimples[] }>('/api/v1/produtos/?page_size=100&aba=TODOS'),
-    enabled: isOpen && !produtoPadrao,
-  })
-
   useEffect(() => {
-    if (produtoPadrao?.id) {
-      setProdutoId(produtoPadrao.id)
-    } else {
-      setProdutoId('')
-    }
+    setProdutoEscolhido(null)
     setQuantidadeStr('')
     setObservacao('')
     setTipo('SAIDA')
@@ -81,7 +73,7 @@ export function MovimentacaoModal({
   // Identifica o produto selecionado atualmente
   const produtoSelecionado =
     produtoPadrao ||
-    produtosData?.itens?.find((p) => p.id === Number(produtoId))
+    produtoEscolhido
 
   const quantidadeNum = parseFloat(quantidadeStr.replace(',', '.')) || 0
   const saldoAtual = produtoSelecionado?.quantidade ?? 0
@@ -100,6 +92,7 @@ export function MovimentacaoModal({
       })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['produtos'] })
+      queryClient.invalidateQueries({ queryKey: ['produtos-selecao'] })
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       onSuccess?.()
@@ -195,19 +188,7 @@ export function MovimentacaoModal({
               <Badge variant="outline">Pré-selecionado</Badge>
             </div>
           ) : (
-            <select
-              value={produtoId}
-              onChange={(e) => setProdutoId(Number(e.target.value) || '')}
-              className="w-full h-10 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-              required
-            >
-              <option value="">Selecione um produto...</option>
-              {produtosData?.itens?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.descricao} (Saldo: {p.quantidade_formatada})
-                </option>
-              ))}
-            </select>
+            <ProdutoSelect value={produtoEscolhido} onChange={setProdutoEscolhido} enabled={isOpen} />
           )}
         </div>
 

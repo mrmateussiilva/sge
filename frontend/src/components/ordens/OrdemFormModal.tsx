@@ -6,8 +6,12 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api } from '@/api/client'
+import { ProdutoSelect } from '@/components/produtos/ProdutoSelect'
+import type { ProdutoItem } from '@/types'
 
 interface ItemLinha {
+  id: string
+  produto: ProdutoItem | null
   produto_id: string
   quantidade: string
   preco_unitario: string
@@ -18,12 +22,7 @@ interface FornecedorSimples {
   nome: string
 }
 
-interface ProdutoSimples {
-  id: number
-  descricao: string
-  preco_custo: number | null
-  unidade_simbolo: string
-}
+const novoItem = (): ItemLinha => ({ id: crypto.randomUUID(), produto: null, produto_id: '', quantidade: '1', preco_unitario: '' })
 
 interface OrdemFormModalProps {
   isOpen: boolean
@@ -37,7 +36,7 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
   const [fornecedorId, setFornecedorId] = useState('')
   const [observacao, setObservacao] = useState('')
   const [itens, setItens] = useState<ItemLinha[]>([
-    { produto_id: '', quantidade: '1', preco_unitario: '' },
+    novoItem(),
   ])
 
   // Carrega fornecedores e produtos para os selects
@@ -47,42 +46,36 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
     enabled: isOpen,
   })
 
-  const { data: produtosData } = useQuery({
-    queryKey: ['produtos-select-ordens'],
-    queryFn: () => api.get<{ ok: boolean; itens: ProdutoSimples[] }>('/api/v1/produtos/?page_size=100&aba=TODOS'),
-    enabled: isOpen,
-  })
-
   useEffect(() => {
     if (isOpen) {
       setFornecedorId('')
       setObservacao('')
-      setItens([{ produto_id: '', quantidade: '1', preco_unitario: '' }])
+      setItens([novoItem()])
     }
   }, [isOpen])
 
   function handleAddItem() {
-    setItens((prev) => [...prev, { produto_id: '', quantidade: '1', preco_unitario: '' }])
+    setItens((prev) => [...prev, novoItem()])
   }
 
   function handleRemoveItem(idx: number) {
     setItens((prev) => prev.filter((_, i) => i !== idx))
   }
 
-  function handleItemChange(idx: number, campo: keyof ItemLinha, valor: string) {
+  function handleItemChange(idx: number, campo: 'quantidade' | 'preco_unitario', valor: string) {
     setItens((prev) => {
       const copy = [...prev]
       copy[idx] = { ...copy[idx], [campo]: valor }
 
-      // Se alterou o produto, preenche o preço unitário padrão se disponível
-      if (campo === 'produto_id') {
-        const prod = produtosData?.itens?.find((p) => p.id === Number(valor))
-        if (prod && prod.preco_custo !== null) {
-          copy[idx].preco_unitario = String(prod.preco_custo)
-        }
-      }
       return copy
     })
+  }
+
+  function handleProdutoChange(idx: number, produto: ProdutoItem | null) {
+    setItens((prev) => prev.map((item, index) => index === idx ? {
+      ...item, produto, produto_id: produto ? String(produto.id) : '',
+      preco_unitario: produto?.preco_custo == null ? '' : String(produto.preco_custo),
+    } : item))
   }
 
   // Cálculo do valor total em tempo real
@@ -197,27 +190,16 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
 
               return (
                 <div
-                  key={idx}
+                  key={item.id}
                   className="grid grid-cols-12 gap-2 items-center p-2.5 rounded-lg border border-border bg-muted/20 text-sm"
                 >
-                  <div className="col-span-5">
-                    <select
-                      value={item.produto_id}
-                      onChange={(e) => handleItemChange(idx, 'produto_id', e.target.value)}
-                      className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                      required
-                    >
-                      <option value="">Selecione o insumo...</option>
-                      {produtosData?.itens?.map((prod) => (
-                        <option key={prod.id} value={prod.id}>
-                          {prod.descricao}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="col-span-12 sm:col-span-5 min-w-0">
+                    <ProdutoSelect value={item.produto} onChange={(produto) => handleProdutoChange(idx, produto)} enabled={isOpen} />
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-3 sm:col-span-2">
                     <Input
+                      aria-label="Quantidade do item"
                       type="number"
                       step="0.01"
                       min="0.01"
@@ -229,8 +211,9 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
                     />
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-3 sm:col-span-2">
                     <Input
+                      aria-label="Preço unitário do item"
                       type="number"
                       step="0.01"
                       min="0"
@@ -241,11 +224,11 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
                     />
                   </div>
 
-                  <div className="col-span-2 text-right text-xs font-mono font-bold text-foreground truncate">
+                  <div className="col-span-4 sm:col-span-2 text-right text-xs font-mono font-bold text-foreground truncate">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(subtotal)}
                   </div>
 
-                  <div className="col-span-1 text-right">
+                  <div className="col-span-2 sm:col-span-1 text-right">
                     {itens.length > 1 && (
                       <button
                         type="button"
