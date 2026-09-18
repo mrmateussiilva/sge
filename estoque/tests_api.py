@@ -379,12 +379,16 @@ class ApiV1Tests(TestCase):
         self.assertFalse(user_atualizado.is_active)
 
     def test_spa_view_integration(self):
-        # Deslogado redireciona para login
-        res_anon = self.client.get('/app/')
-        self.assertEqual(res_anon.status_code, 302)
+        for rota in ('/', '/app/', '/produtos/'):
+            with self.subTest(rota=rota, autenticado=False):
+                res_anon = self.client.get(rota)
+                self.assertEqual(res_anon.status_code, 302)
+                self.assertIn('/accounts/login/', res_anon['Location'])
 
-        # Logado serve a SPA com sucesso
         self.client.force_login(self.admin_user)
-        res_auth = self.client.get('/app/')
-        self.assertEqual(res_auth.status_code, 200)
-        self.assertIn('text/html', res_auth['Content-Type'])
+        for rota in ('/', '/app/', '/produtos/'):
+            with self.subTest(rota=rota, autenticado=True):
+                res_auth = self.client.get(rota)
+                self.assertEqual(res_auth.status_code, 200)
+                self.assertIn('text/html', res_auth['Content-Type'])
+                self.assertContains(res_auth, '<div id="root"></div>', html=True)

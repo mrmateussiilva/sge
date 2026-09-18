@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 
 
@@ -10,6 +11,7 @@ def health_check(request):
 
 
 @login_required
+@ensure_csrf_cookie
 def spa_view(request, *args, **kwargs):
     """Serve a Single Page Application React para usuários autenticados."""
     index_file = settings.BASE_DIR / 'frontend' / 'dist' / 'index.html'

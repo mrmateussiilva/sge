@@ -5,8 +5,8 @@
 - **Backend:** Django (Python 3.12+) — app única chamada `estoque`
 - **Banco de dados:** SQLite (arquivo em `data/db.sqlite3`)
 - **Autenticação:** `django.contrib.auth` padrão (User nativo do Django)
-- **Frontend:** HTML + CSS vanilla (sem framework JS) com templates Django
-- **Arquivos estáticos:** servidos via WhiteNoise
+- **Frontend:** React SPA em `frontend/`, compilado por Vite e servido pelo Django quando autenticado
+- **Arquivos estáticos:** build React em `frontend/dist`, servido via WhiteNoise em produção
 - **Deploy:** Docker + Caddy (proxy reverso HTTPS)
 - **Idioma/Timezone:** pt-BR / America/Sao_Paulo
 
@@ -146,11 +146,7 @@ View `realizar_fechamento` → serviço transacional valida o período, lê todo
 
 Os dados do snapshot não são editáveis. Um superusuário pode excluir definitivamente um fechamento, com auditoria, para permitir um novo freeze do mesmo período.
 
-A tela de fechamentos usa templates e partials Django com HTMX para revisar o período, criar o snapshot e atualizar a listagem após exclusão. Ela não depende de Vue nem de listas serializadas em JSON no HTML.
-
-A tela de categorias segue o mesmo padrão server-driven: busca, formulário em modal e atualização dos cards usam partials HTML e HTMX, mantendo JSON apenas como contrato de compatibilidade dos endpoints.
-
-A tela de fornecedores também usa partials Django e HTMX para busca, formulário em modal e atualização da tabela. A validação permanece no backend e os endpoints continuam aceitando JSON para compatibilidade.
+As telas operacionais atuais vivem na SPA React. Qualquer menção antiga a templates Django, partials ou HTMX deve ser tratada como legado durante a migração; novas experiências de usuário devem consumir `/api/v1/`.
 
 ### Ordem de compra
 - **PENDENTE** → usuário edita itens
@@ -163,6 +159,7 @@ A tela de fornecedores também usa partials Django e HTMX para busca, formulári
 ## Convenções do código
 
 - Toda ação significativa chama `log_utils.registrar_log(usuario, acao, descricao, modelo, objeto_id)` que cria um `LogAcao`.
-- Views em `estoque/views.py` (arquivo único, ~1600 linhas) — todas com `@login_required`.
-- Contexto global injeta `produtos_estoque_baixo` (via `context_processors.estoque_baixo`) para exibir alerta no header.
+- API JSON versionada em `/api/v1/`, com autenticação por sessão e CSRF.
+- O frontend Django legado foi descontinuado. As rotas públicas da aplicação servem a SPA; views/template antigas só devem permanecer enquanto forem necessárias como handlers JSON reaproveitados pela API ou até a migração completa para módulos de API dedicados.
+- Contexto global de templates deve ser tratado como legado, exceto no login Django.
 - O campo `quantidade_base` **sempre** representa a unidade base do produto (metros para tecido/papel, litros para tinta, unidades para o restante). Quantidades em rolos/vidros são apenas propriedades calculadas para exibição.

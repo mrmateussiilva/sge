@@ -24,6 +24,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('api/v1/', include('estoque.api.urls')),
+    path('', spa_view, name='spa_root'),
     re_path(r'^app(?:/.*)?$', spa_view, name='spa'),
-    path('', include('estoque.urls')),
+    re_path(
+        r'^(?:produtos|movimentacoes|ordens|fornecedores|categorias|relatorios|fechamentos|logs|usuarios)(?:/.*)?$',
+        spa_view,
+        name='spa_routes',
+    ),
 ]
