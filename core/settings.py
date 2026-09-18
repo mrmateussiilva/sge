@@ -11,7 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = '1.6.1'
+APP_VERSION = '1.6.2'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'estoque',
+    'notifications',
     'omie',
 ]
 
@@ -144,6 +145,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ── Notificações ─────────────────────────────────────────────────────────────
+NOTIFICATION_WEBHOOK_URL = os.getenv('NOTIFICATION_WEBHOOK_URL', '')
+NOTIFICATION_TOKEN = os.getenv('NOTIFICATION_TOKEN', '')
 
 # ── Integração Omie ──────────────────────────────────────────────────────────
 OMIE_APP_KEY = os.getenv('OMIE_APP_KEY', '')

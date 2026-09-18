@@ -1,5 +1,6 @@
 import calendar
 from decimal import Decimal, InvalidOperation
+from functools import partial
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -285,6 +286,7 @@ class Movimentacao(models.Model):
         if not self.pk:
             with transaction.atomic():
                 produto = Produto.objects.select_for_update().get(pk=self.produto.pk)
+                saldo_anterior = produto.quantidade_base
                 if self.tipo == 'ENTRADA':
                     produto.quantidade_base += self.quantidade
                 elif self.tipo == 'SAIDA':
@@ -297,6 +299,17 @@ class Movimentacao(models.Model):
                 produto.save()
                 self.produto = produto
                 super().save(*args, **kwargs)
+                from notifications.events import notify_stock_threshold_crossed
+
+                transaction.on_commit(partial(
+                    notify_stock_threshold_crossed,
+                    product_id=produto.pk,
+                    product=produto.descricao,
+                    previous_stock=saldo_anterior,
+                    current_stock=produto.quantidade_base,
+                    minimum_stock=produto.estoque_minimo,
+                    unit=produto.unidade_base_codigo,
+                ))
             return
 
     def delete(self, *args, **kwargs):

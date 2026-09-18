@@ -1,5 +1,6 @@
 import json
 from decimal import Decimal, InvalidOperation
+from functools import partial
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -162,6 +163,7 @@ def excluir_movimentacao(request, id):
 
         with transaction.atomic():
             produto = Produto.objects.select_for_update().get(pk=mov.produto.pk)
+            saldo_anterior = produto.quantidade_base
             if mov.tipo == 'ENTRADA':
                 produto.quantidade_base -= mov.quantidade
             else:
@@ -170,6 +172,17 @@ def excluir_movimentacao(request, id):
             mov._permitir_exclusao_interna = True
             descricao = f'{mov.get_tipo_display()} de {mov.quantidade} de {mov.produto.descricao}'
             mov.delete()
+            from notifications.events import notify_stock_threshold_crossed
+
+            transaction.on_commit(partial(
+                notify_stock_threshold_crossed,
+                product_id=produto.pk,
+                product=produto.descricao,
+                previous_stock=saldo_anterior,
+                current_stock=produto.quantidade_base,
+                minimum_stock=produto.estoque_minimo,
+                unit=produto.unidade_base_codigo,
+            ))
         log_acao(request.user, 'EXCLUIR', f'Excluiu movimentacao: {descricao}', 'Movimentacao', id)
 
         if requisicao_htmx(request):
