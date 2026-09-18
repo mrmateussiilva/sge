@@ -57,9 +57,18 @@ class NotificationClient:
                 )
                 return False
         except urllib.error.HTTPError as exc:
+            response_body = ''
+            try:
+                response_body = exc.read(300).decode('utf-8', errors='replace')
+            except Exception:
+                response_body = ''
+
             logger.warning(
-                'Falha ao enviar evento de notificacao: erro HTTP.',
-                extra={'event': event, 'event_id': event_id, 'status': exc.code},
+                'Falha ao enviar evento de notificacao: erro HTTP status=%s event=%s event_id=%s body=%s',
+                exc.code,
+                event,
+                event_id,
+                response_body,
             )
         except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as exc:
             logger.warning(

@@ -1,17 +1,47 @@
 from decimal import Decimal
+from io import BytesIO
 from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 
+from notifications.client import NotificationClient
 from notifications.events import STOCK_LOW, STOCK_ZERO, determine_stock_event
 from notifications.admin import NotificationEventConfigAdmin
 from notifications.models import NotificationEventConfig
 
 from .models import Movimentacao, Produto
 from .views.movimentacoes import excluir_movimentacao
+
+
+class NotificationClientTests(SimpleTestCase):
+    @override_settings(
+        NOTIFICATION_WEBHOOK_URL='https://n8n.example.test/webhook',
+        NOTIFICATION_TOKEN='token-de-teste',
+    )
+    @patch('notifications.client.urllib.request.urlopen')
+    def test_erro_http_registra_status_e_nao_quebra(self, urlopen):
+        urlopen.side_effect = __import__('urllib.error').error.HTTPError(
+            url='https://n8n.example.test/webhook',
+            code=401,
+            msg='Unauthorized',
+            hdrs=None,
+            fp=BytesIO(b'token invalido'),
+        )
+
+        with self.assertLogs('notifications.client', level='WARNING') as logs:
+            result = NotificationClient.send(
+                event='stock.low',
+                source='sge',
+                audience='purchasing',
+                data={'product_id': 0},
+            )
+
+        self.assertFalse(result)
+        self.assertIn('status=401', logs.output[0])
+        self.assertIn('body=token invalido', logs.output[0])
 
 
 class StockNotificationEventTests(TestCase):
