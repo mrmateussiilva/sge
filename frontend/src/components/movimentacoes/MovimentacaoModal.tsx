@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowDownRight, ArrowUpRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, AlertCircle, CheckCircle2, Loader2, ScanBarcode } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/api/client'
 import { ProdutoSelect } from '@/components/produtos/ProdutoSelect'
+import { BarcodeScannerModal } from '@/components/common/BarcodeScannerModal'
 import type { ProdutoItem } from '@/types'
 
 interface ProdutoSimples {
@@ -49,6 +50,7 @@ export function MovimentacaoModal({
 }: MovimentacaoModalProps) {
   const queryClient = useQueryClient()
 
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [produtoEscolhido, setProdutoEscolhido] = useState<ProdutoItem | null>(null)
   const produtoId = produtoPadrao?.id || produtoEscolhido?.id || ''
   const [tipo, setTipo] = useState<'ENTRADA' | 'SAIDA'>('SAIDA')
@@ -83,23 +85,71 @@ export function MovimentacaoModal({
     tipo === 'ENTRADA' ? saldoAtual + quantidadeNum : saldoAtual - quantidadeNum
   const saldoInsuficiente = tipo === 'SAIDA' && quantidadeNum > saldoAtual
 
-  // Mutation de registro
+  // Mutation de registro com Atualização Otimista (Optimistic Update)
   const mutation = useMutation({
     mutationFn: (body: any) => api.post('/api/v1/movimentacoes/registrar/', body),
+    onMutate: async (newMov: any) => {
+      // Cancela refetches pendentes para não sobrescrever nossa atualização otimista
+      await queryClient.cancelQueries({ queryKey: ['produtos'] })
+      await queryClient.cancelQueries({ queryKey: ['dashboard'] })
+
+      // Salva snapshot do cache anterior de produtos para rollback em caso de falha
+      const previousProdutos = queryClient.getQueriesData({ queryKey: ['produtos'] })
+
+      const movQtd = parseFloat(newMov.quantidade) || 0
+      const delta = newMov.tipo === 'ENTRADA' ? movQtd : -movQtd
+      const targetId = Number(newMov.produto_id)
+
+      // Atualiza otimisticamente os caches de 'produtos'
+      queryClient.setQueriesData({ queryKey: ['produtos'] }, (oldData: any) => {
+        if (!oldData || !Array.isArray(oldData.itens)) return oldData
+        return {
+          ...oldData,
+          itens: oldData.itens.map((item: any) => {
+            if (item.id === targetId) {
+              const novoSaldo = Math.max(0, (item.quantidade || 0) + delta)
+              const statusEstoque =
+                novoSaldo === 0
+                  ? 'ZERADO'
+                  : novoSaldo <= (item.estoque_minimo || 0)
+                  ? 'BAIXO'
+                  : 'OK'
+              return {
+                ...item,
+                quantidade: novoSaldo,
+                status_estoque: statusEstoque,
+              }
+            }
+            return item
+          }),
+        }
+      })
+
+      return { previousProdutos }
+    },
+    onError: (err: any, _variables, context) => {
+      // Reverte para o estado anterior em caso de erro
+      if (context?.previousProdutos) {
+        context.previousProdutos.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
+      toast.error(err.message || 'Erro ao registrar movimentação.')
+    },
     onSuccess: (res) => {
       toast.success(res.mensagem || 'Movimentação registrada com sucesso!', {
         description: `Novo saldo: ${res.saldo_atual || novoSaldo.toFixed(2)} ${unidade}`,
       })
+      onSuccess?.()
+      onClose()
+    },
+    onSettled: () => {
+      // Garante sincronização com o banco ao finalizar
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['produtos'] })
       queryClient.invalidateQueries({ queryKey: ['produtos-selecao'] })
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
-      onSuccess?.()
-      onClose()
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Erro ao registrar movimentação.')
     },
   })
 
@@ -170,11 +220,44 @@ export function MovimentacaoModal({
           </div>
         </div>
 
-        {/* Seleção de Produto */}
+        {/* Seleção de Produto & Scanner */}
         <div>
-          <label className="text-xs font-semibold uppercase text-muted-foreground block mb-1.5">
-            Material / Insumo
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold uppercase text-muted-foreground">
+              Material / Insumo
+            </label>
+            {!produtoPadrao && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setScannerOpen(true)}
+                className="h-7 text-xs gap-1.5 px-2 text-primary hover:text-primary"
+              >
+                <ScanBarcode className="w-3.5 h-3.5" />
+                Escanear Insumo
+              </Button>
+            )}
+          </div>
+          <BarcodeScannerModal
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={(code: string) => {
+              setScannerOpen(false)
+              api
+                .get<{ itens: ProdutoItem[] }>(`/api/v1/produtos/?busca=${encodeURIComponent(code)}&page_size=5`)
+                .then((res) => {
+                  if (res.itens && res.itens.length > 0) {
+                    const exato = res.itens.find((p) => p.descricao.toLowerCase() === code.toLowerCase()) || res.itens[0]
+                    setProdutoEscolhido(exato)
+                    toast.success(`Insumo selecionado: ${exato.descricao}`)
+                  } else {
+                    toast.warning(`Nenhum insumo localizado para "${code}"`)
+                  }
+                })
+                .catch(() => toast.error('Falha ao consultar insumo pelo código escaneado.'))
+            }}
+          />
           {produtoPadrao ? (
             <div className="p-3 bg-muted/40 rounded-lg border border-border flex items-center justify-between">
               <div>

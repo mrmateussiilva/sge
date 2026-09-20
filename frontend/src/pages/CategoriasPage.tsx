@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Tags, Plus, Search, Trash2, Edit2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,10 +15,29 @@ import type { CategoriaItem } from '@/types'
 
 export function CategoriasPage() {
   const queryClient = useQueryClient()
-  const [busca, setBusca] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [busca, setBusca] = useState(searchParams.get('busca') || '')
+  const debouncedBusca = useDebounce(busca, 350)
+
   const [modalFormOpen, setModalFormOpen] = useState(false)
   const [categoriaParaEditar, setCategoriaParaEditar] = useState<CategoriaItem | null>(null)
   const [categoriaParaExcluir, setCategoriaParaExcluir] = useState<CategoriaItem | null>(null)
+
+  // Sincroniza busca na URL sem poluir o histórico
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (debouncedBusca) {
+          next.set('busca', debouncedBusca)
+        } else {
+          next.delete('busca')
+        }
+        return next
+      },
+      { replace: true }
+    )
+  }, [debouncedBusca, setSearchParams])
 
   const { data, isLoading } = useQuery({
     queryKey: ['categorias'],

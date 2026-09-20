@@ -1,20 +1,30 @@
+import { lazy, Suspense } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { ProdutosPage } from '@/pages/ProdutosPage'
-import { ProdutoDetalhePage } from '@/pages/ProdutoDetalhePage'
-import { MovimentacoesPage } from '@/pages/MovimentacoesPage'
-import { OrdensPage } from '@/pages/OrdensPage'
-import { OrdemDetalhePage } from '@/pages/OrdemDetalhePage'
-import { FornecedoresPage } from '@/pages/FornecedoresPage'
-import { CategoriasPage } from '@/pages/CategoriasPage'
-import { RelatoriosPage } from '@/pages/RelatoriosPage'
-import { FechamentosPage } from '@/pages/FechamentosPage'
-import { FechamentoDetalhePage } from '@/pages/FechamentoDetalhePage'
-import { LogsPage } from '@/pages/LogsPage'
-import { UsuariosPage } from '@/pages/UsuariosPage'
-import { NotFoundPage } from '@/pages/NotFoundPage'
+
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const ProdutosPage = lazy(() => import('@/pages/ProdutosPage').then(m => ({ default: m.ProdutosPage })))
+const ProdutoDetalhePage = lazy(() => import('@/pages/ProdutoDetalhePage').then(m => ({ default: m.ProdutoDetalhePage })))
+const MovimentacoesPage = lazy(() => import('@/pages/MovimentacoesPage').then(m => ({ default: m.MovimentacoesPage })))
+const OrdensPage = lazy(() => import('@/pages/OrdensPage').then(m => ({ default: m.OrdensPage })))
+const OrdemDetalhePage = lazy(() => import('@/pages/OrdemDetalhePage').then(m => ({ default: m.OrdemDetalhePage })))
+const FornecedoresPage = lazy(() => import('@/pages/FornecedoresPage').then(m => ({ default: m.FornecedoresPage })))
+const CategoriasPage = lazy(() => import('@/pages/CategoriasPage').then(m => ({ default: m.CategoriasPage })))
+const RelatoriosPage = lazy(() => import('@/pages/RelatoriosPage').then(m => ({ default: m.RelatoriosPage })))
+const FechamentosPage = lazy(() => import('@/pages/FechamentosPage').then(m => ({ default: m.FechamentosPage })))
+const FechamentoDetalhePage = lazy(() => import('@/pages/FechamentoDetalhePage').then(m => ({ default: m.FechamentoDetalhePage })))
+const LogsPage = lazy(() => import('@/pages/LogsPage').then(m => ({ default: m.LogsPage })))
+const UsuariosPage = lazy(() => import('@/pages/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  )
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,20 +43,118 @@ export function App() {
       <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/" element={<AppLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="produtos" element={<ProdutosPage />} />
-            <Route path="produtos/:id" element={<ProdutoDetalhePage />} />
-            <Route path="movimentacoes" element={<MovimentacoesPage />} />
-            <Route path="ordens" element={<OrdensPage />} />
-            <Route path="ordens/:id" element={<OrdemDetalhePage />} />
-            <Route path="fornecedores" element={<FornecedoresPage />} />
-            <Route path="categorias" element={<CategoriasPage />} />
-            <Route path="relatorios" element={<RelatoriosPage />} />
-            <Route path="fechamentos" element={<FechamentosPage />} />
-            <Route path="fechamentos/:id" element={<FechamentoDetalhePage />} />
-            <Route path="logs" element={<LogsPage />} />
-            <Route path="usuarios" element={<UsuariosPage />} />
-            <Route path="*" element={<NotFoundPage />} />
+            <Route
+              index
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="produtos"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ProdutosPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="produtos/:id"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <ProdutoDetalhePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="movimentacoes"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <MovimentacoesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="ordens"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <OrdensPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="ordens/:id"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <OrdemDetalhePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="fornecedores"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <FornecedoresPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="categorias"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <CategoriasPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="relatorios"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <RelatoriosPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="fechamentos"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <FechamentosPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="fechamentos/:id"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <FechamentoDetalhePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="logs"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <LogsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="usuarios"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <UsuariosPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <NotFoundPage />
+                </Suspense>
+              }
+            />
           </Route>
         </Routes>
       </BrowserRouter>
