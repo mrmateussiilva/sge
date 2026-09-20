@@ -31,9 +31,10 @@ O sistema adota uma arquitetura híbrida de alto desempenho: **Frontend SPA desa
 
 ---
 
-## ⚡ Recursos de Destaque & UX (v1.6.0)
+## ⚡ Recursos de Destaque & UX (v1.6.5)
 
 - 🔍 **Command Palette Global (`Ctrl + K`)**: Busca instantânea de insumos por nome/fornecedor, atalhos para todas as páginas e ações rápidas sem sair da tela atual.
+- 📱 **Leitor de Código de Barras / QR Code**: Integração nativa no modal de movimentação e barra de navegação para escanear etiquetas de insumos usando a câmera do dispositivo, localizando rapidamente o produto correto no estoque.
 - ⚡ **Busca com Debounce (`useDebounce`)**: O usuário digita de forma fluida e instantânea; o backend só é consultado quando a digitação pausa (350ms), eliminando requisições redundantes.
 - 🎯 **Navegação Sem "Piscadas" (`keepPreviousData`)**: Transição suave entre abas, filtros e páginas mantendo os dados anteriores visíveis durante o carregamento com barra de progresso discreta.
 - 🔗 **Filtros e Paginação na URL (`useSearchParams`)**: Compartilhe links ou dê F5 sem perder os filtros ou a página selecionada.
