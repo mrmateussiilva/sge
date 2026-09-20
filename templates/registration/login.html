@@ -4,166 +4,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGE - Acesso</title>
-    <!-- Tipografia Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- CSS do Login baseado no Design System (Shadcn) -->
-    <link href="{% static 'estoque/css/login.css' %}" rel="stylesheet">
-    <!-- Icones Lucide -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>SGE - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: ["class"],
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        card: "hsl(var(--card))",
+                        "card-foreground": "hsl(var(--card-foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        }
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .lucide { width: 1em; height: 1em; stroke-width: 2; }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        :root {
+            /* Shadcn UI colors identical to frontend/src/index.css */
+            --background: 210 40% 98%;
+            --foreground: 222 47% 11%;
+            --card: 0 0% 100%;
+            --card-foreground: 222 47% 11%;
+            --primary: 221 83% 53%;
+            --primary-foreground: 210 40% 98%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 221 83% 53%;
+            --radius: 0.5rem;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: 224 71% 4%;
+                --foreground: 213 31% 91%;
+                --card: 224 71% 7%;
+                --card-foreground: 213 31% 91%;
+                --primary: 217 91% 60%;
+                --primary-foreground: 222 47% 11%;
+                --muted: 215 28% 17%;
+                --muted-foreground: 217.9 10.6% 64.9%;
+                --border: 215 28% 18%;
+                --input: 215 28% 18%;
+                --ring: 217 91% 60%;
+            }
+        }
+        
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
+
+        /* Beautiful modern background pattern */
+        .bg-grid-pattern {
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(var(--primary) / 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(var(--primary) / 0.1) 0px, transparent 50%);
+        }
+        
+        /* Grid overlay */
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-size: 30px 30px;
+            background-image: linear-gradient(to right, hsla(var(--foreground) / 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, hsla(var(--foreground) / 0.03) 1px, transparent 1px);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .grid-overlay {
+                background-image: linear-gradient(to right, hsla(var(--foreground) / 0.05) 1px, transparent 1px),
+                                  linear-gradient(to bottom, hsla(var(--foreground) / 0.05) 1px, transparent 1px);
+            }
+            .bg-grid-pattern {
+                background-image: 
+                    radial-gradient(at 0% 0%, hsla(var(--primary) / 0.15) 0px, transparent 50%),
+                    radial-gradient(at 100% 0%, hsla(var(--primary) / 0.1) 0px, transparent 50%);
+            }
+        }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="login-page">
-    <main id="main-content" class="login-shell" aria-labelledby="login-title">
-        <section class="login-brand" aria-label="Identidade do sistema">
-            <div class="login-brand-main">
-                <div class="login-mark" aria-hidden="true">
-                    <i data-lucide="package"></i>
-                </div>
-                <div>
-                    <p class="login-kicker">SGE</p>
-                    <h1>Sistema de Gestão de Estoque</h1>
-                </div>
+<body class="min-h-screen flex items-center justify-center font-[Inter] bg-grid-pattern relative overflow-hidden p-4">
+    
+    <div class="grid-overlay"></div>
+
+    <div class="w-full max-w-[400px] z-10">
+        <!-- Logo / Branding Center -->
+        <div class="flex flex-col items-center justify-center mb-8 text-center">
+            <div class="w-12 h-12 bg-primary text-primary-foreground rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
+                <i data-lucide="package-search" class="w-6 h-6"></i>
             </div>
+            <h1 class="text-2xl font-bold tracking-tight">SGE Estoque</h1>
+            <p class="text-sm text-muted-foreground mt-1">Gestão de Inventário e Materiais</p>
+        </div>
 
-            <p class="login-brand-copy">
-                Controle de materiais, movimentações e inventário em um único lugar.
-            </p>
-
-            <ul class="login-ops" aria-label="Recursos operacionais">
-                <li>
-                    <i data-lucide="arrow-left-right" aria-hidden="true"></i>
-                    <span>Controle de entradas e saídas</span>
-                </li>
-                <li>
-                    <i data-lucide="activity" aria-hidden="true"></i>
-                    <span>Rastreabilidade de movimentações</span>
-                </li>
-                <li>
-                    <i data-lucide="calendar-check" aria-hidden="true"></i>
-                    <span>Relatórios e fechamentos mensais</span>
-                </li>
-            </ul>
-        </section>
-
-        <section class="login-panel" aria-label="Formulário de acesso">
-            <div class="login-panel-header">
-                <p class="login-panel-eyebrow">Acesso restrito</p>
-                <h2 id="login-title">Acessar o SGE</h2>
-                <p>Informe suas credenciais para entrar no sistema.</p>
-            </div>
-
-            {% if form.non_field_errors or form.errors %}
-            <div class="login-alert" role="alert">
-                <i data-lucide="alert-triangle" aria-hidden="true"></i>
-                <div>
-                    <strong>Usuário ou senha inválidos.</strong>
-                    <span>Verifique os dados e tente novamente.</span>
+        <!-- Card Container -->
+        <div class="bg-card text-card-foreground border border-border shadow-sm rounded-xl overflow-hidden">
+            <div class="p-6 sm:p-8">
+                <div class="flex flex-col space-y-1 mb-6 text-center">
+                    <h2 class="text-xl font-semibold tracking-tight">Acesso Restrito</h2>
+                    <p class="text-sm text-muted-foreground">Insira suas credenciais corporativas</p>
                 </div>
-            </div>
-            {% endif %}
 
-            <form method="post" action="{% url 'login' %}" id="loginForm" class="login-form" novalidate>
-                {% csrf_token %}
-                {% if next %}
-                <input type="hidden" name="next" value="{{ next }}">
-                {% elif request.GET.next %}
-                <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% if form.errors %}
+                <div class="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 mb-6 border border-destructive/20">
+                    <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                    <span>Usuário ou senha incorretos.</span>
+                </div>
                 {% endif %}
 
-                <div class="login-field">
-                    <label for="id_username">Usuário</label>
-                    <div class="login-input-wrap">
-                        <i data-lucide="user" aria-hidden="true"></i>
-                        <input
-                            type="text"
-                            name="username"
-                            id="id_username"
-                            class="{% if form.errors %}is-invalid{% endif %}"
-                            value="{{ form.username.value|default_if_none:'' }}"
-                            autocomplete="username"
-                            placeholder="Seu usuário de acesso"
-                            required
-                            autofocus
-                            {% if form.errors %}aria-invalid="true"{% endif %}
-                        >
+                <form method="post" class="space-y-4">
+                    {% csrf_token %}
+                    
+                    <!-- Username Input -->
+                    <div class="space-y-2">
+                        <label for="id_username" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Usuário</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                            </div>
+                            <input type="text" name="username" id="id_username" required
+                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                                placeholder="Seu nome de usuário">
+                        </div>
                     </div>
-                    {% for error in form.username.errors %}
-                    <p class="login-field-error">{{ error }}</p>
-                    {% endfor %}
-                </div>
 
-                <div class="login-field">
-                    <label for="id_password">Senha</label>
-                    <div class="login-input-wrap">
-                        <i data-lucide="lock" aria-hidden="true"></i>
-                        <input
-                            type="password"
-                            name="password"
-                            id="id_password"
-                            class="{% if form.errors %}is-invalid{% endif %}"
-                            autocomplete="current-password"
-                            placeholder="Sua senha"
-                            required
-                            {% if form.errors %}aria-invalid="true"{% endif %}
-                        >
-                        <button type="button" class="login-password-toggle" id="togglePassword" aria-label="Mostrar senha" aria-pressed="false">
-                            <i data-lucide="eye" id="togglePasswordIcon" aria-hidden="true"></i>
-                        </button>
+                    <!-- Password Input -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label for="id_password" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Senha</label>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                                <i data-lucide="lock" class="w-4 h-4"></i>
+                            </div>
+                            <input type="password" name="password" id="id_password" required
+                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 pr-10 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                                placeholder="••••••••">
+                            <button type="button" class="toggle-password absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground transition-colors" aria-label="Mostrar/Esconder Senha">
+                                <i data-lucide="eye" class="w-4 h-4 eye-icon"></i>
+                            </button>
+                        </div>
                     </div>
-                    {% for error in form.password.errors %}
-                    <p class="login-field-error">{{ error }}</p>
-                    {% endfor %}
-                </div>
 
-                <button type="submit" class="login-submit" id="loginSubmit">
-                    <span class="login-submit-content">
-                        <i data-lucide="log-in" aria-hidden="true"></i>
-                        <span>Entrar</span>
-                    </span>
-                    <span class="login-submit-loading" aria-hidden="true">
-                        <i data-lucide="loader-2" class="spin"></i>
-                        <span>Entrando...</span>
-                    </span>
-                </button>
-            </form>
-        </section>
-    </main>
-
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 mt-6 font-semibold shadow-sm">
+                        Entrar no Sistema
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </button>
+                    
+                    <input type="hidden" name="next" value="{{ next }}">
+                </form>
+            </div>
+            
+            <div class="bg-muted/40 p-4 border-t border-border text-center">
+                <p class="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    Acesso monitorado e auditado.
+                </p>
+            </div>
+        </div>
+    </div>
+    
     <script>
         lucide.createIcons();
-
-        (function () {
-            const form = document.getElementById('loginForm');
-            const passwordInput = document.getElementById('id_password');
-            const toggleButton = document.getElementById('togglePassword');
-            const toggleIcon = document.getElementById('togglePasswordIcon');
-            const submitButton = document.getElementById('loginSubmit');
-
-            toggleButton.addEventListener('click', function () {
-                const willShow = passwordInput.type === 'password';
-                passwordInput.type = willShow ? 'text' : 'password';
-                toggleButton.setAttribute('aria-pressed', String(willShow));
-                toggleButton.setAttribute('aria-label', willShow ? 'Ocultar senha' : 'Mostrar senha');
+        
+        const togglePassword = document.querySelector('.toggle-password');
+        const passwordInput = document.querySelector('#id_password');
+        
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
                 
-                // Mudar ícone do Lucide
-                toggleIcon.setAttribute('data-lucide', willShow ? 'eye-off' : 'eye');
+                const newIcon = type === 'password' ? 'eye' : 'eye-off';
+                togglePassword.innerHTML = `<i data-lucide="${newIcon}" class="w-4 h-4 eye-icon"></i>`;
                 lucide.createIcons();
-                
-                passwordInput.focus();
             });
-
-            form.addEventListener('submit', function () {
-                submitButton.disabled = true;
-                submitButton.classList.add('is-loading');
-            });
-        })();
+        }
     </script>
 </body>
 </html>
