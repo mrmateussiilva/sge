@@ -1,0 +1,5 @@
+dbs:
+  - path: /app/data/db.sqlite3
+    replicas:
+      - url: "${LITESTREAM_REPLICA_URL}"
+        sync-interval: 1s
