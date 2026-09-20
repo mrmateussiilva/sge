@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import packageJson from '../../../package.json'
 
 interface SidebarProps {
   className?: string
@@ -80,7 +81,12 @@ export function Sidebar({ className, onCloseMobile }: SidebarProps) {
           S
         </div>
         <div>
-          <h1 className="font-bold text-base leading-tight tracking-tight">SGE Estoque</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-bold text-base leading-tight tracking-tight">SGE Estoque</h1>
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] h-4 leading-none bg-muted/60 hover:bg-muted/80 text-muted-foreground">
+              v{packageJson.version}
+            </Badge>
+          </div>
           <p className="text-xs text-muted-foreground">Gestão de Insumos</p>
         </div>
       </div>
