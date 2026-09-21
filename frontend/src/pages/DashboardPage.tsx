@@ -10,6 +10,7 @@ import {
   Plus,
   ArrowLeftRight,
   RefreshCw,
+  Bell,
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -18,10 +19,12 @@ import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
 import { DashboardChart } from '@/components/dashboard/DashboardChart'
 import { MovimentacaoModal } from '@/components/movimentacoes/MovimentacaoModal'
+import { NotificacaoTesteModal } from '@/components/notificacoes/NotificacaoTesteModal'
 import type { DashboardResponse } from '@/types'
 
 export function DashboardPage() {
   const [modalMovOpen, setModalMovOpen] = useState(false)
+  const [modalNotificacaoOpen, setModalNotificacaoOpen] = useState(false)
   const [produtoParaMov, setProdutoParaMov] = useState<any>(null)
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -87,6 +90,16 @@ export function DashboardPage() {
           >
             <ArrowLeftRight className="w-4 h-4" />
             <span>Movimentar</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-primary/20 text-primary hover:bg-primary/10"
+            onClick={() => setModalNotificacaoOpen(true)}
+            title="Testar Notificação"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">Testar Notificação</span>
           </Button>
           <Button asChild variant="outline" size="sm" className="gap-1.5">
             <Link to="/produtos">
@@ -299,6 +312,12 @@ export function DashboardPage() {
         }}
         produtoPadrao={produtoParaMov}
         onSuccess={refetch}
+      />
+
+      {/* Modal de Teste de Notificação */}
+      <NotificacaoTesteModal
+        isOpen={modalNotificacaoOpen}
+        onClose={() => setModalNotificacaoOpen(false)}
       />
     </div>
   )
