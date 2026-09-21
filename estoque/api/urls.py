@@ -11,6 +11,7 @@ from . import (
     ordens,
     produtos,
     relatorios,
+    notificacoes,
 )
 
 app_name = 'api_v1'
@@ -73,6 +74,7 @@ urlpatterns = [
     path('usuarios/', relatorios.usuarios_api, name='usuarios'),
     path('usuarios/criar/', relatorios.criar_usuario_api, name='usuarios_criar'),
     path('usuarios/<int:id>/perfil/', relatorios.alterar_perfil_usuario_api, name='usuarios_perfil'),
+    path('notificacoes/teste/', notificacoes.disparar_teste_notificacao, name='notificacoes_teste'),
 
     # Omie e Busca Rápida
     path('busca-rapida/', views.busca_rapida, name='busca_rapida'),
