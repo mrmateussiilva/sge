@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { useDebounce } from '@/hooks/useDebounce'
 import {
   Bell,
   CheckCircle2,
@@ -8,8 +7,6 @@ import {
   AlertTriangle,
   History,
   Users,
-  Power,
-  Search,
   Plus,
   Trash2,
   Edit2,
@@ -25,25 +22,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
+import { Modal } from '@/components/ui/modal'
 
 export function NotificacoesPage() {
   const { user } = useAuth()
@@ -170,26 +150,20 @@ export function NotificacoesPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-muted/50 p-1">
+        <div className="space-y-6">
+          <div className="flex space-x-2 bg-muted/50 p-1 rounded-md">
             {isAdmin && (
               <>
-                <TabsTrigger value="destinatarios" className="rounded-md">
-                  <Users className="w-4 h-4 mr-2" /> Destinatários
-                </TabsTrigger>
-                <TabsTrigger value="eventos" className="rounded-md">
-                  <ShieldAlert className="w-4 h-4 mr-2" /> Eventos do Sistema
-                </TabsTrigger>
+                <button onClick={() => setActiveTab("destinatarios")} className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "destinatarios" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`} type="button"><Users className="w-4 h-4 mr-2" /> Destinatários</button>
+                <button onClick={() => setActiveTab("eventos")} className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "eventos" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`} type="button"><ShieldAlert className="w-4 h-4 mr-2" /> Eventos do Sistema</button>
               </>
             )}
-            <TabsTrigger value="logs" className="rounded-md">
-              <History className="w-4 h-4 mr-2" /> Histórico de Envios
-            </TabsTrigger>
-          </TabsList>
+            <button onClick={() => setActiveTab("logs")} className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "logs" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`} type="button"><History className="w-4 h-4 mr-2" /> Histórico de Envios</button>
+          </div>
 
           {isAdmin && (
             <>
-              <TabsContent value="destinatarios" className="space-y-4 outline-none">
+              {activeTab === "destinatarios" && (<div className="space-y-4 outline-none">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Grupos e Destinatários</h2>
                   <Button onClick={() => {
@@ -208,11 +182,7 @@ export function NotificacoesPage() {
                           <CardTitle className="text-base">{dest.nome}</CardTitle>
                           <CardDescription className="font-mono mt-1 text-xs">{dest.telefone}</CardDescription>
                         </div>
-                        <Switch 
-                          checked={dest.ativo} 
-                          onCheckedChange={(checked) => salvarDestinatarioMutation.mutate({ ativo: checked })}
-                          onClick={() => setDestinatarioEditando(dest)}
-                        />
+                        <input type="checkbox" className="w-4 h-4 cursor-pointer" checked={dest.ativo} onChange={(e) => ((checked) => salvarDestinatarioMutation.mutate({ ativo: checked }))(e.target.checked)} onClick={() => setDestinatarioEditando(dest)} />
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center justify-between mt-2">
@@ -245,9 +215,9 @@ export function NotificacoesPage() {
                     </div>
                   )}
                 </div>
-              </TabsContent>
+              </div>)}
 
-              <TabsContent value="eventos" className="space-y-4 outline-none">
+              {activeTab === "eventos" && (<div className="space-y-4 outline-none">
                 <div className="space-y-4">
                   {eventos.map((ev: any) => (
                     <Card key={ev.event}>
@@ -266,31 +236,25 @@ export function NotificacoesPage() {
                           
                           <div className="flex items-center gap-6">
                             <div className="w-64">
-                              <Label className="text-xs mb-1.5 block text-muted-foreground">Roteamento (Audience)</Label>
-                              <Select
-                                value={ev.audience}
-                                onValueChange={(val) => toggleEventoMutation.mutate({ event: ev.event, audience: val })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="admin">Administradores (Padrão)</SelectItem>
-                                  <SelectItem value="purchasing">Compras (Padrão)</SelectItem>
+                              <label className="text-xs mb-1.5 block text-muted-foreground">Roteamento (Audience)</label>
+                              <select value={ev.audience} onChange={(e) => ((val) => toggleEventoMutation.mutate({ event: ev.event, audience: val }))(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                                
+                                  <option value="" disabled>Selecione...</option>
+                                
+                                
+                                  <option value="admin">Administradores (Padrão)</option>
+                                  <option value="purchasing">Compras (Padrão)</option>
                                   {destinatarios.map((d: any) => (
-                                    <SelectItem key={d.audience_key} value={d.audience_key}>
+                                    <option key={d.audience_key} value={d.audience_key}>
                                       {d.nome} ({d.audience_key})
-                                    </SelectItem>
+                                    </option>
                                   ))}
-                                </SelectContent>
-                              </Select>
+                                
+                              </select>
                             </div>
                             <div className="flex flex-col items-center">
-                              <Label className="text-xs mb-1.5 block text-muted-foreground">Status</Label>
-                              <Switch 
-                                checked={ev.enabled}
-                                onCheckedChange={(checked) => toggleEventoMutation.mutate({ event: ev.event, enabled: checked })}
-                              />
+                              <label className="text-xs mb-1.5 block text-muted-foreground">Status</label>
+                              <input type="checkbox" className="w-4 h-4 cursor-pointer" checked={ev.enabled} onChange={(e) => ((checked) => toggleEventoMutation.mutate({ event: ev.event, enabled: checked }))(e.target.checked)} />
                             </div>
                           </div>
                         </div>
@@ -298,36 +262,36 @@ export function NotificacoesPage() {
                     </Card>
                   ))}
                 </div>
-              </TabsContent>
+              </div>)}
             </>
           )}
 
-          <TabsContent value="logs" className="space-y-4 outline-none">
+          {activeTab === "logs" && (<div className="space-y-4 outline-none">
             <Card>
               <CardHeader className="py-4 border-b">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex gap-2 flex-1">
-                    <Select value={logFiltroEvento} onValueChange={setLogFiltroEvento}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Todos os eventos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todos os eventos</SelectItem>
-                        <SelectItem value="stock.low">Estoque Baixo</SelectItem>
-                        <SelectItem value="stock.zero">Estoque Zerado</SelectItem>
-                        <SelectItem value="teste_sistema">Teste de Sistema</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={logFiltroStatus} onValueChange={setLogFiltroStatus}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Qualquer status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Qualquer status</SelectItem>
-                        <SelectItem value="sucesso">Sucesso</SelectItem>
-                        <SelectItem value="erro">Erro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select value={logFiltroEvento} onChange={(e) => (setLogFiltroEvento)(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                      
+                        <option value="" disabled>Todos os eventos</option>
+                      
+                      
+                        <option value="">Todos os eventos</option>
+                        <option value="stock.low">Estoque Baixo</option>
+                        <option value="stock.zero">Estoque Zerado</option>
+                        <option value="teste_sistema">Teste de Sistema</option>
+                      
+                    </select>
+                    <select value={logFiltroStatus} onChange={(e) => (setLogFiltroStatus)(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                      
+                        <option value="" disabled>Qualquer status</option>
+                      
+                      
+                        <option value="">Qualquer status</option>
+                        <option value="sucesso">Sucesso</option>
+                        <option value="erro">Erro</option>
+                      
+                    </select>
                   </div>
                 </div>
               </CardHeader>
@@ -403,28 +367,28 @@ export function NotificacoesPage() {
                 </div>
               </div>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>)}
+        </div>
       </div>
 
       {/* Modals */}
-      <Dialog open={modalDestinatarioOpen} onOpenChange={setModalDestinatarioOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{destinatarioEditando ? 'Editar Destinatário' : 'Novo Destinatário'}</DialogTitle>
-            <DialogDescription>Cadastre o telefone WhatsApp e a chave de roteamento do n8n.</DialogDescription>
-          </DialogHeader>
+      <Modal isOpen={modalDestinatarioOpen} onClose={() => setModalDestinatarioOpen(false)} title={destinatarioEditando ? 'Editar Destinatário' : 'Novo Destinatário'} description="Cadastre o telefone WhatsApp e a chave de roteamento do n8n.">
+        
+          
+            
+            
+          
           <form onSubmit={handleSalvarDestinatario} className="space-y-4 mt-2">
             <div className="space-y-2">
-              <Label>Nome do Grupo/Pessoa</Label>
+              <label>Nome do Grupo/Pessoa</label>
               <Input name="nome" defaultValue={destinatarioEditando?.nome} placeholder="Ex: Compras" required />
             </div>
             <div className="space-y-2">
-              <Label>Telefone WhatsApp</Label>
+              <label>Telefone WhatsApp</label>
               <Input name="telefone" defaultValue={destinatarioEditando?.telefone} placeholder="Ex: +5511999999999" required />
             </div>
             <div className="space-y-2">
-              <Label>Chave de Roteamento (Audience Key)</Label>
+              <label>Chave de Roteamento (Audience Key)</label>
               <Input 
                 name="audience_key" 
                 defaultValue={destinatarioEditando?.audience_key} 
@@ -434,31 +398,29 @@ export function NotificacoesPage() {
               />
               <p className="text-xs text-muted-foreground">Use apenas letras, números e underline.</p>
             </div>
-            <DialogFooter className="mt-6">
+            <div className="mt-6 flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={() => setModalDestinatarioOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={salvarDestinatarioMutation.isPending}>Salvar</Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        
+      </Modal>
 
-      <Dialog open={modalDeleteOpen} onOpenChange={setModalDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Excluir Destinatário</DialogTitle>
-            <DialogDescription>
-              Você está prestes a excluir <b>{destinatarioParaDeletar?.nome}</b>. Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
+      <Modal isOpen={modalDeleteOpen} onClose={() => setModalDeleteOpen(false)} title="Excluir Destinatário" description={<>Você está prestes a excluir <b>{destinatarioParaDeletar?.nome}</b>. Esta ação não pode ser desfeita.</>}>
+        
+          
+            
+            
+          
           <div className="space-y-3 py-4">
-            <Label>Digite EXCLUIR para confirmar</Label>
+            <label>Digite EXCLUIR para confirmar</label>
             <Input 
               value={confirmacaoExclusao} 
               onChange={(e) => setConfirmacaoExclusao(e.target.value)}
               placeholder="EXCLUIR"
             />
           </div>
-          <DialogFooter>
+          <div className="mt-6 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setModalDeleteOpen(false)}>Cancelar</Button>
             <Button 
               variant="destructive" 
@@ -467,16 +429,16 @@ export function NotificacoesPage() {
             >
               Excluir Destinatário
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        
+      </Modal>
 
-      <Dialog open={modalLogOpen} onOpenChange={setModalLogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Log</DialogTitle>
-            <DialogDescription>UUID: {logSelecionado?.event_id}</DialogDescription>
-          </DialogHeader>
+      <Modal isOpen={modalLogOpen} onClose={() => setModalLogOpen(false)} title="Detalhes do Log" description={`UUID: ${logSelecionado?.event_id}`}>
+        <div className="max-w-3xl">
+          
+            
+            
+          
           {logSelecionado && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-4 rounded-lg">
@@ -505,8 +467,8 @@ export function NotificacoesPage() {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+      </Modal>
     </div>
   )
 }
