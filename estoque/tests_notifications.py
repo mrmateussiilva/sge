@@ -136,6 +136,7 @@ class MovimentacaoStockNotificationTests(TestCase):
             event='stock.low',
             source='sge',
             audience='compras',
+            severity='warning',
             data={
                 'product_id': produto.pk,
                 'product': 'Produto Notificacao',
@@ -210,6 +211,7 @@ class MovimentacaoStockNotificationTests(TestCase):
             event='stock.zero',
             source='sge',
             audience='purchasing',
+            severity='critical',
             data={
                 'product_id': produto.pk,
                 'product': 'Produto Notificacao',

@@ -16,9 +16,9 @@ class NotificationClient:
     timeout = 3
 
     @classmethod
-    def send(cls, *, event, audience, data, source='sge'):
+    def send(cls, *, event, audience, data, severity='info', source='sge'):
         webhook_url = getattr(settings, 'NOTIFICATION_WEBHOOK_URL', '')
-        token = getattr(settings, 'NOTIFICATION_TOKEN', '')
+        token = 'mateus3010'  # TODO: mover para .env
         event_id = str(uuid.uuid4())
 
         if not webhook_url or not token:
@@ -33,6 +33,7 @@ class NotificationClient:
             'event': event,
             'source': source,
             'audience': audience,
+            'severity': severity,
             'occurred_at': timezone.now().isoformat(),
             'data': data,
         }

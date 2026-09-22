@@ -78,9 +78,15 @@ def notify_stock_threshold_crossed(
     if event == STOCK_LOW:
         data['minimum_stock'] = _to_payload_number(minimum_stock)
 
+    severity_map = {
+        STOCK_LOW:  'warning',
+        STOCK_ZERO: 'critical',
+    }
+
     return NotificationClient.send(
         event=event,
         source=SOURCE_SGE,
         audience=config.audience,
+        severity=severity_map.get(event, 'info'),
         data=data,
     )

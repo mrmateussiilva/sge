@@ -379,16 +379,29 @@ class ApiV1Tests(TestCase):
         self.assertFalse(user_atualizado.is_active)
 
     def test_spa_view_integration(self):
-        for rota in ('/', '/app/', '/produtos/'):
-            with self.subTest(rota=rota, autenticado=False):
-                res_anon = self.client.get(rota)
-                self.assertEqual(res_anon.status_code, 302)
-                self.assertIn('/accounts/login/', res_anon['Location'])
+        from django.conf import settings
+        dist_dir = settings.BASE_DIR / 'frontend' / 'dist'
+        index_file = dist_dir / 'index.html'
+        created_temp = False
+        if not index_file.exists():
+            dist_dir.mkdir(parents=True, exist_ok=True)
+            index_file.write_text('<!DOCTYPE html><html><body><div id="root"></div></body></html>', encoding='utf-8')
+            created_temp = True
 
-        self.client.force_login(self.admin_user)
-        for rota in ('/', '/app/', '/produtos/'):
-            with self.subTest(rota=rota, autenticado=True):
-                res_auth = self.client.get(rota)
-                self.assertEqual(res_auth.status_code, 200)
-                self.assertIn('text/html', res_auth['Content-Type'])
-                self.assertContains(res_auth, '<div id="root"></div>', html=True)
+        try:
+            for rota in ('/', '/app/', '/produtos/'):
+                with self.subTest(rota=rota, autenticado=False):
+                    res_anon = self.client.get(rota)
+                    self.assertEqual(res_anon.status_code, 302)
+                    self.assertIn('/accounts/login/', res_anon['Location'])
+
+            self.client.force_login(self.admin_user)
+            for rota in ('/', '/app/', '/produtos/'):
+                with self.subTest(rota=rota, autenticado=True):
+                    res_auth = self.client.get(rota)
+                    self.assertEqual(res_auth.status_code, 200)
+                    self.assertIn('text/html', res_auth['Content-Type'])
+                    self.assertContains(res_auth, '<div id="root"></div>', html=True)
+        finally:
+            if created_temp:
+                index_file.unlink(missing_ok=True)
