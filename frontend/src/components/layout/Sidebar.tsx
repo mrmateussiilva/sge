@@ -12,6 +12,7 @@ import {
   Users,
   ExternalLink,
   ShieldCheck,
+  Bell,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +62,7 @@ export function Sidebar({ className, onCloseMobile }: SidebarProps) {
         { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
         { to: '/fechamentos', label: 'Fechamentos', icon: Lock },
         { to: '/logs', label: 'Histórico de Logs', icon: History },
+        { to: '/notificacoes', label: 'Notificações', icon: Bell },
         ...(user?.permissoes?.admin
           ? [{ to: '/usuarios', label: 'Usuários & Perfis', icon: Users }]
           : []),

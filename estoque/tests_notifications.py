@@ -16,7 +16,7 @@ from .models import Movimentacao, Produto
 from .views.movimentacoes import excluir_movimentacao
 
 
-class NotificationClientTests(SimpleTestCase):
+class NotificationClientTests(TestCase):
     @override_settings(
         NOTIFICATION_WEBHOOK_URL='https://n8n.example.test/webhook',
         NOTIFICATION_TOKEN='token-de-teste',

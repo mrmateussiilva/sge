@@ -8,6 +8,7 @@ import uuid
 from django.conf import settings
 from django.utils import timezone
 
+from notifications.models import NotificationLog
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,14 @@ class NotificationClient:
             logger.debug(
                 'Notificacao nao enviada: webhook ou token nao configurado.',
                 extra={'event': event, 'event_id': event_id},
+            )
+            NotificationLog.objects.create(
+                event=event,
+                event_id=event_id,
+                severity=severity,
+                audience=audience,
+                sucesso=False,
+                erro='Webhook ou token não configurado'
             )
             return False
 
@@ -51,10 +60,29 @@ class NotificationClient:
         try:
             with urllib.request.urlopen(request, timeout=cls.timeout) as response:
                 if 200 <= response.status < 300:
+                    NotificationLog.objects.create(
+                        event=event,
+                        event_id=event_id,
+                        severity=severity,
+                        audience=audience,
+                        sucesso=True,
+                        payload=payload,
+                        http_status=response.status
+                    )
                     return True
                 logger.warning(
                     'Falha ao enviar evento de notificacao: status HTTP inesperado.',
                     extra={'event': event, 'event_id': event_id, 'status': response.status},
+                )
+                NotificationLog.objects.create(
+                    event=event,
+                    event_id=event_id,
+                    severity=severity,
+                    audience=audience,
+                    sucesso=False,
+                    payload=payload,
+                    http_status=response.status,
+                    erro='Status HTTP inesperado'
                 )
                 return False
         except urllib.error.HTTPError as exc:
@@ -71,9 +99,28 @@ class NotificationClient:
                 event_id,
                 response_body,
             )
+            NotificationLog.objects.create(
+                event=event,
+                event_id=event_id,
+                severity=severity,
+                audience=audience,
+                sucesso=False,
+                payload=payload,
+                http_status=exc.code,
+                erro=response_body
+            )
         except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as exc:
             logger.warning(
                 'Falha ao enviar evento de notificacao.',
                 extra={'event': event, 'event_id': event_id, 'error': exc.__class__.__name__},
+            )
+            NotificationLog.objects.create(
+                event=event,
+                event_id=event_id,
+                severity=severity,
+                audience=audience,
+                sucesso=False,
+                payload=payload,
+                erro=str(exc)
             )
         return False

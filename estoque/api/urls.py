@@ -74,6 +74,12 @@ urlpatterns = [
     path('usuarios/', relatorios.usuarios_api, name='usuarios'),
     path('usuarios/criar/', relatorios.criar_usuario_api, name='usuarios_criar'),
     path('usuarios/<int:id>/perfil/', relatorios.alterar_perfil_usuario_api, name='usuarios_perfil'),
+    # Notificações
+    path('notificacoes/configuracoes/', notificacoes.listar_configuracoes, name='notificacoes_configuracoes'),
+    path('notificacoes/eventos/<str:event_name>/toggle/', notificacoes.toggle_evento, name='notificacoes_eventos_toggle'),
+    path('notificacoes/destinatarios/', notificacoes.gerenciar_destinatarios, name='notificacoes_destinatarios'),
+    path('notificacoes/destinatarios/<int:destinatario_id>/', notificacoes.detalhe_destinatario, name='notificacoes_destinatario_detalhe'),
+    path('notificacoes/logs/', notificacoes.listar_logs, name='notificacoes_logs'),
     path('notificacoes/teste/', notificacoes.disparar_teste_notificacao, name='notificacoes_teste'),
 
     # Omie e Busca Rápida

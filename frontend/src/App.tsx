@@ -16,6 +16,7 @@ const FechamentosPage = lazy(() => import('@/pages/FechamentosPage').then(m => (
 const FechamentoDetalhePage = lazy(() => import('@/pages/FechamentoDetalhePage').then(m => ({ default: m.FechamentoDetalhePage })))
 const LogsPage = lazy(() => import('@/pages/LogsPage').then(m => ({ default: m.LogsPage })))
 const UsuariosPage = lazy(() => import('@/pages/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
+const NotificacoesPage = lazy(() => import('@/pages/NotificacoesPage').then(m => ({ default: m.NotificacoesPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 function PageLoadingFallback() {
@@ -144,6 +145,14 @@ export function App() {
               element={
                 <Suspense fallback={<PageLoadingFallback />}>
                   <UsuariosPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="notificacoes"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <NotificacoesPage />
                 </Suspense>
               }
             />

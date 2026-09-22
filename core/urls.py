@@ -27,7 +27,7 @@ urlpatterns = [
     path('', spa_view, name='spa_root'),
     re_path(r'^app(?:/.*)?$', spa_view, name='spa'),
     re_path(
-        r'^(?:produtos|movimentacoes|ordens|fornecedores|categorias|relatorios|fechamentos|logs|usuarios)(?:/.*)?$',
+        r'^(?:produtos|movimentacoes|ordens|fornecedores|categorias|relatorios|fechamentos|logs|usuarios|notificacoes)(?:/.*)?$',
         spa_view,
         name='spa_routes',
     ),
