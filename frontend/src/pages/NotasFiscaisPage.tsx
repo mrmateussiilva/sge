@@ -27,7 +27,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OmieConfigModal } from '@/components/omie/OmieConfigModal'
-import type { OmieNotasResponse } from '@/types'
+import { OmieImportarModal } from '@/components/omie/OmieImportarModal'
+import type { OmieNotasResponse, NotaOmie } from '@/types'
 
 const PERIODOS_OPCOES = [
   { dias: 7, label: '7 dias' },
@@ -61,6 +62,7 @@ export function NotasFiscaisPage() {
   const [notasExpandidas, setNotasExpandidas] = useState<Record<number, boolean>>({})
   const [chaveCopiada, setChaveCopiada] = useState<string | null>(null)
   const [modalConfigAberto, setModalConfigAberto] = useState(false)
+  const [notaParaImportar, setNotaParaImportar] = useState<NotaOmie | null>(null)
 
   const debouncedBusca = useDebounce(busca, 350)
 
@@ -590,7 +592,19 @@ export function NotasFiscaisPage() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Botão Importar p/ Estoque */}
+                          {!nota.ja_importada && temItens && (
+                            <Button
+                              size="sm"
+                              onClick={() => setNotaParaImportar(nota)}
+                              className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs"
+                            >
+                              <Package className="w-3.5 h-3.5" />
+                              Importar p/ Estoque
+                            </Button>
+                          )}
+
                           {/* Botão Copiar Chave */}
                           <button
                             onClick={() => copiarChave(nota.chave_nfe)}
@@ -623,6 +637,25 @@ export function NotasFiscaisPage() {
                     {/* Detalhes Expansíveis */}
                     {expandida && (
                       <div className="pt-4 border-t border-border space-y-4 animate-in fade-in-50 duration-200">
+                        {/* Banner de Ação de Importação se não importada */}
+                        {!nota.ja_importada && temItens && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-4 h-4 text-primary shrink-0" />
+                              <span className="text-xs text-foreground">
+                                Esta nota possui <strong>{nota.itens.length}</strong> produto(s) faturados. Você pode mesclá-los com produtos existentes ou cadastrar novos insumos.
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => setNotaParaImportar(nota)}
+                              className="h-7 text-xs gap-1.5 shrink-0"
+                            >
+                              <Package className="w-3 h-3" />
+                              Importar & Conciliar Itens
+                            </Button>
+                          </div>
+                        )}
                         {/* Chave de Acesso em Bloco Monospace */}
                         {nota.chave_nfe && (
                           <div className="p-2.5 rounded-lg bg-muted/40 border border-border flex items-center justify-between gap-3 text-xs">
@@ -750,6 +783,13 @@ export function NotasFiscaisPage() {
       <OmieConfigModal
         isOpen={modalConfigAberto}
         onClose={() => setModalConfigAberto(false)}
+      />
+
+      {/* Modal de Importação e Conciliação de NF-e */}
+      <OmieImportarModal
+        nota={notaParaImportar}
+        isOpen={Boolean(notaParaImportar)}
+        onClose={() => setNotaParaImportar(null)}
       />
     </div>
   )

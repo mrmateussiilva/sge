@@ -85,3 +85,28 @@ export interface OmieConfigResponse {
   is_admin: boolean
   erro?: string
 }
+
+export interface ItemImportacaoPayload {
+  descricao_omie: string
+  codigo_omie?: string
+  quantidade: number
+  unidade_omie?: string
+  valor_unitario: number
+  acao: 'vincular' | 'criar'
+  produto_id?: number | null
+  novo_produto?: {
+    descricao: string
+    tipo_produto: string
+    unidade_medida: string
+    estoque_minimo?: number | null
+  }
+  atualizar_custo: boolean
+}
+
+export interface ImportarNotaPayload {
+  numero_nfe: string
+  fornecedor_nome: string
+  fornecedor_cnpj: string
+  chave_nfe?: string
+  itens: ItemImportacaoPayload[]
+}

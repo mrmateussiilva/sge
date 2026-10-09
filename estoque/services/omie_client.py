@@ -168,7 +168,7 @@ class OmieClient:
             method='POST',
             headers={
                 'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.9.1; +https://sge.finderbit.com.br)',
+                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.10.0; +https://sge.finderbit.com.br)',
             },
         )
         try:

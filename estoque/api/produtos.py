@@ -252,6 +252,19 @@ def opcoes_produto_api(request):
         for c in Categoria.objects.all().order_by('nome')
     ]
 
+    produtos = [
+        {
+            'id': p.id,
+            'descricao': p.descricao,
+            'unidade_medida': p.unidade_medida,
+            'tipo_produto': p.tipo_produto,
+            'quantidade_formatada': p.quantidade_formatada,
+            'quantidade': float(p.quantidade_base),
+            'preco_custo': float(p.preco_custo) if p.preco_custo is not None else None,
+        }
+        for p in Produto.objects.all().order_by('descricao')
+    ]
+
     return json_ok(
         tipos_produto=[{'value': val, 'label': lbl} for val, lbl in Produto.TIPO_PRODUTO_CHOICES],
         unidades_medida=[{'value': val, 'label': lbl} for val, lbl in Produto.UNIDADE_MEDIDA_CHOICES],
@@ -259,4 +272,5 @@ def opcoes_produto_api(request):
         cores_tinta=[{'value': val, 'label': lbl} for val, lbl in Produto.COR_CHOICES],
         fornecedores=fornecedores,
         categorias=categorias,
+        produtos=produtos,
     )

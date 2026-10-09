@@ -3,13 +3,23 @@ import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from decimal import Decimal, InvalidOperation
+
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 
 from ..log_utils import log_acao
-from ..models import ConfiguracaoOmie, ImportacaoNFe
-from ..services.omie_client import OmieAPIError, OmieClient, OmieConfigError
+from ..models import (
+    ConfiguracaoOmie,
+    Fornecedor,
+    HistoricoPreco,
+    ImportacaoNFe,
+    Movimentacao,
+    Produto,
+)
+from ..services.omie_client import OmieAPIError, OmieClient, OmieConfigError, limpar_cnpj
 from ..views.helpers import exigir_admin_json, json_erro, json_ok
 
 logger = logging.getLogger(__name__)
@@ -258,3 +268,177 @@ def salvar_configuracao_omie_api(request):
     )
 
     return json_ok(mensagem='Credenciais da Omie salvas com sucesso!')
+
+
+@login_required
+def importar_nota_omie_api(request, id_receb: int):
+    """
+    Importa itens selecionados de uma NF-e da Omie (Recebimento) para o SGE:
+    - Mescla itens com produtos existentes (com atualização opcional de preço de custo)
+    - Cadastra novos produtos se solicitado
+    - Cria movimentações oficiais de ENTRADA (motivo: COMPRA)
+    - Salva controle de idempotência (ImportacaoNFe) e registra auditoria (log_acao)
+    """
+    if request.method != 'POST':
+        return json_erro('Método não permitido.', status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return json_erro('JSON inválido.')
+
+    if ImportacaoNFe.objects.filter(n_cod_nota_ent=id_receb).exists():
+        return json_erro(
+            f'A NF-e com ID #{id_receb} já foi importada anteriormente no SGE.',
+            codigo='JA_IMPORTADO',
+            status=400,
+        )
+
+    itens = data.get('itens', [])
+    if not itens:
+        return json_erro('Nenhum item selecionado para importação.')
+
+    numero_nfe = str(data.get('numero_nfe', '')).strip()
+    fornecedor_nome = str(data.get('fornecedor_nome', '')).strip()
+    fornecedor_cnpj = str(data.get('fornecedor_cnpj', '')).strip()
+    chave_nfe = str(data.get('chave_nfe', '')).strip()
+
+    # Tentar localizar ou criar Fornecedor correspondente no SGE
+    fornecedor_obj = None
+    if fornecedor_cnpj:
+        cnpj_limpo = limpar_cnpj(fornecedor_cnpj)
+        fornecedor_obj = Fornecedor.objects.filter(cnpj__icontains=cnpj_limpo).first()
+    if not fornecedor_obj and fornecedor_nome:
+        fornecedor_obj = Fornecedor.objects.filter(nome__iexact=fornecedor_nome).first()
+    if not fornecedor_obj and fornecedor_nome:
+        try:
+            fornecedor_obj = Fornecedor.objects.create(
+                nome=fornecedor_nome[:200],
+                cnpj=fornecedor_cnpj[:18],
+            )
+        except Exception:
+            fornecedor_obj = None
+
+    movimentacoes_criadas = 0
+    descricoes_importadas = []
+
+    try:
+        with transaction.atomic():
+            if ImportacaoNFe.objects.filter(n_cod_nota_ent=id_receb).exists():
+                return json_erro(
+                    f'A NF-e #{id_receb} já foi importada anteriormente.',
+                    codigo='JA_IMPORTADO',
+                    status=400,
+                )
+
+            for it in itens:
+                acao = it.get('acao', 'vincular')
+                qtd_raw = it.get('quantidade')
+                try:
+                    qtd_dec = Decimal(str(qtd_raw))
+                except (InvalidOperation, TypeError, ValueError):
+                    return json_erro(f'Quantidade inválida para o item "{it.get("descricao_omie", "")}".')
+
+                if qtd_dec <= 0:
+                    return json_erro(f'Quantidade deve ser maior que zero para o item "{it.get("descricao_omie", "")}".')
+
+                val_unit_raw = it.get('valor_unitario')
+                try:
+                    val_unit_dec = Decimal(str(val_unit_raw)) if val_unit_raw is not None else Decimal('0.00')
+                except (InvalidOperation, TypeError, ValueError):
+                    val_unit_dec = Decimal('0.00')
+
+                if acao == 'criar':
+                    np_data = it.get('novo_produto') or {}
+                    desc = (np_data.get('descricao') or it.get('descricao_omie') or 'Novo Insumo').strip()
+                    tipo_prod = np_data.get('tipo_produto', 'OUTRO')
+                    unid = np_data.get('unidade_medida', 'UN')
+                    est_min_raw = np_data.get('estoque_minimo')
+                    try:
+                        est_min = Decimal(str(est_min_raw)) if est_min_raw not in (None, '') else None
+                    except (InvalidOperation, TypeError, ValueError):
+                        est_min = None
+
+                    produto = Produto(
+                        descricao=desc,
+                        tipo_produto=tipo_prod,
+                        unidade_medida=unid,
+                        quantidade_base=Decimal('0.00'),
+                        preco_custo=val_unit_dec if val_unit_dec > 0 else None,
+                        estoque_minimo=est_min,
+                        fornecedor=fornecedor_obj,
+                    )
+                    produto.full_clean()
+                    produto.save()
+
+                    log_acao(
+                        request.user,
+                        'CRIAR',
+                        f'Produto "{produto.descricao}" cadastrado via importação NF-e #{numero_nfe or id_receb}',
+                        'Produto',
+                        produto.id,
+                    )
+                else:
+                    prod_id = it.get('produto_id')
+                    if not prod_id:
+                        return json_erro(f'Selecione um produto do SGE para o item "{it.get("descricao_omie", "")}".')
+                    try:
+                        produto = Produto.objects.select_for_update().get(pk=prod_id)
+                    except Produto.DoesNotExist:
+                        return json_erro(f'Produto #{prod_id} não encontrado no SGE.', status=404)
+
+                    # Atualizar preço de custo se marcado
+                    if it.get('atualizar_custo') and val_unit_dec > 0 and produto.preco_custo != val_unit_dec:
+                        custo_antigo = produto.preco_custo
+                        produto.preco_custo = val_unit_dec
+                        produto.save(update_fields=['preco_custo'])
+                        HistoricoPreco.objects.create(
+                            produto=produto,
+                            preco_custo_antigo=custo_antigo,
+                            preco_custo_novo=val_unit_dec,
+                            usuario=request.user,
+                        )
+
+                # Registrar Movimentacao de Entrada
+                obs = f'Importado da NF-e nº {numero_nfe or id_receb} ({fornecedor_nome}) | {it.get("descricao_omie", "")}'
+                Movimentacao.objects.create(
+                    produto=produto,
+                    usuario=request.user,
+                    tipo='ENTRADA',
+                    motivo='COMPRA',
+                    quantidade=qtd_dec,
+                    observacao=obs[:255],
+                )
+
+                movimentacoes_criadas += 1
+                descricoes_importadas.append(f'{produto.descricao} (+{qtd_dec})')
+
+            # Registrar controle de NF-e importada
+            ImportacaoNFe.objects.create(
+                n_cod_nota_ent=id_receb,
+                numero_nfe=numero_nfe,
+                fornecedor_nome=fornecedor_nome,
+                usuario=request.user,
+                observacao=f'{movimentacoes_criadas} item(ns) importado(s) via conciliação web',
+            )
+
+            log_acao(
+                request.user,
+                'ENTRADA',
+                (
+                    f'Importação NF-e {numero_nfe or id_receb} ({fornecedor_nome}) — '
+                    f'{movimentacoes_criadas} entrada(s): {", ".join(descricoes_importadas[:5])}'
+                    + ('...' if len(descricoes_importadas) > 5 else '')
+                ),
+                'ImportacaoNFe',
+                id_receb,
+            )
+
+        return json_ok(
+            mensagem=f'{movimentacoes_criadas} entrada(s) de estoque registrada(s) com sucesso!',
+            movimentacoes_criadas=movimentacoes_criadas,
+        )
+    except Exception as exc:
+        logger.exception('Erro ao importar itens da NF-e Omie: %s', exc)
+        return json_erro(f'Falha ao importar itens da NF-e: {exc}')
+

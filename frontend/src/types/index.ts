@@ -173,5 +173,26 @@ export interface DashboardResponse {
   }>
 }
 
+export interface ProdutoCompacto {
+  id: number
+  descricao: string
+  unidade_medida: string
+  tipo_produto: string
+  quantidade_formatada: string
+  quantidade?: number
+  preco_custo: number | null
+}
+
+export interface OpcoesProduto {
+  ok: boolean
+  tipos_produto: Array<{ value: string; label: string }>
+  unidades_medida: Array<{ value: string; label: string }>
+  tipos_tinta: Array<{ value: string; label: string }>
+  cores_tinta: Array<{ value: string; label: string }>
+  fornecedores: Array<{ id: number; nome: string }>
+  categorias: Array<{ id: number; nome: string; cor: string }>
+  produtos?: ProdutoCompacto[]
+}
+
 export * from './omie'
 

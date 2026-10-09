@@ -88,5 +88,5 @@ urlpatterns = [
     path('omie/notas/', omie.listar_notas_omie_api, name='omie_notas'),
     path('omie/configuracao/', omie.consultar_configuracao_omie_api, name='omie_configuracao'),
     path('omie/configuracao/salvar/', omie.salvar_configuracao_omie_api, name='omie_configuracao_salvar'),
-    path('omie/notas/<int:n_cod>/importar/', views.importar_nota_omie, name='omie_importar'),
+    path('omie/notas/<int:id_receb>/importar/', omie.importar_nota_omie_api, name='omie_importar'),
 ]

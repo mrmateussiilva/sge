@@ -1,9 +1,16 @@
+from decimal import Decimal
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from estoque.models import ConfiguracaoOmie, ImportacaoNFe
+from estoque.models import (
+    ConfiguracaoOmie,
+    HistoricoPreco,
+    ImportacaoNFe,
+    Movimentacao,
+    Produto,
+)
 from estoque.services.omie_client import (
     OmieClient,
     extrair_cnpj_emitente_chave,
@@ -256,3 +263,83 @@ class OmieAPITestCase(TestCase):
         data_get = resp_get.json()
         self.assertTrue(data_get['configurado'])
         self.assertTrue(data_get['app_key_mascarada'].startswith('NOVA'))
+
+    def test_importar_nota_omie_api_sucesso(self):
+        # Produto existente
+        prod_existente = Produto.objects.create(
+            descricao='BOBINA PAPEL 100M',
+            tipo_produto='PAPEL',
+            unidade_medida='M',
+            quantidade_base=Decimal('50.00'),
+            preco_custo=Decimal('10.00'),
+        )
+
+        self.client.force_login(self.user)
+        url_importar = reverse('api_v1:omie_importar', kwargs={'id_receb': 9901})
+
+        payload = {
+            'numero_nfe': 'NF-9901',
+            'fornecedor_nome': 'PAPELARIA CENTRAL',
+            'fornecedor_cnpj': '22.333.444/0001-55',
+            'itens': [
+                {
+                    'descricao_omie': 'BOBINA PAPEL 100M',
+                    'quantidade': 100,
+                    'valor_unitario': 12.50,
+                    'acao': 'vincular',
+                    'produto_id': prod_existente.id,
+                    'atualizar_custo': True,
+                },
+                {
+                    'descricao_omie': 'TINTA SUBLIMATICA CYAN',
+                    'quantidade': 5,
+                    'valor_unitario': 45.00,
+                    'acao': 'criar',
+                    'novo_produto': {
+                        'descricao': 'Tinta Sublimática Cyan 1L',
+                        'tipo_produto': 'TINTA',
+                        'unidade_medida': 'L',
+                        'estoque_minimo': 2,
+                    },
+                    'atualizar_custo': True,
+                },
+            ],
+        }
+
+        resp = self.client.post(url_importar, payload, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['movimentacoes_criadas'], 2)
+
+        # Verificar produto existente: saldo aumentou em 100 e custo atualizou
+        prod_existente.refresh_from_db()
+        self.assertEqual(prod_existente.quantidade_base, Decimal('150.00'))
+        self.assertEqual(prod_existente.preco_custo, Decimal('12.50'))
+
+        # Verificar histórico de preço registrado
+        hp = HistoricoPreco.objects.filter(produto=prod_existente).first()
+        self.assertIsNotNone(hp)
+        self.assertEqual(hp.preco_custo_antigo, Decimal('10.00'))
+        self.assertEqual(hp.preco_custo_novo, Decimal('12.50'))
+
+        # Verificar novo produto criado com entrada de estoque
+        novo_prod = Produto.objects.filter(descricao='Tinta Sublimática Cyan 1L').first()
+        self.assertIsNotNone(novo_prod)
+        self.assertEqual(novo_prod.quantidade_base, Decimal('5.00'))
+        self.assertEqual(novo_prod.tipo_produto, 'TINTA')
+        self.assertEqual(novo_prod.unidade_medida, 'L')
+        self.assertEqual(novo_prod.preco_custo, Decimal('45.00'))
+
+        # Verificar movimentações
+        movs = Movimentacao.objects.filter(motivo='COMPRA')
+        self.assertEqual(movs.count(), 2)
+
+        # Verificar idempotência gravada
+        self.assertTrue(ImportacaoNFe.objects.filter(n_cod_nota_ent=9901).exists())
+
+        # Tentar importar a mesma nota novamente deve ser rejeitado
+        resp_repetida = self.client.post(url_importar, payload, content_type='application/json')
+        self.assertEqual(resp_repetida.status_code, 400)
+        self.assertFalse(resp_repetida.json()['ok'])
+        self.assertEqual(resp_repetida.json()['codigo'], 'JA_IMPORTADO')
