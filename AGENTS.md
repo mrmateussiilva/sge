@@ -59,8 +59,9 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
 - Templates: `estoque/templates/estoque/` e `templates/registration/`.
 - CSS principal: `estoque/static/estoque/css/style.css`.
 - Auditoria: `estoque/log_utils.py`.
+- Integracao Omie: `estoque/services/omie_client.py` (cliente JSON-RPC) e `estoque/api/omie.py` (endpoints REST).
 - Signals: `estoque/signals.py`, carregado por `EstoqueConfig.ready()`.
-- Testes existentes: `estoque/tests.py`.
+- Testes existentes: `estoque/tests.py`, `estoque/tests_models.py`, `estoque/tests_notifications.py` e `estoque/tests_omie.py`.
 
 ## Regras de Dominio Criticas
 
@@ -104,7 +105,29 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
 - **Transicoes Fluídas**: Em `useQuery` de tabelas com filtros/paginacao, utilize `placeholderData: keepPreviousData` e `isFetching` para feedback visual sutil sem apagar o conteudo da tela.
 - **Estado na URL**: Sincronize filtros e paginacao com `useSearchParams` sempre que fizer sentido para manter historico e permitir compartilhamento.
 - **Exclusoes Seguras**: Modais destrutivos devem exigir digitacao de confirmacao (ex: `EXCLUIR`) antes de habilitar a exclusao.
+- **Rotas SPA no Django (`core/urls.py`)**: Ao adicionar qualquer rota de primeiro nível no React Router (`frontend/src/App.tsx`), inclua imediatamente o prefixo correspondente na regex `spa_routes` em `core/urls.py` (`r'^(?:produtos|movimentacoes|ordens|notas-fiscais|...)(?:/.*)?$'`). Caso contrário, requisições diretas ou recarregamentos de página (F5) retornarão erro HTTP `404 Not Found` no Django.
 - Em producao, o build do React (`dist/`) e servido pelo Django via `spa_view` e WhiteNoise. Rode `npm run build` na pasta `frontend` para checar tipos com TypeScript antes de concluir tarefas de frontend.
+
+## Integracao Omie (Recebimento NF-e de Fornecedores)
+
+- **Objetivo**: Permitir visualização e conciliação em tempo real de compras e insumos através das notas fiscais eletrônicas de fornecedores sincronizadas pela Omie/SEFAZ.
+- **Endpoints da API**:
+  - `GET /api/v1/omie/notas/`: lista recebimentos de fornecedores filtrados por período, termo de busca e status de importação no SGE, acompanhados de KPIs, top fornecedores e timeline de gastos.
+  - `GET /api/v1/omie/configuracao/`: consulta se App Key e App Secret estão configurados (com máscara visual da chave e dados cadastrais).
+  - `POST /api/v1/omie/configuracao/salvar/`: permite que superusuários atualizem as credenciais via painel web com auditoria (`log_acao`).
+- **Filtragem de Documentos**:
+  - Aceitar estritamente NF-e Modelo 55 (`cModeloNFe == '55'`).
+  - Descartar CT-e Modelo 57 (conhecimentos de frete de transportadoras).
+  - Descartar notas fiscais de emissão própria (`cnpj_emitente == OMIE_CNPJ_PROPRIO` / `06098674000157`).
+- **Armadilhas de Payload da API Omie (Gotchas Críticos)**:
+  - `parcelas`: A API Omie retorna este campo como um dicionário (ex.: `{'cCodParcela': '999', 'nQtdParcela': 2, 'parcelasLista': [...]}` ou à vista sem a chave da lista), e **NUNCA** como uma lista direta. Iterar diretamente sobre ele itera sobre strings de chaves, causando `AttributeError`. Sempre extraia `parcelas.get('parcelasLista')`.
+  - `itensRecebimento`: Pode vir nulo (`None`) para certas notas. Sempre use `rec.get('itensRecebimento') or []` com verificação de tipo de lista.
+  - Conversões Numéricas: Valores como `nQtdeNFe`, `nPrecoUnit`, `vTotalItem` e `nValorNFe` podem vir ausentes, nulos ou formatados com vírgula. Utilize sempre funções de conversão tolerantes (`_converter_float`, `_converter_int`).
+  - Headers HTTP: Requisições via `urllib.request` devem sempre incluir header explícito `'User-Agent': 'Mozilla/5.0 (compatible; SGE/...)'` para evitar bloqueios por firewalls de borda / WAFs da Omie.
+- **Segurança de Credenciais e Criptografia**:
+  - As credenciais podem vir do banco (`ConfiguracaoOmie` criptografada com `EncryptedCharField`) ou das variáveis de ambiente (`OMIE_APP_KEY` / `OMIE_APP_SECRET`).
+  - A chave `OMIE_ENCRYPTION_KEY` possui derivação determinística a partir de `SECRET_KEY` no `core/settings.py` caso não seja definida explicitamente no ambiente, garantindo que o boot de produção não quebre se a variável não estiver no arquivo `.env`.
+  - Toda leitura de `ConfiguracaoOmie` deve ter fallback resiliente para as credenciais de `settings` em caso de erro de descriptografia.
 
 ## Testes e Verificacao
 
