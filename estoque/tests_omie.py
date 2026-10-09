@@ -111,6 +111,81 @@ class OmieClientRecebimentosTestCase(TestCase):
         self.assertEqual(nota['itens'][0]['descricao'], 'TECIDO DRY FIT')
         self.assertEqual(len(nota['parcelas']), 1)
 
+    @patch.object(OmieClient, '_chamar')
+    def test_listar_recebimentos_parcelas_dict_e_itens_nulos(self, mock_chamar):
+        """Valida que a estrutura real da Omie (parcelas como dict e itensRecebimento nulo) é tratada sem erros."""
+        mock_chamar.return_value = {
+            'nPagina': 1,
+            'nTotalPaginas': 1,
+            'recebimentos': [
+                {
+                    'cabec': {
+                        'nIdReceb': 2001,
+                        'cNumeroNFe': '000170482',
+                        'cSerieNFe': '2',
+                        'cModeloNFe': '55',
+                        'dEmissaoNFe': '07/01/2026',
+                        'cNome': 'FABR.DE ELAST. SAO JOSE LTDA.',
+                        'cCNPJ_CPF': '53.859.989/0001-50',
+                        'cChaveNFe': '35260153859989000150550020001704821430212899',
+                        'nValorNFe': 1358.50,
+                    },
+                    'itensRecebimento': [
+                        {
+                            'itensCabec': {
+                                'cCodigoProduto': '3014RL50',
+                                'cDescricaoProduto': 'ELASTICO LASTEX',
+                                'nQtdeNFe': 10,
+                                'nPrecoUnit': 15.15,
+                                'vTotalItem': 151.50,
+                            }
+                        }
+                    ],
+                    # Formato real retornado pela Omie: dict com parcelasLista
+                    'parcelas': {
+                        'cCodParcela': '999',
+                        'nQtdParcela': 2,
+                        'parcelasLista': [
+                            {'nSequencia': 1, 'dVencimento': '04/02/2026', 'vParcela': 679.25},
+                            {'nSequencia': 2, 'dVencimento': '04/03/2026', 'vParcela': 679.25},
+                        ]
+                    }
+                },
+                {
+                    'cabec': {
+                        'nIdReceb': 2002,
+                        'cNumeroNFe': '000099',
+                        'cModeloNFe': '55',
+                        'dEmissaoNFe': '08/01/2026',
+                        'cNome': 'FORNECEDOR SEM ITENS',
+                        'cCNPJ_CPF': '99.999.999/0001-99',
+                        'nValorNFe': 50.0,
+                    },
+                    # itensRecebimento como None e parcelas à vista sem parcelasLista
+                    'itensRecebimento': None,
+                    'parcelas': {'cCodParcela': '000', 'nQtdParcela': 1}
+                }
+            ]
+        }
+
+        client = OmieClient(app_key='TEST_KEY', app_secret='TEST_SECRET')
+        resumo = client.listar_recebimentos_fornecedores_periodo(
+            dt_inicio='01/01/2026',
+            dt_fim='10/01/2026',
+        )
+
+        self.assertEqual(resumo['total_encontradas'], 2)
+        n1 = resumo['notas'][0]  # ordenado por data: 08/01 depois 07/01
+        self.assertEqual(n1['numero_nfe'], '000099')
+        self.assertEqual(len(n1['itens']), 0)
+        self.assertEqual(len(n1['parcelas']), 0)
+
+        n2 = resumo['notas'][1]
+        self.assertEqual(n2['numero_nfe'], '000170482')
+        self.assertEqual(len(n2['itens']), 1)
+        self.assertEqual(len(n2['parcelas']), 2)
+        self.assertEqual(n2['parcelas'][0]['valor'], 679.25)
+
 
 class OmieAPITestCase(TestCase):
     def setUp(self):

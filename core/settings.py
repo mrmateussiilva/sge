@@ -11,7 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = '1.9.0'
+APP_VERSION = '1.9.1'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -156,6 +156,5 @@ OMIE_APP_SECRET = os.getenv('OMIE_APP_SECRET', '0d4eb5de44621e8d6de7151508c2c000
 OMIE_CNPJ_PROPRIO = os.getenv('OMIE_CNPJ_PROPRIO', '06098674000157')
 OMIE_ENCRYPTION_KEY = os.getenv('OMIE_ENCRYPTION_KEY', '').strip()
 if not OMIE_ENCRYPTION_KEY:
-    if not DEBUG and not _em_teste:
-        raise ImproperlyConfigured('OMIE_ENCRYPTION_KEY é obrigatória quando DEBUG=False.')
     OMIE_ENCRYPTION_KEY = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode()).digest()).decode()
+

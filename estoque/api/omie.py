@@ -66,9 +66,9 @@ def listar_notas_omie_api(request):
             apenas_fornecedores=apenas_fornecedores,
             incluir_detalhes=True,
         )
-    except OmieConfigError:
+    except OmieConfigError as exc:
         return json_erro(
-            'Credenciais da API Omie não configuradas.',
+            str(exc) or 'Credenciais da API Omie não configuradas.',
             codigo='OMIE_NAO_CONFIGURADO',
             status=400,
         )
@@ -79,10 +79,10 @@ def listar_notas_omie_api(request):
             codigo='OMIE_API_ERROR',
             status=502,
         )
-    except Exception:
-        logger.exception('Erro inesperado ao consultar recebimentos da Omie')
+    except Exception as exc:
+        logger.exception('Erro inesperado ao consultar recebimentos da Omie: %s', exc)
         return json_erro(
-            'Não foi possível consultar os recebimentos no Omie.',
+            f'Não foi possível consultar os recebimentos no Omie: {exc}',
             codigo='OMIE_ERRO_INTERNO',
             status=500,
         )
@@ -185,10 +185,15 @@ def listar_notas_omie_api(request):
 
 @login_required
 def consultar_configuracao_omie_api(request):
-    """Retorna o status atual da configuração de credenciais da Omie."""
-    cfg = ConfiguracaoOmie.objects.first()
-    app_key = cfg.app_key if cfg and cfg.app_key else getattr(settings, 'OMIE_APP_KEY', '')
-    app_secret = cfg.app_secret if cfg and cfg.app_secret else getattr(settings, 'OMIE_APP_SECRET', '')
+    try:
+        cfg = ConfiguracaoOmie.objects.first()
+        app_key = cfg.app_key if cfg and cfg.app_key else getattr(settings, 'OMIE_APP_KEY', '')
+        app_secret = cfg.app_secret if cfg and cfg.app_secret else getattr(settings, 'OMIE_APP_SECRET', '')
+    except Exception as exc:
+        logger.warning('Erro ao consultar ConfiguracaoOmie: %s', exc)
+        cfg = None
+        app_key = getattr(settings, 'OMIE_APP_KEY', '')
+        app_secret = getattr(settings, 'OMIE_APP_SECRET', '')
 
     configurado = bool(app_key and app_secret)
     app_key_mascarada = ''

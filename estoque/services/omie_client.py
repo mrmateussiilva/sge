@@ -42,6 +42,35 @@ def extrair_cnpj_emitente_chave(chave: str | None) -> str:
     return ''
 
 
+def _converter_float(val: Any, default: float = 0.0) -> float:
+    """Converte valores numéricos diversos da API Omie para float de forma segura."""
+    if val is None or val == '':
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        if isinstance(val, str):
+            try:
+                limpo = val.strip().replace('.', '').replace(',', '.')
+                return float(limpo)
+            except (ValueError, TypeError):
+                pass
+        return default
+
+
+def _converter_int(val: Any, default: int = 0) -> int:
+    """Converte valores para int de forma segura."""
+    if val is None or val == '':
+        return default
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        try:
+            return int(float(val))
+        except (ValueError, TypeError):
+            return default
+
+
 class OmieAPIError(Exception):
     """Erro retornado pela API do Omie."""
 
@@ -137,7 +166,10 @@ class OmieClient:
             url,
             data=body,
             method='POST',
-            headers={'Content-Type': 'application/json'},
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.9.1; +https://sge.finderbit.com.br)',
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
@@ -154,8 +186,8 @@ class OmieClient:
                 ) from exc
             except (json.JSONDecodeError, KeyError):
                 raise OmieAPIError(str(exc.code), corpo) from exc
-        except urllib.error.URLError as exc:
-            raise OmieAPIError('NETWORK', str(exc.reason)) from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise OmieAPIError('NETWORK', str(exc)) from exc
 
         if 'faultcode' in data:
             raise OmieAPIError(data['faultcode'], data.get('faultstring', ''))
@@ -396,10 +428,17 @@ class OmieClient:
                 incluir_detalhes=incluir_detalhes,
             )
             total_paginas = int(resp.get('nTotalPaginas') or 1)
-            recebimentos = resp.get('recebimentos', [])
+            recebimentos = resp.get('recebimentos') or []
+            if not isinstance(recebimentos, list):
+                recebimentos = [recebimentos] if isinstance(recebimentos, dict) else []
 
             for rec in recebimentos:
-                cabec = rec.get('cabec', {})
+                if not isinstance(rec, dict):
+                    continue
+                cabec = rec.get('cabec') or {}
+                if not isinstance(cabec, dict):
+                    cabec = {}
+
                 modelo = str(cabec.get('cModeloNFe', '')).strip()
                 chave = str(cabec.get('cChaveNFe', '')).strip()
                 cnpj_cabec = limpar_cnpj(cabec.get('cCNPJ_CPF', ''))
@@ -408,37 +447,62 @@ class OmieClient:
 
                 eh_nfe = modelo == '55'
                 eh_cte = modelo == '57'
-                eh_propria = (cnpj_emitente == cnpj_proprio) or (cnpj_cabec == cnpj_proprio)
+                eh_propria = bool(cnpj_proprio and ((cnpj_emitente == cnpj_proprio) or (cnpj_cabec == cnpj_proprio)))
 
                 # Estrutura padronizada de itens
                 itens_limpos = []
-                for it in rec.get('itensRecebimento', []):
-                    cb = it.get('itensCabec', {})
+                itens_raw = rec.get('itensRecebimento') or []
+                if isinstance(itens_raw, dict):
+                    itens_raw = [itens_raw]
+                elif not isinstance(itens_raw, list):
+                    itens_raw = []
+
+                for it in itens_raw:
+                    if not isinstance(it, dict):
+                        continue
+                    cb = it.get('itensCabec') or {}
+                    if not isinstance(cb, dict):
+                        cb = {}
                     itens_limpos.append({
                         'codigo_produto': str(cb.get('cCodigoProduto', '')),
                         'descricao': str(cb.get('cDescricaoProduto', '')),
                         'ncm': str(cb.get('cNCM', '')),
                         'cfop': str(cb.get('cCFOP', '')),
-                        'quantidade': float(cb.get('nQtdeNFe', 0) or 0),
+                        'quantidade': _converter_float(cb.get('nQtdeNFe')),
                         'unidade': str(cb.get('cUnidadeNfe', 'UN')),
-                        'preco_unitario': float(cb.get('nPrecoUnit', 0) or 0),
-                        'valor_total': float(cb.get('vTotalItem', 0) or 0),
-                        'id_produto': cb.get('nIdProduto', 0),
-                        'id_item': cb.get('nIdItem', 0),
+                        'preco_unitario': _converter_float(cb.get('nPrecoUnit')),
+                        'valor_total': _converter_float(cb.get('vTotalItem')),
+                        'id_produto': _converter_int(cb.get('nIdProduto')),
+                        'id_item': _converter_int(cb.get('nIdItem')),
                     })
 
-                # Parcelas
+                # Parcelas — na Omie pode vir como dict contendo 'parcelasLista' ou lista direta
                 parcelas_limpas = []
-                for p_idx, p in enumerate(rec.get('parcelas', [])):
+                parcelas_raw = rec.get('parcelas') or {}
+                if isinstance(parcelas_raw, dict):
+                    lista_parcelas = parcelas_raw.get('parcelasLista') or []
+                elif isinstance(parcelas_raw, list):
+                    lista_parcelas = parcelas_raw
+                else:
+                    lista_parcelas = []
+
+                if isinstance(lista_parcelas, dict):
+                    lista_parcelas = [lista_parcelas]
+                elif not isinstance(lista_parcelas, list):
+                    lista_parcelas = []
+
+                for p_idx, p in enumerate(lista_parcelas):
+                    if not isinstance(p, dict):
+                        continue
                     parcelas_limpas.append({
-                        'sequencia': int(p.get('nSequencia', p_idx + 1)),
+                        'sequencia': _converter_int(p.get('nSequencia'), p_idx + 1),
                         'vencimento': str(p.get('dVencimento', '')),
-                        'valor': float(p.get('vParcela', 0) or 0),
+                        'valor': _converter_float(p.get('vParcela')),
                     })
 
                 nota_estruturada = {
-                    'id_receb': int(cabec.get('nIdReceb', 0)),
-                    'id_fornecedor': cabec.get('nIdFornecedor'),
+                    'id_receb': _converter_int(cabec.get('nIdReceb')),
+                    'id_fornecedor': _converter_int(cabec.get('nIdFornecedor')),
                     'numero_nfe': str(cabec.get('cNumeroNFe', '')),
                     'serie': str(cabec.get('cSerieNFe', '')),
                     'chave_nfe': chave,
@@ -446,7 +510,7 @@ class OmieClient:
                     'fornecedor_nome': str(cabec.get('cNome', '')),
                     'fornecedor_razao': str(cabec.get('cRazaoSocial', '')),
                     'fornecedor_cnpj': str(cabec.get('cCNPJ_CPF', '')),
-                    'valor_total': float(cabec.get('nValorNFe', 0) or 0),
+                    'valor_total': _converter_float(cabec.get('nValorNFe')),
                     'natureza_operacao': str(cabec.get('cNaturezaOperacao', '')),
                     'etapa': str(cabec.get('cEtapa', '')),
                     'itens': itens_limpos,
@@ -469,11 +533,13 @@ class OmieClient:
             pagina += 1
 
         def _chave_data(item):
-            d = item.get('data_emissao', '')
-            try:
-                return datetime.strptime(d, '%d/%m/%Y').date()
-            except Exception:
-                return datetime.min.date()
+            d = (item.get('data_emissao') or '').strip()
+            if d:
+                try:
+                    return datetime.strptime(d, '%d/%m/%Y').date()
+                except Exception:
+                    pass
+            return datetime.min.date()
 
         todas_notas.sort(key=_chave_data, reverse=True)
 
