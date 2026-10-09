@@ -172,3 +172,6 @@ export interface DashboardResponse {
     objeto_id: number | null
   }>
 }
+
+export * from './omie'
+

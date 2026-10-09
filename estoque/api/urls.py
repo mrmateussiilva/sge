@@ -12,6 +12,7 @@ from . import (
     produtos,
     relatorios,
     notificacoes,
+    omie,
 )
 
 app_name = 'api_v1'
@@ -84,7 +85,8 @@ urlpatterns = [
 
     # Omie e Busca Rápida
     path('busca-rapida/', views.busca_rapida, name='busca_rapida'),
-    path('omie/notas/', views.buscar_notas_omie, name='omie_notas'),
+    path('omie/notas/', omie.listar_notas_omie_api, name='omie_notas'),
+    path('omie/configuracao/', omie.consultar_configuracao_omie_api, name='omie_configuracao'),
+    path('omie/configuracao/salvar/', omie.salvar_configuracao_omie_api, name='omie_configuracao_salvar'),
     path('omie/notas/<int:n_cod>/importar/', views.importar_nota_omie, name='omie_importar'),
-    path('omie/configuracao/', views.salvar_configuracao_omie, name='omie_configuracao'),
 ]

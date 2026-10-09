@@ -21,6 +21,7 @@ import {
   Loader2,
   Boxes,
   X,
+  FileText,
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { usePreferences } from '@/hooks/usePreferences'
@@ -117,6 +118,17 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       category: 'Navegação',
       action: () => {
         navigate('/ordens')
+        onClose()
+      },
+    },
+    {
+      id: 'nav-notas-fiscais',
+      title: 'Notas Fiscais de Entrada (Omie)',
+      subtitle: 'NF-e Modelo 55 recebidas de fornecedores',
+      icon: FileText,
+      category: 'Navegação',
+      action: () => {
+        navigate('/notas-fiscais')
         onClose()
       },
     },

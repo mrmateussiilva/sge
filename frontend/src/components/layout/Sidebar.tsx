@@ -13,6 +13,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Bell,
+  FileText,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Badge } from '@/components/ui/badge'
@@ -46,6 +47,11 @@ export function Sidebar({ className, onCloseMobile }: SidebarProps) {
           icon: FileSpreadsheet,
           badge: alertas?.ordens_pendentes ? String(alertas.ordens_pendentes) : undefined,
           badgeVariant: 'default' as const,
+        },
+        {
+          to: '/notas-fiscais',
+          label: 'Notas de Entrada (Omie)',
+          icon: FileText,
         },
       ],
     },

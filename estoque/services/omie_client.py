@@ -14,9 +14,11 @@ Cada chamada é um POST para o endpoint com o corpo:
 
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from django.conf import settings
@@ -24,6 +26,20 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 OMIE_BASE_URL = 'https://app.omie.com.br/api/v1/'
+
+
+def limpar_cnpj(val: str | None) -> str:
+    """Remove caracteres não numéricos de um CNPJ/CPF."""
+    if not val:
+        return ''
+    return re.sub(r'\D', '', str(val))
+
+
+def extrair_cnpj_emitente_chave(chave: str | None) -> str:
+    """Na chave de 44 dígitos da NF-e, os dígitos 6 a 19 contêm o CNPJ do emitente."""
+    if chave and len(str(chave).strip()) == 44:
+        return str(chave).strip()[6:20]
+    return ''
 
 
 class OmieAPIError(Exception):
@@ -87,14 +103,15 @@ def obter_credenciais_omie() -> tuple[str, str]:
 
 class OmieClient:
     """
-    Cliente simplificado para a API Omie (Notas de Entrada).
+    Cliente para a API Omie (Recebimento NF-e e Notas de Entrada).
 
     Uso:
         client = OmieClient()
-        notas = client.listar_notas_entrada(pagina=1, registros_por_pagina=50)
+        resumo = client.listar_recebimentos_fornecedores_periodo('01/10/2026', '08/10/2026')
     """
 
     ENDPOINT_NOTA_ENTRADA = 'produtos/notaentrada/'
+    ENDPOINT_RECEBIMENTO = 'produtos/recebimentonfe/'
 
     def __init__(self, app_key: str | None = None, app_secret: str | None = None):
         db_key, db_secret = obter_credenciais_omie()
@@ -123,8 +140,9 @@ class OmieClient:
             headers={'Content-Type': 'application/json'},
         )
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+
         except urllib.error.HTTPError as exc:
             corpo = exc.read().decode('utf-8', errors='replace')
             logger.error('Omie HTTPError %s: %s', exc.code, corpo)
@@ -326,3 +344,144 @@ class OmieClient:
         """Consulta e retorna uma única nota já parseada com seus itens completos."""
         raw = self.consultar_nota_entrada(n_cod_nota_ent)
         return self.parse_nota(raw)
+
+    def listar_recebimentos(
+        self,
+        dt_inicio: str = '',
+        dt_fim: str = '',
+        pagina: int = 1,
+        registros_por_pagina: int = 50,
+        incluir_detalhes: bool = True,
+    ) -> dict:
+        """
+        Consulta o endpoint /api/v1/produtos/recebimentonfe/ da Omie com a chamada ListarRecebimentos.
+        """
+        param: dict[str, Any] = {
+            'nPagina': pagina,
+            'nRegistrosPorPagina': registros_por_pagina,
+            'cExibirDetalhes': 'S' if incluir_detalhes else 'N',
+        }
+        if dt_inicio:
+            param['dtEmissaoDe'] = dt_inicio
+        if dt_fim:
+            param['dtEmissaoAte'] = dt_fim
+
+        return self._chamar(self.ENDPOINT_RECEBIMENTO, 'ListarRecebimentos', param)
+
+    def listar_recebimentos_fornecedores_periodo(
+        self,
+        dt_inicio: str,
+        dt_fim: str,
+        apenas_fornecedores: bool = True,
+        incluir_detalhes: bool = True,
+        max_paginas: int = 10,
+    ) -> dict:
+        """
+        Busca os recebimentos de NF-e na Omie filtrando por período de emissão e documento:
+        - Apenas Modelo 55 (NF-e de mercadoria/produtos)
+        - Descarta Modelo 57 (CT-e de frete de transportadoras)
+        - Descarta emissões próprias (emitente == CNPJ da empresa)
+        """
+        cnpj_proprio = limpar_cnpj(getattr(settings, 'OMIE_CNPJ_PROPRIO', '06098674000157'))
+        todas_notas = []
+        pagina = 1
+        total_paginas = 1
+
+        while pagina <= total_paginas and pagina <= max_paginas:
+            resp = self.listar_recebimentos(
+                dt_inicio=dt_inicio,
+                dt_fim=dt_fim,
+                pagina=pagina,
+                registros_por_pagina=50,
+                incluir_detalhes=incluir_detalhes,
+            )
+            total_paginas = int(resp.get('nTotalPaginas') or 1)
+            recebimentos = resp.get('recebimentos', [])
+
+            for rec in recebimentos:
+                cabec = rec.get('cabec', {})
+                modelo = str(cabec.get('cModeloNFe', '')).strip()
+                chave = str(cabec.get('cChaveNFe', '')).strip()
+                cnpj_cabec = limpar_cnpj(cabec.get('cCNPJ_CPF', ''))
+                cnpj_emitente_chave = extrair_cnpj_emitente_chave(chave)
+                cnpj_emitente = cnpj_emitente_chave or cnpj_cabec
+
+                eh_nfe = modelo == '55'
+                eh_cte = modelo == '57'
+                eh_propria = (cnpj_emitente == cnpj_proprio) or (cnpj_cabec == cnpj_proprio)
+
+                # Estrutura padronizada de itens
+                itens_limpos = []
+                for it in rec.get('itensRecebimento', []):
+                    cb = it.get('itensCabec', {})
+                    itens_limpos.append({
+                        'codigo_produto': str(cb.get('cCodigoProduto', '')),
+                        'descricao': str(cb.get('cDescricaoProduto', '')),
+                        'ncm': str(cb.get('cNCM', '')),
+                        'cfop': str(cb.get('cCFOP', '')),
+                        'quantidade': float(cb.get('nQtdeNFe', 0) or 0),
+                        'unidade': str(cb.get('cUnidadeNfe', 'UN')),
+                        'preco_unitario': float(cb.get('nPrecoUnit', 0) or 0),
+                        'valor_total': float(cb.get('vTotalItem', 0) or 0),
+                        'id_produto': cb.get('nIdProduto', 0),
+                        'id_item': cb.get('nIdItem', 0),
+                    })
+
+                # Parcelas
+                parcelas_limpas = []
+                for p_idx, p in enumerate(rec.get('parcelas', [])):
+                    parcelas_limpas.append({
+                        'sequencia': int(p.get('nSequencia', p_idx + 1)),
+                        'vencimento': str(p.get('dVencimento', '')),
+                        'valor': float(p.get('vParcela', 0) or 0),
+                    })
+
+                nota_estruturada = {
+                    'id_receb': int(cabec.get('nIdReceb', 0)),
+                    'id_fornecedor': cabec.get('nIdFornecedor'),
+                    'numero_nfe': str(cabec.get('cNumeroNFe', '')),
+                    'serie': str(cabec.get('cSerieNFe', '')),
+                    'chave_nfe': chave,
+                    'data_emissao': str(cabec.get('dEmissaoNFe', '')),
+                    'fornecedor_nome': str(cabec.get('cNome', '')),
+                    'fornecedor_razao': str(cabec.get('cRazaoSocial', '')),
+                    'fornecedor_cnpj': str(cabec.get('cCNPJ_CPF', '')),
+                    'valor_total': float(cabec.get('nValorNFe', 0) or 0),
+                    'natureza_operacao': str(cabec.get('cNaturezaOperacao', '')),
+                    'etapa': str(cabec.get('cEtapa', '')),
+                    'itens': itens_limpos,
+                    'parcelas': parcelas_limpas,
+                    '_meta': {
+                        'tipo_doc': 'NF-e (Mercadoria)' if eh_nfe else ('CT-e (Frete)' if eh_cte else f'Modelo {modelo}'),
+                        'modelo': modelo,
+                        'cnpj_emitente': cnpj_emitente,
+                        'eh_propria': eh_propria,
+                        'eh_fornecedor_nfe': eh_nfe and not eh_propria,
+                    },
+                }
+
+                if apenas_fornecedores:
+                    if eh_nfe and not eh_propria:
+                        todas_notas.append(nota_estruturada)
+                else:
+                    todas_notas.append(nota_estruturada)
+
+            pagina += 1
+
+        def _chave_data(item):
+            d = item.get('data_emissao', '')
+            try:
+                return datetime.strptime(d, '%d/%m/%Y').date()
+            except Exception:
+                return datetime.min.date()
+
+        todas_notas.sort(key=_chave_data, reverse=True)
+
+        valor_total = sum(n['valor_total'] for n in todas_notas)
+        return {
+            'periodo': {'inicio': dt_inicio, 'fim': dt_fim},
+            'total_encontradas': len(todas_notas),
+            'valor_total': valor_total,
+            'notas': todas_notas,
+        }
+

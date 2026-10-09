@@ -17,6 +17,7 @@ const FechamentoDetalhePage = lazy(() => import('@/pages/FechamentoDetalhePage')
 const LogsPage = lazy(() => import('@/pages/LogsPage').then(m => ({ default: m.LogsPage })))
 const UsuariosPage = lazy(() => import('@/pages/UsuariosPage').then(m => ({ default: m.UsuariosPage })))
 const NotificacoesPage = lazy(() => import('@/pages/NotificacoesPage').then(m => ({ default: m.NotificacoesPage })))
+const NotasFiscaisPage = lazy(() => import('@/pages/NotasFiscaisPage').then(m => ({ default: m.NotasFiscaisPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 function PageLoadingFallback() {
@@ -89,6 +90,14 @@ export function App() {
               element={
                 <Suspense fallback={<PageLoadingFallback />}>
                   <OrdemDetalhePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="notas-fiscais"
+              element={
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <NotasFiscaisPage />
                 </Suspense>
               }
             />

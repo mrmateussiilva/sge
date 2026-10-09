@@ -11,7 +11,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_VERSION = '1.8.1'
+APP_VERSION = '1.9.0'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -151,8 +151,9 @@ NOTIFICATION_WEBHOOK_URL = os.getenv('NOTIFICATION_WEBHOOK_URL', '')
 NOTIFICATION_TOKEN = os.getenv('NOTIFICATION_TOKEN', '')
 
 # ── Integração Omie ──────────────────────────────────────────────────────────
-OMIE_APP_KEY = os.getenv('OMIE_APP_KEY', '')
-OMIE_APP_SECRET = os.getenv('OMIE_APP_SECRET', '')
+OMIE_APP_KEY = os.getenv('OMIE_APP_KEY', '3852833480496')
+OMIE_APP_SECRET = os.getenv('OMIE_APP_SECRET', '0d4eb5de44621e8d6de7151508c2c000')
+OMIE_CNPJ_PROPRIO = os.getenv('OMIE_CNPJ_PROPRIO', '06098674000157')
 OMIE_ENCRYPTION_KEY = os.getenv('OMIE_ENCRYPTION_KEY', '').strip()
 if not OMIE_ENCRYPTION_KEY:
     if not DEBUG and not _em_teste:
