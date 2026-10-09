@@ -198,8 +198,6 @@ export function OmieImportarModal({
     },
   })
 
-  if (!nota) return null
-
   // Helpers de manipulação de itens
   const atualizarItem = (idx: number, patch: Partial<ItemFormState>) => {
     setItensState((prev) =>
@@ -234,6 +232,8 @@ export function OmieImportarModal({
     }
     return null
   }, [itensSelecionados, totalSelecionados])
+
+  if (!nota) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
