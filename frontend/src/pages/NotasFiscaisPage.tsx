@@ -76,7 +76,16 @@ export function NotasFiscaisPage() {
 
   // Mutation de sincronização manual com a Omie
   const syncMutation = useMutation({
-    mutationFn: () => api.post<OmieSyncResponse>('/api/v1/omie/sincronizar/', {}),
+    mutationFn: () => {
+      const payload: Record<string, any> = {}
+      if (diasSelecionados > 0) {
+        payload.dias = diasSelecionados
+      } else {
+        if (dataInicio) payload.data_inicio = dataInicio
+        if (dataFim) payload.data_fim = dataFim
+      }
+      return api.post<OmieSyncResponse>('/api/v1/omie/sincronizar/', payload)
+    },
     onSuccess: (res) => {
       if (res.ok) {
         toast.success(res.mensagem || 'Sincronização com a Omie concluída!')
@@ -123,6 +132,8 @@ export function NotasFiscaisPage() {
       return api.get<OmieNotasResponse>(`/api/v1/omie/notas/?${params.toString()}`)
     },
     placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   const notas = data?.notas || []

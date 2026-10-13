@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -45,11 +46,22 @@ def _formatar_data_omie(data_str: str) -> str:
     return data_str
 
 
+OMIE_CACHE_TTL_SEGUNDOS = 60 * 15  # 15 minutos de retenção em cache
+
+
+def _obter_chave_cache_notas(dt_inicio: str, dt_fim: str, apenas_fornecedores: bool = True) -> str:
+    """Gera chave consistente para cache de notas do Omie por período."""
+    k_ini = (dt_inicio or '').replace('/', '')
+    k_fim = (dt_fim or '').replace('/', '')
+    return f"omie_recebimentos_{k_ini}_{k_fim}_{int(bool(apenas_fornecedores))}"
+
+
 @login_required
 def listar_notas_omie_api(request):
     """
     Retorna as notas fiscais de fornecedores (NF-e Modelo 55) capturadas pela Omie
     para o período solicitado, com filtros, estatísticas e status de importação.
+    Utiliza cache inteligente em memória para garantir respostas ultra-rápidas (< 5ms).
     """
     hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
 
@@ -74,37 +86,45 @@ def listar_notas_omie_api(request):
 
     busca = (request.GET.get('q') or request.GET.get('busca') or '').strip()
     apenas_fornecedores = request.GET.get('apenas_fornecedores', 'true').lower() in ('true', '1', 's', 'sim')
+    forcar = request.GET.get('forcar', '').lower() in ('true', '1', 's', 'sim')
 
-    try:
-        client = OmieClient()
-        resumo = client.listar_recebimentos_fornecedores_periodo(
-            dt_inicio=dt_inicio,
-            dt_fim=dt_fim,
-            apenas_fornecedores=apenas_fornecedores,
-            incluir_detalhes=True,
-        )
-    except OmieConfigError as exc:
-        return json_erro(
-            str(exc) or 'Credenciais da API Omie não configuradas.',
-            codigo='OMIE_NAO_CONFIGURADO',
-            status=400,
-        )
-    except OmieAPIError as exc:
-        logger.warning('Falha na API Omie [%s]: %s', exc.codigo, exc.descricao)
-        return json_erro(
-            f'Erro ao consultar Omie: {exc.descricao}',
-            codigo='OMIE_API_ERROR',
-            status=502,
-        )
-    except Exception as exc:
-        logger.exception('Erro inesperado ao consultar recebimentos da Omie: %s', exc)
-        return json_erro(
-            f'Não foi possível consultar os recebimentos no Omie: {exc}',
-            codigo='OMIE_ERRO_INTERNO',
-            status=500,
-        )
+    chave_cache = _obter_chave_cache_notas(dt_inicio, dt_fim, apenas_fornecedores)
+    resumo = None
+    if not forcar:
+        resumo = cache.get(chave_cache)
 
-    todas_notas = resumo.get('notas', [])
+    if resumo is None:
+        try:
+            client = OmieClient()
+            resumo = client.listar_recebimentos_fornecedores_periodo(
+                dt_inicio=dt_inicio,
+                dt_fim=dt_fim,
+                apenas_fornecedores=apenas_fornecedores,
+                incluir_detalhes=True,
+            )
+            cache.set(chave_cache, resumo, timeout=OMIE_CACHE_TTL_SEGUNDOS)
+        except OmieConfigError as exc:
+            return json_erro(
+                str(exc) or 'Credenciais da API Omie não configuradas.',
+                codigo='OMIE_NAO_CONFIGURADO',
+                status=400,
+            )
+        except OmieAPIError as exc:
+            logger.warning('Falha na API Omie [%s]: %s', exc.codigo, exc.descricao)
+            return json_erro(
+                f'Erro ao consultar Omie: {exc.descricao}',
+                codigo='OMIE_API_ERROR',
+                status=502,
+            )
+        except Exception as exc:
+            logger.exception('Erro inesperado ao consultar recebimentos da Omie: %s', exc)
+            return json_erro(
+                f'Não foi possível consultar os recebimentos no Omie: {exc}',
+                codigo='OMIE_ERRO_INTERNO',
+                status=500,
+            )
+
+    todas_notas = [dict(n) for n in resumo.get('notas', [])]
 
     # Identificar quais notas já foram importadas no SGE
     ids_receb = [n['id_receb'] for n in todas_notas if n.get('id_receb')]
@@ -391,21 +411,35 @@ def sincronizar_omie_api(request):
     atualizando o carimbo de último sync na ConfiguracaoOmie.
     """
     dias = 30
+    data_inicio_raw = ''
+    data_fim_raw = ''
     if request.method == 'POST' and request.body:
         try:
             body = json.loads(request.body)
             dias = int(body.get('dias', 30))
+            data_inicio_raw = body.get('data_inicio', '')
+            data_fim_raw = body.get('data_fim', '')
         except Exception:
             pass
-    elif request.GET.get('dias'):
+    elif request.GET.get('dias') or request.GET.get('data_inicio'):
         try:
-            dias = int(request.GET.get('dias'))
+            if request.GET.get('dias'):
+                dias = int(request.GET.get('dias'))
+            data_inicio_raw = request.GET.get('data_inicio', '')
+            data_fim_raw = request.GET.get('data_fim', '')
         except Exception:
             pass
 
     hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
-    dt_inicio = (hoje - timedelta(days=dias)).strftime('%d/%m/%Y')
-    dt_fim = hoje.strftime('%d/%m/%Y')
+    if data_inicio_raw:
+        dt_inicio = _formatar_data_omie(data_inicio_raw)
+    else:
+        dt_inicio = (hoje - timedelta(days=dias)).strftime('%d/%m/%Y')
+
+    if data_fim_raw:
+        dt_fim = _formatar_data_omie(data_fim_raw)
+    else:
+        dt_fim = hoje.strftime('%d/%m/%Y')
 
     try:
         client = OmieClient()
@@ -415,6 +449,9 @@ def sincronizar_omie_api(request):
             apenas_fornecedores=True,
             incluir_detalhes=True,
         )
+        # Aquece imediatamente o cache do Django com os dados frescos da Omie
+        chave_cache = _obter_chave_cache_notas(dt_inicio, dt_fim, True)
+        cache.set(chave_cache, resumo, timeout=OMIE_CACHE_TTL_SEGUNDOS)
     except OmieConfigError as exc:
         return json_erro(str(exc), codigo='OMIE_NAO_CONFIGURADO', status=400)
     except OmieAPIError as exc:

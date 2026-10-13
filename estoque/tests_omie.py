@@ -1,6 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 
@@ -199,6 +200,7 @@ class OmieClientRecebimentosTestCase(TestCase):
 
 class OmieAPITestCase(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(username='operador', password='senha-forte-123')
         self.admin = User.objects.create_superuser(username='admin', password='senha-forte-123')
 
@@ -237,6 +239,53 @@ class OmieAPITestCase(TestCase):
         self.assertEqual(data['kpis']['fornecedores_ativos'], 1)
         self.assertEqual(len(data['top_fornecedores']), 1)
         self.assertEqual(data['top_fornecedores'][0]['nome'], 'EUROTEXTIL')
+
+    @patch.object(OmieClient, 'listar_recebimentos_fornecedores_periodo')
+    def test_listar_notas_omie_usa_cache_e_suporta_forcar(self, mock_listar):
+        """Valida que a 2ª chamada usa o cache sem bater na API da Omie, a não ser com ?forcar=true."""
+        mock_listar.return_value = {
+            'periodo': {'inicio': '01/10/2026', 'fim': '10/10/2026'},
+            'total_encontradas': 1,
+            'valor_total': 500.0,
+            'notas': [{'id_receb': 6001, 'numero_nfe': '999', 'valor_total': 500.0, 'itens': [], 'parcelas': []}],
+        }
+        self.client.force_login(self.user)
+        url = reverse('api_v1:omie_notas')
+
+        # 1ª chamada bate no client
+        resp1 = self.client.get(url, {'dias': 20})
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(mock_listar.call_count, 1)
+
+        # 2ª chamada no mesmo período reutiliza o cache
+        resp2 = self.client.get(url, {'dias': 20})
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(mock_listar.call_count, 1)
+
+        # 3ª chamada com forcar=true ignora o cache e busca novamente na Omie
+        resp3 = self.client.get(url, {'dias': 20, 'forcar': 'true'})
+        self.assertEqual(resp3.status_code, 200)
+        self.assertEqual(mock_listar.call_count, 2)
+
+    @patch.object(OmieClient, 'listar_recebimentos_fornecedores_periodo')
+    def test_sincronizar_omie_aquece_cache(self, mock_listar):
+        """Valida que ao sincronizar via POST, o cache é aquecido para as listagens subsequentes."""
+        mock_listar.return_value = {
+            'notas': [{'id_receb': 7001, 'numero_nfe': '888', 'valor_total': 800.0, 'itens': [], 'parcelas': []}]
+        }
+        self.client.force_login(self.user)
+        url_sync = reverse('api_v1:omie_sincronizar')
+        url_notas = reverse('api_v1:omie_notas')
+
+        # Dispara sincronização
+        resp_sync = self.client.post(url_sync, {'dias': 30}, content_type='application/json')
+        self.assertEqual(resp_sync.status_code, 200)
+        self.assertEqual(mock_listar.call_count, 1)
+
+        # GET subsequente encontra dados em cache sem fazer nova chamada externa à Omie
+        resp_notas = self.client.get(url_notas, {'dias': 30})
+        self.assertEqual(resp_notas.status_code, 200)
+        self.assertEqual(mock_listar.call_count, 1)
 
     def test_consultar_e_salvar_configuracao_omie(self):
         # Usuário comum não pode salvar configuração

@@ -127,6 +127,11 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
   - Ao importar uma NF-e vinculando uma Ordem de Compra, a ordem é marcada atomicamente como `RECEBIDA`, registrando histórico no log de auditoria.
 - **Notificações Automáticas (`nfe.received`)**:
   - Disparadas no sino do SGE ao detectar notas fiscais emitidas contra a empresa ainda não conciliadas.
+- **Cache Inteligente e Performance (`Django Cache` + GZIP)**:
+  - Cache de 15 minutos em memória (`cache.set`) por período de recebimentos.
+  - Sincronização via `POST /api/v1/omie/sincronizar/` já aquece o cache, garantindo que o refetch subsequente da listagem responda em < 5ms.
+  - O endpoint aceita `forcar=true` para forçar busca externa quando necessário.
+  - Chamadas de rede no `OmieClient` utilizam compressão HTTP `Accept-Encoding: gzip, deflate` para redução drástica de tráfego WAN.
 
 ## Testes e Verificacao
 

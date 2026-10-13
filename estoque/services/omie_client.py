@@ -12,11 +12,13 @@ Cada chamada é um POST para o endpoint com o corpo:
   }
 """
 
+import gzip
 import json
 import logging
 import re
 import urllib.error
 import urllib.request
+import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -168,15 +170,34 @@ class OmieClient:
             method='POST',
             headers={
                 'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.12.0; +https://sge.finderbit.com.br)',
+                'Accept-Encoding': 'gzip, deflate',
+                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.14.0; +https://sge.finderbit.com.br)',
             },
         )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
+                raw_bytes = resp.read()
+                content_encoding = (resp.headers.get('Content-Encoding') or '').lower()
+                if 'gzip' in content_encoding:
+                    raw_bytes = gzip.decompress(raw_bytes)
+                elif 'deflate' in content_encoding:
+                    raw_bytes = zlib.decompress(raw_bytes)
+                data = json.loads(raw_bytes.decode('utf-8'))
 
         except urllib.error.HTTPError as exc:
-            corpo = exc.read().decode('utf-8', errors='replace')
+            raw_err = exc.read()
+            content_encoding = (getattr(exc, 'headers', None) and exc.headers.get('Content-Encoding') or '').lower()
+            if 'gzip' in content_encoding:
+                try:
+                    raw_err = gzip.decompress(raw_err)
+                except Exception:
+                    pass
+            elif 'deflate' in content_encoding:
+                try:
+                    raw_err = zlib.decompress(raw_err)
+                except Exception:
+                    pass
+            corpo = raw_err.decode('utf-8', errors='replace')
             logger.error('Omie HTTPError %s: %s', exc.code, corpo)
             try:
                 err = json.loads(corpo)
