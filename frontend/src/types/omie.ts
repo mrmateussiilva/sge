@@ -104,6 +104,7 @@ export interface ItemImportacaoPayload {
     estoque_minimo?: number | null
   }
   atualizar_custo: boolean
+  fator_conversao?: number
 }
 
 export interface ImportarNotaPayload {
@@ -126,6 +127,7 @@ export interface DeParaOmieItem {
   produto_tipo: string
   produto_unidade: string
   preco_custo: number
+  fator_conversao?: number
   atualizado_em: string
 }
 
@@ -173,3 +175,10 @@ export interface OmieSyncResponse {
   ultimo_sync_em: string
   ultimo_sync_status: string
 }
+
+export interface DanfeResponse {
+  ok: boolean
+  danfe_url?: string
+  erro?: string
+}
+

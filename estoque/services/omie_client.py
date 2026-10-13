@@ -168,7 +168,7 @@ class OmieClient:
             method='POST',
             headers={
                 'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.11.0; +https://sge.finderbit.com.br)',
+                'User-Agent': 'Mozilla/5.0 (compatible; SGE/1.12.0; +https://sge.finderbit.com.br)',
             },
         )
         try:
@@ -550,4 +550,28 @@ class OmieClient:
             'valor_total': valor_total,
             'notas': todas_notas,
         }
+
+    def consultar_danfe(self, n_id_receb: int | None = None, chave_nfe: str | None = None) -> str | None:
+        """
+        Consulta a Omie para obter o link do DANFE (PDF) da nota fiscal de recebimento.
+        Retorna a URL do DANFE ou None.
+        """
+        param = {}
+        if n_id_receb:
+            param['nIdReceb'] = int(n_id_receb)
+        elif chave_nfe:
+            param['cChaveNFe'] = str(chave_nfe).strip()
+        else:
+            return None
+
+        try:
+            resp = self._chamar(self.ENDPOINT_RECEBIMENTO, 'ConsultarRecebimento', param)
+            link = resp.get('cLinkDanfe') or resp.get('danfe') or resp.get('url_danfe')
+            if link and str(link).startswith('http'):
+                return str(link)
+        except Exception as exc:
+            logger.warning('Falha ao obter cLinkDanfe na Omie para %s: %s', param, exc)
+
+        return None
+
 

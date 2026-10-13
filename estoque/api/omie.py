@@ -22,6 +22,9 @@ from ..models import (
     OrdemCompra,
     Produto,
 )
+from notifications.events import NFE_RECEIVED, notify_nfe_received
+from notifications.models import NotificationLog
+
 from ..services.omie_client import OmieAPIError, OmieClient, OmieConfigError, limpar_cnpj
 from ..views.helpers import exigir_admin_json, json_erro, json_ok
 
@@ -305,6 +308,7 @@ def consultar_depara_omie_api(request):
             'produto_tipo': prod.tipo_produto,
             'produto_unidade': prod.unidade_medida,
             'preco_custo': float(prod.preco_custo or 0),
+            'fator_conversao': float(item.fator_conversao or 1.0),
             'atualizado_em': item.atualizado_em.strftime('%d/%m/%Y %H:%M'),
         }
         mapeamentos.append(dado)
@@ -426,6 +430,28 @@ def sincronizar_omie_api(request):
 
     novas_notas = [n for n in todas_notas if n.get('id_receb') not in importadas_ids]
 
+    # Disparar notificações para novas notas recebidas que ainda não foram alertadas
+    for n in novas_notas:
+        num = n.get('numero_nfe') or ''
+        forn = n.get('fornecedor_nome') or ''
+        v_tot = n.get('valor_total') or 0
+        chv = n.get('chave_nfe') or ''
+        ja_notificada = NotificationLog.objects.filter(
+            event=NFE_RECEIVED,
+            payload__data__numero_nfe=str(num),
+            payload__data__fornecedor=str(forn),
+        ).exists()
+        if not ja_notificada:
+            try:
+                notify_nfe_received(
+                    numero_nfe=str(num),
+                    fornecedor_nome=str(forn),
+                    valor_total=v_tot,
+                    chave_nfe=str(chv),
+                )
+            except Exception as notif_err:
+                logger.warning('Falha ao enviar notificação de nova NF-e %s: %s', num, notif_err)
+
     cfg, _ = ConfiguracaoOmie.objects.get_or_create(id=1)
     agora_tz = timezone.now()
     status_msg = f'{len(todas_notas)} NF-e consultadas ({len(novas_notas)} nova(s) pendente(s))'
@@ -440,6 +466,35 @@ def sincronizar_omie_api(request):
         ultimo_sync_em=agora_tz.strftime('%d/%m/%Y %H:%M'),
         ultimo_sync_status=status_msg,
     )
+
+
+@login_required
+def consultar_danfe_omie_api(request):
+    """
+    Retorna a URL do DANFE (PDF) da NF-e consultando a Omie ou gerando link oficial de acesso seguro.
+    """
+    id_receb_raw = request.GET.get('id_receb')
+    chave_nfe = str(request.GET.get('chave', '')).strip().replace(' ', '')
+
+    danfe_url = None
+    if id_receb_raw or chave_nfe:
+        try:
+            client = OmieClient()
+            danfe_url = client.consultar_danfe(
+                n_id_receb=int(id_receb_raw) if id_receb_raw else None,
+                chave_nfe=chave_nfe or None,
+            )
+        except Exception as exc:
+            logger.warning('Erro ao consultar DANFE na Omie: %s', exc)
+
+    if not danfe_url and chave_nfe and len(chave_nfe) == 44:
+        danfe_url = f'https://meudanfe.com.br/ver/{chave_nfe}'
+
+    if not danfe_url:
+        return json_erro('DANFE não disponível ou chave da NF-e não informada.', status=404)
+
+    return json_ok(danfe_url=danfe_url)
+
 
 
 
@@ -540,6 +595,17 @@ def importar_nota_omie_api(request, id_receb: int):
                 except (InvalidOperation, TypeError, ValueError):
                     val_unit_dec = Decimal('0.00')
 
+                fator_raw = it.get('fator_conversao')
+                try:
+                    fator_dec = Decimal(str(fator_raw)) if fator_raw not in (None, '') else Decimal('1.0')
+                    if fator_dec <= 0:
+                        fator_dec = Decimal('1.0')
+                except (InvalidOperation, TypeError, ValueError):
+                    fator_dec = Decimal('1.0')
+
+                qtd_efetiva = qtd_dec * fator_dec
+                custo_unit_efetivo = (val_unit_dec / fator_dec) if (val_unit_dec > 0 and fator_dec > 0) else val_unit_dec
+
                 if acao == 'criar':
                     np_data = it.get('novo_produto') or {}
                     desc = (np_data.get('descricao') or it.get('descricao_omie') or 'Novo Insumo').strip()
@@ -556,7 +622,7 @@ def importar_nota_omie_api(request, id_receb: int):
                         tipo_produto=tipo_prod,
                         unidade_medida=unid,
                         quantidade_base=Decimal('0.00'),
-                        preco_custo=val_unit_dec if val_unit_dec > 0 else None,
+                        preco_custo=custo_unit_efetivo if custo_unit_efetivo > 0 else None,
                         estoque_minimo=est_min,
                         fornecedor=fornecedor_obj,
                     )
@@ -580,29 +646,32 @@ def importar_nota_omie_api(request, id_receb: int):
                         return json_erro(f'Produto #{prod_id} não encontrado no SGE.', status=404)
 
                     # Atualizar preço de custo se marcado
-                    if it.get('atualizar_custo') and val_unit_dec > 0 and produto.preco_custo != val_unit_dec:
+                    if it.get('atualizar_custo') and custo_unit_efetivo > 0 and produto.preco_custo != custo_unit_efetivo:
                         custo_antigo = produto.preco_custo
-                        produto.preco_custo = val_unit_dec
+                        produto.preco_custo = custo_unit_efetivo
                         produto.save(update_fields=['preco_custo'])
                         HistoricoPreco.objects.create(
                             produto=produto,
                             preco_custo_antigo=custo_antigo,
-                            preco_custo_novo=val_unit_dec,
+                            preco_custo_novo=custo_unit_efetivo,
                             usuario=request.user,
                         )
 
-                # Registrar Movimentacao de Entrada
+                # Registrar Movimentacao de Entrada com quantidade e custo efetivos
                 obs = f'Importado da NF-e nº {numero_nfe or id_receb} ({fornecedor_nome}) | {it.get("descricao_omie", "")}'
+                if fator_dec != Decimal('1.0'):
+                    obs += f' [Fator {fator_dec}: {qtd_dec} => {qtd_efetiva} {produto.unidade_medida}]'
+
                 Movimentacao.objects.create(
                     produto=produto,
                     usuario=request.user,
                     tipo='ENTRADA',
                     motivo='COMPRA',
-                    quantidade=qtd_dec,
+                    quantidade=qtd_efetiva,
                     observacao=obs[:255],
                 )
 
-                # Salvar ou atualizar memória de De-Para do fornecedor
+                # Salvar ou atualizar memória de De-Para do fornecedor com fator de conversão
                 if cnpj_limpo:
                     cod_item = str(it.get('codigo_omie', '')).strip()
                     desc_item = str(it.get('descricao_omie', '')).strip()
@@ -615,13 +684,14 @@ def importar_nota_omie_api(request, id_receb: int):
                                 defaults={
                                     'fornecedor_nome': fornecedor_nome[:200],
                                     'produto': produto,
+                                    'fator_conversao': fator_dec,
                                 }
                             )
                         except Exception as depara_exc:
                             logger.warning('Falha ao gravar DeParaOmie para item "%s": %s', desc_item, depara_exc)
 
                 movimentacoes_criadas += 1
-                descricoes_importadas.append(f'{produto.descricao} (+{qtd_dec})')
+                descricoes_importadas.append(f'{produto.descricao} (+{qtd_efetiva})')
 
             # Registrar controle de NF-e importada
             ImportacaoNFe.objects.create(

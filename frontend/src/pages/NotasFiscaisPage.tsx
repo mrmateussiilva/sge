@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OmieConfigModal } from '@/components/omie/OmieConfigModal'
 import { OmieImportarModal } from '@/components/omie/OmieImportarModal'
-import type { OmieNotasResponse, NotaOmie, OmieConfigResponse, OmieSyncResponse } from '@/types'
+import type { OmieNotasResponse, NotaOmie, OmieConfigResponse, OmieSyncResponse, DanfeResponse } from '@/types'
 
 const PERIODOS_OPCOES = [
   { dias: 7, label: '7 dias' },
@@ -140,6 +140,30 @@ export function NotasFiscaisPage() {
     setChaveCopiada(chave)
     toast.success('Chave de acesso copiada!')
     setTimeout(() => setChaveCopiada(null), 2500)
+  }
+
+  const abrirDanfe = async (nota: NotaOmie) => {
+    if (!nota.chave_nfe && !nota.id_receb) {
+      toast.error('Chave de acesso da NF-e não disponível.')
+      return
+    }
+
+    try {
+      toast.info('Consultando DANFE da nota fiscal...')
+      const res = await api.get<DanfeResponse>(
+        `/api/v1/omie/danfe/?id_receb=${nota.id_receb || ''}&chave=${nota.chave_nfe || ''}`
+      )
+      if (res.ok && res.danfe_url) {
+        window.open(res.danfe_url, '_blank', 'noopener,noreferrer')
+        return
+      }
+    } catch {
+      if (nota.chave_nfe && nota.chave_nfe.length === 44) {
+        window.open(`https://meudanfe.com.br/ver/${nota.chave_nfe}`, '_blank', 'noopener,noreferrer')
+        return
+      }
+      toast.error('Não foi possível carregar o DANFE desta nota.')
+    }
   }
 
   const exportarCSV = () => {
@@ -661,6 +685,16 @@ export function NotasFiscaisPage() {
                             </Button>
                           )}
 
+                          {/* Botão Ver DANFE (PDF) */}
+                          <button
+                            onClick={() => abrirDanfe(nota)}
+                            title="Visualizar DANFE (PDF da NF-e)"
+                            className="p-2 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 text-xs"
+                          >
+                            <FileText className="w-4 h-4 text-primary" />
+                            <span className="hidden sm:inline font-medium">DANFE</span>
+                          </button>
+
                           {/* Botão Copiar Chave */}
                           <button
                             onClick={() => copiarChave(nota.chave_nfe)}
@@ -721,15 +755,26 @@ export function NotasFiscaisPage() {
                                 {nota.chave_nfe}
                               </code>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => copiarChave(nota.chave_nfe)}
-                              className="h-6 text-[11px] gap-1 shrink-0"
-                            >
-                              <Copy className="w-3 h-3" />
-                              Copiar
-                            </Button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => abrirDanfe(nota)}
+                                className="h-6 text-[11px] gap-1"
+                              >
+                                <FileText className="w-3 h-3 text-primary" />
+                                Ver DANFE
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copiarChave(nota.chave_nfe)}
+                                className="h-6 text-[11px] gap-1 shrink-0"
+                              >
+                                <Copy className="w-3 h-3" />
+                                Copiar
+                              </Button>
+                            </div>
                           </div>
                         )}
 

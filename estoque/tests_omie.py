@@ -500,3 +500,71 @@ class OmieAPITestCase(TestCase):
         self.assertIsNotNone(config.ultimo_sync_em)
         self.assertIn('1 NF-e consultadas', config.ultimo_sync_status)
 
+    def test_importar_nota_com_fator_conversao(self):
+        prod = Produto.objects.create(
+            descricao='Caneta Marcador Preta',
+            tipo_produto='OUTRO',
+            unidade_medida='UN',
+            quantidade_base=Decimal('5.00'),
+            preco_custo=Decimal('10.00'),
+        )
+
+        self.client.force_login(self.user)
+        url_importar = reverse('api_v1:omie_importar', kwargs={'id_receb': 9905})
+
+        # 2 Caixas a R$ 50,00 a caixa. Fator 10 (cada caixa tem 10 unidades).
+        # Entrada no estoque esperada: 2 * 10 = 20 UN. Novo saldo: 5 + 20 = 25 UN.
+        # Preço de custo unitário esperado: 50 / 10 = R$ 5,00.
+        payload = {
+            'numero_nfe': 'NF-9905',
+            'fornecedor_nome': 'DISTRIBUIDORA ESCOLAR',
+            'fornecedor_cnpj': '44.555.666/0001-77',
+            'itens': [
+                {
+                    'descricao_omie': 'CX CANETA MARCADOR C/ 10UN',
+                    'codigo_omie': 'CX-CANETA-10',
+                    'quantidade': 2,
+                    'unidade_omie': 'CX',
+                    'valor_unitario': 50.00,
+                    'fator_conversao': 10,
+                    'acao': 'vincular',
+                    'produto_id': prod.id,
+                    'atualizar_custo': True,
+                }
+            ],
+        }
+
+        resp = self.client.post(url_importar, payload, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+
+        prod.refresh_from_db()
+        self.assertEqual(prod.quantidade_base, Decimal('25.00'))
+        self.assertEqual(prod.preco_custo, Decimal('5.00'))
+
+        # Checar se o De-Para gravou o fator de conversão
+        depara = DeParaOmie.objects.get(
+            fornecedor_cnpj='44555666000177',
+            codigo_produto_fornecedor='CX-CANETA-10',
+        )
+        self.assertEqual(depara.fator_conversao, Decimal('10.0000'))
+
+        # Checar se a consulta de De-Para retorna o fator
+        url_depara = reverse('api_v1:omie_depara')
+        resp_get = self.client.get(f'{url_depara}?cnpj=44.555.666/0001-77')
+        self.assertEqual(resp_get.status_code, 200)
+        self.assertEqual(resp_get.json()['mapa']['cod:cx-caneta-10']['fator_conversao'], 10.0)
+
+    def test_consultar_danfe_api(self):
+        self.client.force_login(self.user)
+        url_danfe = reverse('api_v1:omie_danfe')
+
+        # Teste com chave válida
+        chave = '35261011222333000144550010000001001000000100'
+        resp = self.client.get(f'{url_danfe}?chave={chave}')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertIn(chave, data['danfe_url'])
+
+

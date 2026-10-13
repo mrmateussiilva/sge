@@ -7,6 +7,7 @@ from .models import NotificationEventConfig
 
 STOCK_LOW = 'stock.low'
 STOCK_ZERO = 'stock.zero'
+NFE_RECEIVED = 'nfe.received'
 SOURCE_SGE = 'sge'
 
 logger = logging.getLogger(__name__)
@@ -90,3 +91,34 @@ def notify_stock_threshold_crossed(
         severity=severity_map.get(event, 'info'),
         data=data,
     )
+
+
+def notify_nfe_received(
+    *,
+    numero_nfe: str,
+    fornecedor_nome: str,
+    valor_total: float | Decimal,
+    chave_nfe: str = '',
+):
+    """
+    Notifica destinatários configurados sobre uma nova NF-e de fornecedor recebida via Omie/SEFAZ.
+    """
+    config = get_event_config(NFE_RECEIVED)
+    if config is None or not config.enabled:
+        return False
+
+    data = {
+        'numero_nfe': str(numero_nfe or ''),
+        'fornecedor': str(fornecedor_nome or ''),
+        'valor_total': _to_payload_number(valor_total),
+        'chave_nfe': str(chave_nfe or ''),
+    }
+
+    return NotificationClient.send(
+        event=NFE_RECEIVED,
+        source=SOURCE_SGE,
+        audience=config.audience,
+        severity='info',
+        data=data,
+    )
+

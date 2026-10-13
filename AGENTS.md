@@ -115,15 +115,18 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
   - `GET /api/v1/omie/notas/`: lista recebimentos de fornecedores filtrados por período, termo de busca e status de importação no SGE, acompanhados de KPIs, top fornecedores e timeline de gastos.
   - `GET /api/v1/omie/configuracao/`: consulta se App Key e App Secret estão configurados (com máscara visual da chave, carimbo de último sync e toggle de auto-sync).
   - `POST /api/v1/omie/configuracao/salvar/`: permite que superusuários atualizem as credenciais e status de auto-sync via painel web com auditoria (`log_acao`).
-  - `GET /api/v1/omie/depara/`: consulta vínculos prévios de produtos de fornecedores para pré-preenchimento e badge visual "De-Para Lembrado".
+  - `GET /api/v1/omie/depara/`: consulta vínculos prévios de produtos de fornecedores para pré-preenchimento e badge visual "De-Para Lembrado", incluindo o `fator_conversao`.
   - `GET /api/v1/omie/ordens-pendentes/`: lista ordens de compra pendentes/aprovadas para que a importação da NF-e baixe automaticamente o pedido como `RECEBIDA`.
-  - `POST /api/v1/omie/sincronizar/`: dispara sincronização imediata com a SEFAZ/Omie e atualiza o carimbo de último sync.
+  - `GET /api/v1/omie/danfe/`: retorna URL de visualização do DANFE (PDF da NF-e) consultando a Omie ou gerando link oficial de acesso seguro.
+  - `POST /api/v1/omie/sincronizar/`: dispara sincronização imediata com a SEFAZ/Omie, gera notificações para novas notas e atualiza o carimbo de último sync.
 - **Sincronização em Segundo Plano (CLI)**:
-  - Comando `python manage.py sync_omie [--dias 30] [--forcar]`: ideal para agendamento via Cron/Systemd ou workers em background.
-- **Memória de De-Para (`DeParaOmie`)**:
-  - Toda importação com produto vinculado registra/atualiza a memória de De-Para pelo CNPJ do fornecedor e código/descrição da NF-e.
+  - Comando `python manage.py sync_omie [--dias 30] [--forcar]`: ideal para agendamento via Cron/Systemd ou workers em background, disparando o evento `nfe.received` para novos recebimentos.
+- **Memória de De-Para com Fator de Conversão (`DeParaOmie`)**:
+  - Registra/atualiza vínculos por CNPJ e código/descrição, lembrando o `fator_conversao` de embalagem (ex: 1 CX com 10 UN => fator 10, gerando entrada de 10 unidades e recalculando o custo unitário).
 - **Vínculo com Ordem de Compra (`ImportacaoNFe.ordem_compra`)**:
   - Ao importar uma NF-e vinculando uma Ordem de Compra, a ordem é marcada atomicamente como `RECEBIDA`, registrando histórico no log de auditoria.
+- **Notificações Automáticas (`nfe.received`)**:
+  - Disparadas no sino do SGE ao detectar notas fiscais emitidas contra a empresa ainda não conciliadas.
 
 ## Testes e Verificacao
 

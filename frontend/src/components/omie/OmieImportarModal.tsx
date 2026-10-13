@@ -46,6 +46,7 @@ interface ItemFormState {
   // Valores a importar
   quantidade: string
   valor_unitario: number
+  fator_conversao: string
   atualizar_custo: boolean
   // Se vincular
   produto_id: number | null
@@ -197,6 +198,7 @@ export function OmieImportarModal({
         unidade_omie: it.unidade || 'UN',
         quantidade: String(it.quantidade || 1),
         valor_unitario: it.preco_unitario || 0,
+        fator_conversao: String(deParaMatch?.fator_conversao || 1),
         atualizar_custo: true,
         produto_id: matchEncontrado ? matchEncontrado.id : null,
         produto_busca: '',
@@ -295,6 +297,7 @@ export function OmieImportarModal({
         quantidade: Number(it.quantidade),
         unidade_omie: it.unidade_omie,
         valor_unitario: it.valor_unitario,
+        fator_conversao: Number(it.fator_conversao) > 0 ? Number(it.fator_conversao) : 1,
         acao: it.acao,
         produto_id: it.acao === 'vincular' ? it.produto_id : null,
         novo_produto:
@@ -668,10 +671,10 @@ export function OmieImportarModal({
                         </>
                       )}
 
-                      {/* Quantidade a dar entrada */}
-                      <div className="md:col-span-3 space-y-1">
+                      {/* Quantidade faturada na NF-e */}
+                      <div className="md:col-span-2 space-y-1">
                         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                          Qtd Entrada <span className="text-destructive">*</span>
+                          Qtd NF-e <span className="text-destructive">*</span>
                         </label>
                         <Input
                           type="number"
@@ -686,9 +689,38 @@ export function OmieImportarModal({
                         />
                       </div>
 
+                      {/* Fator de Conversão de Embalagem (ex: 1 CX = 10 UN) */}
+                      <div className="md:col-span-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label
+                            className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block"
+                            title="Multiplicador de embalagem. Ex: 1 Caixa = 10 unidades"
+                          >
+                            Fator (×)
+                          </label>
+                          {Number(item.fator_conversao) > 1 && (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 rounded">
+                              ×{item.fator_conversao}
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0.0001"
+                          value={item.fator_conversao}
+                          onChange={(e) =>
+                            atualizarItem(item.idx, { fator_conversao: e.target.value })
+                          }
+                          placeholder="1"
+                          className="h-8 text-xs font-semibold"
+                          title="Multiplicador de embalagem (ex: 1 Caixa = 10 Unidades)"
+                        />
+                      </div>
+
                       {/* Checkbox Atualizar Custo */}
-                      <div className="md:col-span-3 flex items-center h-8 gap-2">
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <div className="md:col-span-2 flex flex-col justify-end h-8">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={item.atualizar_custo}
@@ -697,9 +729,28 @@ export function OmieImportarModal({
                             }
                             className="rounded border-input text-primary focus:ring-primary cursor-pointer"
                           />
-                          <span>Atualizar custo ({formatarMoeda(item.valor_unitario)})</span>
+                          <span className="truncate">Atualizar custo</span>
                         </label>
                       </div>
+
+                      {/* Resumo visual de conversão caso Fator != 1 */}
+                      {Number(item.fator_conversao) > 0 && Number(item.fator_conversao) !== 1 && (
+                        <div className="md:col-span-12 p-2 rounded-md bg-primary/5 border border-primary/20 text-xs flex items-center justify-between flex-wrap gap-2 text-primary font-medium">
+                          <span>
+                            📦 Conversão de Embalagem: {item.quantidade} {item.unidade_omie} × {item.fator_conversao} ={' '}
+                            <strong>
+                              {(Number(item.quantidade) * Number(item.fator_conversao)).toLocaleString('pt-BR')}{' '}
+                              no estoque
+                            </strong>
+                          </span>
+                          <span>
+                            Custo unitário recalculado:{' '}
+                            <strong>
+                              {formatarMoeda(item.valor_unitario / Number(item.fator_conversao))}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

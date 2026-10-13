@@ -7,6 +7,8 @@ from django.utils import timezone
 
 from estoque.models import ConfiguracaoOmie, ImportacaoNFe
 from estoque.services.omie_client import OmieClient, OmieConfigError, OmieAPIError
+from notifications.events import NFE_RECEIVED, notify_nfe_received
+from notifications.models import NotificationLog
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,28 @@ class Command(BaseCommand):
         )
 
         novas_notas = [n for n in todas_notas if n.get('id_receb') not in importadas_ids]
+
+        # Notificar sobre notas novas
+        for n in novas_notas:
+            num = n.get('numero_nfe') or ''
+            forn = n.get('fornecedor_nome') or ''
+            v_tot = n.get('valor_total') or 0
+            chv = n.get('chave_nfe') or ''
+            ja_notificada = NotificationLog.objects.filter(
+                event=NFE_RECEIVED,
+                payload__data__numero_nfe=str(num),
+                payload__data__fornecedor=str(forn),
+            ).exists()
+            if not ja_notificada:
+                try:
+                    notify_nfe_received(
+                        numero_nfe=str(num),
+                        fornecedor_nome=str(forn),
+                        valor_total=v_tot,
+                        chave_nfe=str(chv),
+                    )
+                except Exception as notif_err:
+                    logger.warning('Falha ao notificar nova NF-e %s: %s', num, notif_err)
 
         agora = timezone.now()
         status_msg = f'{len(todas_notas)} NF-e consultadas ({len(novas_notas)} nova(s) pendente(s))'

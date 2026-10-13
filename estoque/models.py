@@ -569,6 +569,13 @@ class DeParaOmie(models.Model):
     produto = models.ForeignKey(
         Produto, on_delete=models.CASCADE, related_name='depara_omie', verbose_name='Produto no SGE'
     )
+    fator_conversao = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('1.0000'),
+        verbose_name='Fator de Conversão',
+        help_text='Multiplicador para converter a unidade da NF-e para a unidade do estoque (ex: 1 CX com 10 UN = fator 10)',
+    )
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
 
