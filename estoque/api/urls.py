@@ -35,6 +35,7 @@ urlpatterns = [
     path('produtos/<int:id>/excluir/', views.excluir_produto, name='produtos_excluir'),
     path('produtos/atualiza-estoque/', views.atualiza_estoque, name='produtos_atualiza_estoque'),
     path('produtos/importar-csv/', views.importar_csv_produtos, name='produtos_importar_csv'),
+    path('produtos/acao-em-massa/', produtos.acao_em_massa_produtos_api, name='produtos_acao_em_massa'),
 
     # Movimentações
     path('movimentacoes/', movimentacoes.listar_movimentacoes_api, name='movimentacoes_lista'),

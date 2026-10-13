@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Calculator, Info } from 'lucide-react'
+import { Loader2, Calculator, Info, Plus } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CategoriaFormModal } from '@/components/categorias/CategoriaFormModal'
 import { api } from '@/api/client'
 import type { ProdutoItem } from '@/types'
 
@@ -70,6 +71,7 @@ export function ProdutoFormModal({
   const [unidadeMedida, setUnidadeMedida] = useState('M')
   const [fornecedorId, setFornecedorId] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
+  const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false)
   const [quantidadeBase, setQuantidadeBase] = useState('')
   const [estoqueMinimo, setEstoqueMinimo] = useState('')
   const [precoCusto, setPrecoCusto] = useState('')
@@ -183,7 +185,8 @@ export function ProdutoFormModal({
   }
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? `Editar: ${produtoParaEditar?.descricao}` : 'Cadastrar Novo Insumo'}
@@ -216,36 +219,28 @@ export function ProdutoFormModal({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Tipo de Insumo *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  Categoria
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setModalCategoriaOpen(true)}
+                  className="text-[11px] text-primary hover:underline font-medium inline-flex items-center gap-0.5"
+                >
+                  <Plus className="w-3 h-3" />
+                  Nova Categoria
+                </button>
+              </div>
               <select
-                value={tipoProduto}
-                onChange={(e) => handleTipoChange(e.target.value)}
+                value={categoriaId}
+                onChange={(e) => setCategoriaId(e.target.value)}
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                required
               >
-                {opcoes?.tipos_produto?.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Unidade Base de Estoque *
-              </label>
-              <select
-                value={unidadeMedida}
-                onChange={(e) => setUnidadeMedida(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                required
-              >
-                {opcoes?.unidades_medida?.map((u) => (
-                  <option key={u.value} value={u.value}>
-                    {u.label}
+                <option value="">Sem categoria</option>
+                {opcoes?.categorias?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
                   </option>
                 ))}
               </select>
@@ -270,18 +265,39 @@ export function ProdutoFormModal({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                Categoria
+              <label className="text-xs font-semibold text-muted-foreground block mb-1" title="Define se o cálculo de estoque é baseado em rolos de metros, vidros de litros ou unidades simples.">
+                Comportamento no Estoque *
               </label>
               <select
-                value={categoriaId}
-                onChange={(e) => setCategoriaId(e.target.value)}
+                value={tipoProduto}
+                onChange={(e) => handleTipoChange(e.target.value)}
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                required
               >
-                <option value="">Sem categoria</option>
-                {opcoes?.categorias?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
+                {opcoes?.tipos_produto?.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Define cálculo de rolos, vidros ou unidades no estoque.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                Unidade Base de Estoque *
+              </label>
+              <select
+                value={unidadeMedida}
+                onChange={(e) => setUnidadeMedida(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                required
+              >
+                {opcoes?.unidades_medida?.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
                   </option>
                 ))}
               </select>
@@ -483,5 +499,11 @@ export function ProdutoFormModal({
         </div>
       </form>}
     </Modal>
+
+      <CategoriaFormModal
+        isOpen={modalCategoriaOpen}
+        onClose={() => setModalCategoriaOpen(false)}
+      />
+    </>
   )
 }

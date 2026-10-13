@@ -1,15 +1,18 @@
 from decimal import Decimal
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, ExpressionWrapper, F, Q, Sum
 from django.shortcuts import get_object_or_404
 
+from ..log_utils import log_acao
 from ..models import Categoria, Fornecedor, HistoricoPreco, Movimentacao, Produto
 from ..services.estoque_status import filtro_baixo, filtro_zerado
 from ..services.units import dinheiro_br, embalagens_estimadas, formatar_quantidade, unidade_info
-from ..views.helpers import json_ok, produto_lista_vue_json
-from ..views.produtos import PRODUTO_TABS, ordenar_produtos
+from ..views.helpers import json_erro, json_ok, produto_lista_vue_json
+from ..views.produtos import ordenar_produtos
 
 
 def serializar_produto_detalhado(produto):
@@ -69,11 +72,23 @@ def listar_produtos_api(request):
 
     fornecedor_selecionado = (request.GET.get('fornecedor') or '').strip()
     categoria_selecionada = (request.GET.get('categoria') or '').strip()
-    aba = (request.GET.get('aba') or request.GET.get('tipo') or 'PAPEL').strip().upper()
+    tipo_selecionado = (request.GET.get('tipo') or '').strip().upper()
 
-    abas_validas = {tab['key'] for tab in PRODUTO_TABS}
-    if aba not in abas_validas and aba != 'TODOS':
-        aba = 'PAPEL'
+    aba_param = (request.GET.get('aba') or '').strip()
+    aba_upper = aba_param.upper()
+
+    if not aba_param or aba_upper in {'TODOS', 'ALL'}:
+        aba = 'TODOS'
+    elif aba_upper == 'SEM_CATEGORIA':
+        aba = 'SEM_CATEGORIA'
+    elif aba_param.isdigit():
+        aba = aba_param
+    elif aba_upper in {'PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO'}:
+        aba = aba_upper
+    else:
+        # Se for passado o nome de uma categoria
+        cat_match = Categoria.objects.filter(nome__iexact=aba_param).first()
+        aba = str(cat_match.id) if cat_match else 'TODOS'
 
     sort = (request.GET.get('sort') or 'descricao').strip()
     if sort not in {'descricao', 'fornecedor', 'categoria', 'metros_por_rolo', 'quantidade', 'preco_custo'}:
@@ -104,33 +119,72 @@ def listar_produtos_api(request):
         else:
             qs = qs.filter(fornecedor__nome=fornecedor_selecionado)
 
-    if categoria_selecionada:
+    if tipo_selecionado and tipo_selecionado in {'PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO'}:
+        qs = qs.filter(tipo_produto=tipo_selecionado)
+
+    if categoria_selecionada and aba == 'TODOS':
         if categoria_selecionada.isdigit():
             qs = qs.filter(categoria_id=int(categoria_selecionada))
+        elif categoria_selecionada.upper() == 'SEM_CATEGORIA':
+            qs = qs.filter(categoria__isnull=True)
         else:
-            qs = qs.filter(categoria__nome=categoria_selecionada)
+            qs = qs.filter(categoria__nome__iexact=categoria_selecionada)
 
-    # Contagens por aba
+    # Contagens agregadas por categoria sobre a base filtrada
     contagens = {
-        row['tipo_produto']: row
-        for row in qs.values('tipo_produto').annotate(
+        row['categoria_id']: row
+        for row in qs.values('categoria_id').annotate(
             count=Count('id'),
             critical=Count('id', filter=Q(quantidade_base__lte=0) | filtro_baixo()),
         )
     }
 
-    tabs = []
-    for tab in PRODUTO_TABS:
-        dados_tab = contagens.get(tab['key'], {})
+    total_todos = sum(row['count'] for row in contagens.values())
+    critico_todos = any(row['critical'] > 0 for row in contagens.values())
+
+    tabs = [
+        {
+            'key': 'TODOS',
+            'label': 'Todas',
+            'cor': None,
+            'active': aba == 'TODOS',
+            'count': total_todos,
+            'critical': critico_todos,
+        }
+    ]
+
+    for cat in Categoria.objects.all().order_by('nome'):
+        cat_key = str(cat.id)
+        dados_cat = contagens.get(cat.id, {})
         tabs.append({
-            **tab,
-            'active': tab['key'] == aba,
-            'count': dados_tab.get('count', 0),
-            'critical': dados_tab.get('critical', 0) > 0,
+            'key': cat_key,
+            'label': cat.nome,
+            'cor': cat.cor,
+            'active': aba == cat_key,
+            'count': dados_cat.get('count', 0),
+            'critical': dados_cat.get('critical', 0) > 0,
         })
 
-    # Filtrar produtos pela aba selecionada, exceto se TODOS foi pedido explicitamente
-    if aba != 'TODOS':
+    dados_sem_cat = contagens.get(None, {})
+    sem_cat_count = dados_sem_cat.get('count', 0)
+    if sem_cat_count > 0 or aba == 'SEM_CATEGORIA':
+        tabs.append({
+            'key': 'SEM_CATEGORIA',
+            'label': 'Sem Categoria',
+            'cor': '#94a3b8',
+            'active': aba == 'SEM_CATEGORIA',
+            'count': sem_cat_count,
+            'critical': dados_sem_cat.get('critical', 0) > 0,
+        })
+
+    # Filtrar produtos pela aba selecionada
+    if aba == 'TODOS':
+        produtos_filtrados = qs
+    elif aba == 'SEM_CATEGORIA':
+        produtos_filtrados = qs.filter(categoria__isnull=True)
+    elif aba.isdigit():
+        produtos_filtrados = qs.filter(categoria_id=int(aba))
+    elif aba in {'PAPEL', 'TECIDO', 'TINTA', 'AVIAMENTO', 'OUTRO'}:
         produtos_filtrados = qs.filter(tipo_produto=aba)
     else:
         produtos_filtrados = qs
@@ -179,6 +233,7 @@ def listar_produtos_api(request):
         filtros_aplicados={
             'busca': busca,
             'aba': aba,
+            'tipo': tipo_selecionado,
             'estoque': filtro_estoque,
             'fornecedor': fornecedor_selecionado,
             'categoria': categoria_selecionada,
@@ -274,3 +329,75 @@ def opcoes_produto_api(request):
         categorias=categorias,
         produtos=produtos,
     )
+
+
+@login_required
+def acao_em_massa_produtos_api(request):
+    """
+    Executa ações em lote em uma lista de produtos:
+    - alterar_categoria: define categoria para os produtos selecionados
+    - remover_categoria: desvincula a categoria dos produtos selecionados
+    """
+    if request.method != 'POST':
+        return json_erro('Método não permitido.', status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return json_erro('JSON inválido.')
+
+    ids = data.get('ids', [])
+    if not isinstance(ids, list) or not ids:
+        return json_erro('Selecione ao menos um produto para executar a ação.')
+
+    try:
+        produto_ids = [int(i) for i in ids]
+    except (ValueError, TypeError):
+        return json_erro('Lista de IDs inválida.')
+
+    if len(produto_ids) > 500:
+        return json_erro('Limite de 500 produtos por operação excedido.')
+
+    acao = str(data.get('acao', '')).strip().lower()
+
+    if acao == 'alterar_categoria':
+        categoria_id = data.get('categoria_id')
+        if not categoria_id:
+            return json_erro('Informe a categoria desejada.')
+        try:
+            categoria = Categoria.objects.get(id=int(categoria_id))
+        except (Categoria.DoesNotExist, ValueError, TypeError):
+            return json_erro('Categoria selecionada não foi encontrada.', status=404)
+
+        with transaction.atomic():
+            atualizados = Produto.objects.filter(id__in=produto_ids).update(categoria=categoria)
+            log_acao(
+                request.user,
+                'EDITAR',
+                f'Categoria "{categoria.nome}" aplicada em massa a {atualizados} produto(s).',
+                'Produto',
+                None,
+            )
+        return json_ok(
+            atualizados=atualizados,
+            mensagem=f'Categoria "{categoria.nome}" aplicada com sucesso a {atualizados} produto(s).',
+        )
+
+    elif acao == 'remover_categoria':
+        with transaction.atomic():
+            atualizados = Produto.objects.filter(id__in=produto_ids).update(categoria=None)
+            log_acao(
+                request.user,
+                'EDITAR',
+                f'Categoria removida em massa de {atualizados} produto(s).',
+                'Produto',
+                None,
+            )
+        return json_ok(
+            atualizados=atualizados,
+            mensagem=f'Categoria removida com sucesso de {atualizados} produto(s).',
+        )
+
+    else:
+        return json_erro(f'Ação "{acao}" não reconhecida.')
+

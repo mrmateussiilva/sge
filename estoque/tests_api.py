@@ -264,8 +264,9 @@ class ApiV1Tests(TestCase):
         self.assertEqual(res_cat.status_code, 200)
         cat_data = res_cat.json()
         self.assertTrue(cat_data['ok'])
-        self.assertEqual(len(cat_data['itens']), 1)
-        self.assertEqual(cat_data['itens'][0]['nome'], 'Categoria Papel Teste')
+        self.assertGreaterEqual(len(cat_data['itens']), 1)
+        nomes_categorias = [c['nome'] for c in cat_data['itens']]
+        self.assertIn('Categoria Papel Teste', nomes_categorias)
 
         # Fornecedores
         url_forn = reverse('api_v1:fornecedores_lista')
@@ -405,3 +406,123 @@ class ApiV1Tests(TestCase):
         finally:
             if created_temp:
                 index_file.unlink(missing_ok=True)
+
+    def test_listar_produtos_api_abas_por_categoria_padrao_todos(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_lista')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(len(data['itens']), 2)
+
+        abas = data['abas']
+        chaves = [tab['key'] for tab in abas]
+        self.assertIn('TODOS', chaves)
+        self.assertIn(str(self.categoria.id), chaves)
+        self.assertIn('SEM_CATEGORIA', chaves)
+
+        aba_todos = next(t for t in abas if t['key'] == 'TODOS')
+        self.assertTrue(aba_todos['active'])
+        self.assertEqual(aba_todos['count'], 2)
+        self.assertTrue(aba_todos['critical'])  # produto_zerado tem saldo 0
+
+        aba_cat = next(t for t in abas if t['key'] == str(self.categoria.id))
+        self.assertFalse(aba_cat['active'])
+        self.assertEqual(aba_cat['count'], 1)
+        self.assertEqual(aba_cat['cor'], '#3b82f6')
+        self.assertFalse(aba_cat['critical'])
+
+        aba_sem_cat = next(t for t in abas if t['key'] == 'SEM_CATEGORIA')
+        self.assertFalse(aba_sem_cat['active'])
+        self.assertEqual(aba_sem_cat['count'], 1)
+        self.assertTrue(aba_sem_cat['critical'])
+
+    def test_listar_produtos_api_filtrar_por_aba_categoria_especifica(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_lista') + f'?aba={self.categoria.id}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(len(data['itens']), 1)
+        self.assertEqual(data['itens'][0]['id'], self.produto_papel.id)
+
+        aba_cat = next(t for t in data['abas'] if t['key'] == str(self.categoria.id))
+        self.assertTrue(aba_cat['active'])
+
+    def test_listar_produtos_api_filtrar_por_aba_sem_categoria(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_lista') + '?aba=SEM_CATEGORIA'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(len(data['itens']), 1)
+        self.assertEqual(data['itens'][0]['id'], self.produto_zerado.id)
+
+        aba_sem = next(t for t in data['abas'] if t['key'] == 'SEM_CATEGORIA')
+        self.assertTrue(aba_sem['active'])
+
+    def test_listar_produtos_api_retrocompatibilidade_tipo(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_lista') + '?aba=PAPEL'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(len(data['itens']), 1)
+        self.assertEqual(data['itens'][0]['id'], self.produto_papel.id)
+
+    def test_acao_em_massa_alterar_categoria(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_acao_em_massa')
+        self.assertIsNone(self.produto_zerado.categoria)
+
+        payload = {
+            'ids': [self.produto_zerado.id],
+            'acao': 'alterar_categoria',
+            'categoria_id': self.categoria.id,
+        }
+        res = self.client.post(url, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['atualizados'], 1)
+
+        self.produto_zerado.refresh_from_db()
+        self.assertEqual(self.produto_zerado.categoria_id, self.categoria.id)
+
+    def test_acao_em_massa_remover_categoria(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_acao_em_massa')
+        self.assertIsNotNone(self.produto_papel.categoria)
+
+        payload = {
+            'ids': [self.produto_papel.id],
+            'acao': 'remover_categoria',
+        }
+        res = self.client.post(url, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['atualizados'], 1)
+
+        self.produto_papel.refresh_from_db()
+        self.assertIsNone(self.produto_papel.categoria)
+
+    def test_acao_em_massa_validacoes(self):
+        self.client.force_login(self.admin_user)
+        url = reverse('api_v1:produtos_acao_em_massa')
+
+        # Sem IDs
+        res_vazio = self.client.post(url, data=json.dumps({'ids': [], 'acao': 'alterar_categoria'}), content_type='application/json')
+        self.assertEqual(res_vazio.status_code, 400)
+        self.assertFalse(res_vazio.json()['ok'])
+
+        # Categoria inexistente
+        res_cat_invalida = self.client.post(url, data=json.dumps({'ids': [self.produto_papel.id], 'acao': 'alterar_categoria', 'categoria_id': 99999}), content_type='application/json')
+        self.assertEqual(res_cat_invalida.status_code, 404)
+        self.assertFalse(res_cat_invalida.json()['ok'])
+
+

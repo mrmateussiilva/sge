@@ -58,6 +58,7 @@ interface ItemFormState {
   novo_tipo_produto: string
   novo_unidade_medida: string
   novo_estoque_minimo: string
+  novo_categoria_id?: string
 }
 
 function formatarMoeda(val: number | null | undefined): string {
@@ -105,6 +106,7 @@ export function OmieImportarModal({
   const queryClient = useQueryClient()
   const [itensState, setItensState] = useState<ItemFormState[]>([])
   const [ordemCompraId, setOrdemCompraId] = useState<number | null>(null)
+  const [categoriaMassaId, setCategoriaMassaId] = useState('')
 
   // Busca opções de produtos (tipos, unidades, lista completa de produtos)
   const { data: opcoes, isLoading: carregandoOpcoes } = useQuery<OpcoesProduto>({
@@ -208,6 +210,7 @@ export function OmieImportarModal({
         novo_tipo_produto: tipoSugerido,
         novo_unidade_medida: unidadeSugerida,
         novo_estoque_minimo: '',
+        novo_categoria_id: '',
       }
     })
 
@@ -307,6 +310,7 @@ export function OmieImportarModal({
                 tipo_produto: it.novo_tipo_produto,
                 unidade_medida: it.novo_unidade_medida,
                 estoque_minimo: it.novo_estoque_minimo ? Number(it.novo_estoque_minimo) : null,
+                categoria_id: it.novo_categoria_id ? Number(it.novo_categoria_id) : null,
               }
             : undefined,
         atualizar_custo: it.atualizar_custo,
@@ -448,7 +452,78 @@ export function OmieImportarModal({
             <span className="text-xs">Carregando catálogo de insumos para correspondência...</span>
           </div>
         ) : (
-          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+          <div className="space-y-4">
+            {/* Barra de Ações em Massa na NF-e */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-foreground">
+                  {itensState.length} item(ns) na nota:
+                </span>
+                <span className="text-muted-foreground">
+                  {itensState.filter((it) => it.acao === 'vincular' && it.produto_id).length} vinculado(s) •{' '}
+                  {itensState.filter((it) => !it.produto_id && it.acao !== 'criar').length} pendente(s) •{' '}
+                  {itensState.filter((it) => it.acao === 'criar').length} a criar
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={categoriaMassaId}
+                  onChange={(e) => {
+                    const catId = e.target.value
+                    setCategoriaMassaId(catId)
+                    if (catId) {
+                      setItensState((prev) =>
+                        prev.map((it) =>
+                          it.acao === 'criar' ? { ...it, novo_categoria_id: catId } : it
+                        )
+                      )
+                    }
+                  }}
+                  className="h-8 px-2 text-xs rounded-md border border-input bg-card text-foreground"
+                >
+                  <option value="">Aplicar Categoria aos Novos...</option>
+                  {opcoes?.categorias?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+
+                {itensState.some((it) => !it.produto_id && it.acao !== 'criar') && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      let count = 0
+                      setItensState((prev) =>
+                        prev.map((it) => {
+                          if (!it.produto_id && it.acao !== 'criar') {
+                            count++
+                            return {
+                              ...it,
+                              acao: 'criar',
+                              novo_categoria_id: categoriaMassaId || it.novo_categoria_id || '',
+                            }
+                          }
+                          return it
+                        })
+                      )
+                      toast.success(
+                        `${count} item(ns) não vinculados marcados para cadastrar como novo insumo!`
+                      )
+                    }}
+                    className="h-8 text-xs gap-1.5 bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 shadow-xs"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Criar Todos Não Vinculados</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
             {itensState.map((item) => {
               const produtosFiltrados = produtosCadastrados.filter((p) => {
                 if (!item.produto_busca) return true
@@ -621,6 +696,26 @@ export function OmieImportarModal({
 
                           <div className="md:col-span-2 space-y-1">
                             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                              Categoria
+                            </label>
+                            <select
+                              value={item.novo_categoria_id || ''}
+                              onChange={(e) =>
+                                atualizarItem(item.idx, { novo_categoria_id: e.target.value })
+                              }
+                              className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background"
+                            >
+                              <option value="">Sem categoria</option>
+                              {opcoes?.categorias?.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.nome}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-1 space-y-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                               Tipo
                             </label>
                             <select
@@ -628,7 +723,7 @@ export function OmieImportarModal({
                               onChange={(e) =>
                                 atualizarItem(item.idx, { novo_tipo_produto: e.target.value })
                               }
-                              className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background"
+                              className="w-full h-8 px-1 text-xs rounded-md border border-input bg-background"
                             >
                               {(opcoes?.tipos_produto || [
                                 { value: 'TECIDO', label: 'Tecido' },
@@ -639,31 +734,6 @@ export function OmieImportarModal({
                               ]).map((t: { value: string; label: string }) => (
                                 <option key={t.value} value={t.value}>
                                   {t.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="md:col-span-1 space-y-1">
-                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                              UN
-                            </label>
-                            <select
-                              value={item.novo_unidade_medida}
-                              onChange={(e) =>
-                                atualizarItem(item.idx, { novo_unidade_medida: e.target.value })
-                              }
-                              className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background"
-                            >
-                              {(opcoes?.unidades_medida || [
-                                { value: 'M', label: 'Metros' },
-                                { value: 'L', label: 'Litros' },
-                                { value: 'UN', label: 'Unidade' },
-                                { value: 'KG', label: 'Kg' },
-                                { value: 'RL', label: 'Rolo' },
-                              ]).map((u: { value: string; label: string }) => (
-                                <option key={u.value} value={u.value}>
-                                  {u.label}
                                 </option>
                               ))}
                             </select>
@@ -756,6 +826,7 @@ export function OmieImportarModal({
                 </div>
               )
             })}
+            </div>
           </div>
         )}
 

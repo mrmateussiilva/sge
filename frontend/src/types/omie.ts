@@ -102,6 +102,7 @@ export interface ItemImportacaoPayload {
     tipo_produto: string
     unidade_medida: string
     estoque_minimo?: number | null
+    categoria_id?: number | null
   }
   atualizar_custo: boolean
   fator_conversao?: number

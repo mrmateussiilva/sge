@@ -74,6 +74,7 @@ export function CategoriaFormModal({
         queryClient.invalidateQueries({ queryKey: ['categorias'] })
         queryClient.invalidateQueries({ queryKey: ['produtos'] })
         queryClient.invalidateQueries({ queryKey: ['produtos_opcoes'] })
+        queryClient.invalidateQueries({ queryKey: ['opcoes-produto'] })
         onClose()
       } else {
         setErro(res.erro || 'Erro ao salvar categoria.')

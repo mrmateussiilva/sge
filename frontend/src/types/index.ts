@@ -55,7 +55,8 @@ export interface ProdutoItem {
 export interface TabProduto {
   key: string
   label: string
-  icon: string
+  icon?: string
+  cor?: string | null
   active: boolean
   count: number
   critical: boolean

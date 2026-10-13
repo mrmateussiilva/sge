@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from ..log_utils import log_acao
 from ..models import (
+    Categoria,
     ConfiguracaoOmie,
     DeParaOmie,
     Fornecedor,
@@ -617,10 +618,19 @@ def importar_nota_omie_api(request, id_receb: int):
                     except (InvalidOperation, TypeError, ValueError):
                         est_min = None
 
+                    cat_id_raw = np_data.get('categoria_id')
+                    cat_obj = None
+                    if cat_id_raw:
+                        try:
+                            cat_obj = Categoria.objects.filter(id=int(cat_id_raw)).first()
+                        except (ValueError, TypeError):
+                            cat_obj = None
+
                     produto = Produto(
                         descricao=desc,
                         tipo_produto=tipo_prod,
                         unidade_medida=unid,
+                        categoria=cat_obj,
                         quantidade_base=Decimal('0.00'),
                         preco_custo=custo_unit_efetivo if custo_unit_efetivo > 0 else None,
                         estoque_minimo=est_min,

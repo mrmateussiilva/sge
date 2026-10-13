@@ -15,6 +15,9 @@ import {
   ChevronRight,
   Truck,
   Loader2,
+  FolderEdit,
+  FolderMinus,
+  X,
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,13 +26,14 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { MovimentacaoModal } from '@/components/movimentacoes/MovimentacaoModal'
 import { ProdutoFormModal } from '@/components/produtos/ProdutoFormModal'
+import { CategoriaFormModal } from '@/components/categorias/CategoriaFormModal'
 import type { ProdutosResponse, ProdutoItem } from '@/types'
 
 export function ProdutosPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const aba = searchParams.get('aba') || 'PAPEL'
+  const aba = searchParams.get('aba') || 'TODOS'
   const filtroEstoque = searchParams.get('filtro') || ''
   const page = Number(searchParams.get('page')) || 1
 
@@ -41,7 +45,13 @@ export function ProdutosPage() {
 
   // Estados de Modais
   const [modalFormOpen, setModalFormOpen] = useState(false)
+  const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false)
+  const [modalMassaCategoriaOpen, setModalMassaCategoriaOpen] = useState(false)
+  const [categoriaMassaSelecionada, setCategoriaMassaSelecionada] = useState('')
   const [produtoEditando, setProdutoEditando] = useState<ProdutoItem | null>(null)
+
+  // Seleção em massa de produtos
+  const [selecionados, setSelecionados] = useState<number[]>([])
 
   const [modalMovOpen, setModalMovOpen] = useState(false)
   const [produtoMovimentando, setProdutoMovimentando] = useState<ProdutoItem | null>(null)
@@ -93,6 +103,46 @@ export function ProdutosPage() {
       toast.error(err.message || 'Erro ao excluir produto.')
     },
   })
+
+  // Mutation de ação em massa (alterar ou remover categoria)
+  const acaoEmMassaMutation = useMutation({
+    mutationFn: (body: { ids: number[]; acao: string; categoria_id?: number | null }) =>
+      api.post<{ ok: boolean; mensagem: string; atualizados: number }>(
+        '/api/v1/produtos/acao-em-massa/',
+        body
+      ),
+    onSuccess: (res) => {
+      toast.success(res.mensagem || 'Ação em massa executada com sucesso!')
+      queryClient.invalidateQueries({ queryKey: ['produtos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setSelecionados([])
+      setModalMassaCategoriaOpen(false)
+      setCategoriaMassaSelecionada('')
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.erro || err.message || 'Erro ao executar ação em massa.'
+      toast.error(msg)
+    },
+  })
+
+  const todosIdsNaPagina = data?.itens?.map((p) => p.id) || []
+  const todosSelecionados =
+    todosIdsNaPagina.length > 0 && todosIdsNaPagina.every((id) => selecionados.includes(id))
+  const algumSelecionado = todosIdsNaPagina.some((id) => selecionados.includes(id))
+
+  function handleToggleItem(id: number) {
+    setSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  function handleToggleTodos() {
+    if (todosSelecionados) {
+      setSelecionados((prev) => prev.filter((id) => !todosIdsNaPagina.includes(id)))
+    } else {
+      setSelecionados((prev) => Array.from(new Set([...prev, ...todosIdsNaPagina])))
+    }
+  }
 
   function handleOpenNovo() {
     setProdutoEditando(null)
@@ -169,18 +219,25 @@ export function ProdutosPage() {
         </Button>
       </div>
 
-      {/* Tabs por tipo */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border">
+      {/* Tabs por Categoria */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border scrollbar-thin">
         {data?.abas?.map((tab) => (
           <button
             key={tab.key}
             onClick={() => handleAbaChange(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
               aba === tab.key
                 ? 'border-primary text-primary font-semibold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
+            {tab.cor && (
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: tab.cor }}
+                aria-hidden="true"
+              />
+            )}
             <span>{tab.label}</span>
             <span
               className={`text-xs px-2 py-0.5 rounded-full ${
@@ -196,6 +253,16 @@ export function ProdutosPage() {
             )}
           </button>
         ))}
+
+        <button
+          type="button"
+          onClick={() => setModalCategoriaOpen(true)}
+          className="flex items-center gap-1 px-3 py-1.5 ml-2 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-muted/60 rounded-md transition-colors whitespace-nowrap"
+          title="Cadastrar nova categoria de insumo"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Nova Categoria</span>
+        </button>
       </div>
 
       {/* Search and Filters Bar */}
@@ -265,6 +332,59 @@ export function ProdutosPage() {
         </div>
       )}
 
+      {/* Barra Flutuante de Ações em Massa */}
+      {selecionados.length > 0 && (
+        <div className="sticky top-4 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-card border-2 border-primary/40 rounded-xl shadow-lg animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="bg-primary text-primary-foreground font-bold text-xs px-2.5 py-1">
+              {selecionados.length} selecionado(s)
+            </Badge>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              de {data?.resumo?.total_itens || 0} produtos no catálogo
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setModalMassaCategoriaOpen(true)}
+              disabled={acaoEmMassaMutation.isPending}
+              className="gap-1.5 text-xs shadow-xs"
+            >
+              <FolderEdit className="w-3.5 h-3.5" />
+              <span>Alterar Categoria</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (window.confirm(`Deseja desvincular a categoria de ${selecionados.length} produto(s) selecionado(s)?`)) {
+                  acaoEmMassaMutation.mutate({ ids: selecionados, acao: 'remover_categoria' })
+                }
+              }}
+              disabled={acaoEmMassaMutation.isPending}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/30"
+            >
+              <FolderMinus className="w-3.5 h-3.5" />
+              <span>Remover Categoria</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelecionados([])}
+              disabled={acaoEmMassaMutation.isPending}
+              className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Desmarcar</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Lista / Tabela */}
       <Card>
         {/* Barra de progresso sutil para re-fetches (troca de aba, filtro, paginação) */}
@@ -297,6 +417,18 @@ export function ProdutosPage() {
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs uppercase bg-muted/40 text-muted-foreground border-b border-border">
                     <tr>
+                      <th className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={todosSelecionados}
+                          ref={(input) => {
+                            if (input) input.indeterminate = algumSelecionado && !todosSelecionados
+                          }}
+                          onChange={handleToggleTodos}
+                          className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+                          title="Selecionar todos da página"
+                        />
+                      </th>
                       <th className="px-4 py-3 font-semibold">Descrição</th>
                       <th className="px-4 py-3 font-semibold">Fornecedor</th>
                       <th className="px-4 py-3 font-semibold">Saldo Atual</th>
@@ -307,15 +439,27 @@ export function ProdutosPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {data?.itens?.map((p) => (
+                    {data?.itens?.map((p) => {
+                      const isItemSelecionado = selecionados.includes(p.id)
+                      return (
                       <tr
                         key={p.id}
                         className={`transition-colors group ${
-                          recemAlteradoId === p.id
+                          isItemSelecionado
+                            ? 'bg-primary/5 ring-1 ring-primary/20'
+                            : recemAlteradoId === p.id
                             ? 'bg-emerald-500/10 ring-1 ring-emerald-500/40'
                             : 'hover:bg-muted/30'
                         }`}
                       >
+                        <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isItemSelecionado}
+                            onChange={() => handleToggleItem(p.id)}
+                            className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <Link
                             to={`/produtos/${p.id}`}
@@ -406,7 +550,8 @@ export function ProdutosPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -420,29 +565,40 @@ export function ProdutosPage() {
                       : p.status_estoque === 'BAIXO'
                       ? 'border-l-amber-500'
                       : 'border-l-emerald-500'
+                  const isItemSelecionado = selecionados.includes(p.id)
 
                   return (
                     <div
                       key={p.id}
-                      className={`p-4 space-y-3 bg-card border-l-4 ${borderStatusColor}`}
+                      className={`p-4 space-y-3 bg-card border-l-4 ${borderStatusColor} ${
+                        isItemSelecionado ? 'bg-primary/5 ring-1 ring-primary/20' : ''
+                      }`}
                     >
-                      <div>
-                        <Link
-                          to={`/produtos/${p.id}`}
-                          className="font-bold text-base text-foreground hover:text-primary transition-colors leading-snug block"
-                        >
-                          {p.descricao}
-                        </Link>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                          <Truck className="w-3 h-3" />
-                          <span>{p.fornecedor || 'Sem fornecedor'}</span>
-                          {p.embalagens_estimadas > 0 && (
-                            <span>
-                              • {p.embalagens_estimadas}{' '}
-                              {p.tipo_produto === 'TINTA' ? 'vidros' : 'rolos'}
-                            </span>
-                          )}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isItemSelecionado}
+                          onChange={() => handleToggleItem(p.id)}
+                          className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            to={`/produtos/${p.id}`}
+                            className="font-bold text-base text-foreground hover:text-primary transition-colors leading-snug block"
+                          >
+                            {p.descricao}
+                          </Link>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <Truck className="w-3 h-3" />
+                            <span>{p.fornecedor || 'Sem fornecedor'}</span>
+                            {p.embalagens_estimadas > 0 && (
+                              <span>
+                                • {p.embalagens_estimadas}{' '}
+                                {p.tipo_produto === 'TINTA' ? 'vidros' : 'rolos'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-muted/40 text-xs">
@@ -629,6 +785,75 @@ export function ProdutosPage() {
                 </>
               ) : (
                 <span>Confirmar Exclusão</span>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Criação Rápida de Categoria */}
+      <CategoriaFormModal
+        isOpen={modalCategoriaOpen}
+        onClose={() => setModalCategoriaOpen(false)}
+      />
+
+      {/* Modal de Alteração de Categoria em Massa */}
+      <Modal
+        isOpen={modalMassaCategoriaOpen}
+        onClose={() => setModalMassaCategoriaOpen(false)}
+        title="Alterar Categoria em Massa"
+        description={`Selecione a categoria que será aplicada a ${selecionados.length} produto(s) selecionado(s).`}
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">
+              Nova Categoria *
+            </label>
+            <select
+              value={categoriaMassaSelecionada}
+              onChange={(e) => setCategoriaMassaSelecionada(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-input bg-card text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Selecione uma categoria...</option>
+              {data?.abas
+                ?.filter((tab) => tab.key !== 'TODOS' && tab.key !== 'SEM_CATEGORIA')
+                .map((tab) => (
+                  <option key={tab.key} value={tab.key}>
+                    {tab.label}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModalMassaCategoriaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={!categoriaMassaSelecionada || acaoEmMassaMutation.isPending}
+              onClick={() => {
+                if (!categoriaMassaSelecionada) return
+                acaoEmMassaMutation.mutate({
+                  ids: selecionados,
+                  acao: 'alterar_categoria',
+                  categoria_id: Number(categoriaMassaSelecionada),
+                })
+              }}
+              className="gap-1.5"
+            >
+              {acaoEmMassaMutation.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Aplicando...</span>
+                </>
+              ) : (
+                <span>Aplicar Categoria ({selecionados.length})</span>
               )}
             </Button>
           </div>
