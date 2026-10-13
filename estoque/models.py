@@ -497,6 +497,14 @@ class ImportacaoNFe(models.Model):
         blank=True,
         verbose_name='Importado por',
     )
+    ordem_compra = models.ForeignKey(
+        'OrdemCompra',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='importacoes_nfe',
+        verbose_name='Ordem de Compra Vinculada',
+    )
     observacao = models.CharField(max_length=500, blank=True, default='')
 
     class Meta:
@@ -510,11 +518,23 @@ class ImportacaoNFe(models.Model):
 
 class ConfiguracaoOmie(models.Model):
     """
-    Guarda as credenciais da API Omie (App Key e App Secret) configuradas via interface.
+    Guarda as credenciais da API Omie (App Key e App Secret) configuradas via interface
+    e o controle de sincronização automática em segundo plano.
     """
 
     app_key = models.CharField(max_length=100, blank=True, default='', verbose_name='App Key Omie')
     app_secret = EncryptedCharField(max_length=255, blank=True, default='', verbose_name='App Secret Omie')
+    auto_sync_ativo = models.BooleanField(
+        default=True,
+        verbose_name='Sincronização Automática Ativa',
+        help_text='Ativa rotina em segundo plano para consultar novas notas fiscais na Omie.',
+    )
+    ultimo_sync_em = models.DateTimeField(
+        null=True, blank=True, verbose_name='Última Sincronização em'
+    )
+    ultimo_sync_status = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='Status do Último Sync'
+    )
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -530,3 +550,41 @@ class ConfiguracaoOmie(models.Model):
 
     def __str__(self):
         return f'Configuração Omie (App Key: {self.app_key[:6]}...)'
+
+
+class DeParaOmie(models.Model):
+    """
+    Memória de De-Para entre itens de fornecedores no Omie e Produtos no SGE.
+    Permite auto-vincular compras futuras pelo CNPJ do fornecedor e código/descrição do item.
+    """
+
+    fornecedor_cnpj = models.CharField(max_length=18, db_index=True, verbose_name='CNPJ do Fornecedor')
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default='', verbose_name='Nome do Fornecedor')
+    codigo_produto_fornecedor = models.CharField(
+        max_length=100, blank=True, default='', db_index=True, verbose_name='Código no Fornecedor'
+    )
+    descricao_produto_fornecedor = models.CharField(
+        max_length=300, db_index=True, verbose_name='Descrição no Fornecedor'
+    )
+    produto = models.ForeignKey(
+        Produto, on_delete=models.CASCADE, related_name='depara_omie', verbose_name='Produto no SGE'
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'De-Para Omie'
+        verbose_name_plural = 'De-Para Omie'
+        indexes = [
+            models.Index(fields=['fornecedor_cnpj', 'codigo_produto_fornecedor'], name='depara_cnpj_cod_idx'),
+            models.Index(fields=['fornecedor_cnpj', 'descricao_produto_fornecedor'], name='depara_cnpj_desc_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['fornecedor_cnpj', 'codigo_produto_fornecedor', 'descricao_produto_fornecedor'],
+                name='depara_cnpj_item_unico',
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.fornecedor_nome or self.fornecedor_cnpj} -> {self.produto.descricao}'

@@ -11,6 +11,7 @@ import {
   Building,
   Calendar,
   Search,
+  ShoppingCart,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
@@ -18,7 +19,14 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import type { NotaOmie, ImportarNotaPayload, OpcoesProduto, ProdutoCompacto } from '@/types'
+import type {
+  NotaOmie,
+  ImportarNotaPayload,
+  OpcoesProduto,
+  ProdutoCompacto,
+  DeParaResponse,
+  OrdensPendentesResponse,
+} from '@/types'
 
 interface OmieImportarModalProps {
   nota: NotaOmie | null
@@ -43,6 +51,7 @@ interface ItemFormState {
   produto_id: number | null
   produto_busca: string
   sugestao_automatica: boolean
+  de_para_reconhecido: boolean
   // Se criar
   novo_descricao: string
   novo_tipo_produto: string
@@ -94,6 +103,7 @@ export function OmieImportarModal({
 }: OmieImportarModalProps) {
   const queryClient = useQueryClient()
   const [itensState, setItensState] = useState<ItemFormState[]>([])
+  const [ordemCompraId, setOrdemCompraId] = useState<number | null>(null)
 
   // Busca opções de produtos (tipos, unidades, lista completa de produtos)
   const { data: opcoes, isLoading: carregandoOpcoes } = useQuery<OpcoesProduto>({
@@ -103,14 +113,33 @@ export function OmieImportarModal({
     staleTime: 1000 * 60 * 5,
   })
 
+  // Memória de De-Para deste fornecedor
+  const { data: deParaData } = useQuery<DeParaResponse>({
+    queryKey: ['omie-depara', nota?.fornecedor_cnpj],
+    queryFn: () => api.get<DeParaResponse>(`/api/v1/omie/depara/?cnpj=${nota?.fornecedor_cnpj || ''}`),
+    enabled: isOpen && Boolean(nota?.fornecedor_cnpj),
+    staleTime: 1000 * 60 * 5,
+  })
+
+  // Ordens de Compra em aberto deste fornecedor
+  const { data: ordensData } = useQuery<OrdensPendentesResponse>({
+    queryKey: ['omie-ordens-pendentes', nota?.fornecedor_cnpj],
+    queryFn: () => api.get<OrdensPendentesResponse>(`/api/v1/omie/ordens-pendentes/?cnpj=${nota?.fornecedor_cnpj || ''}`),
+    enabled: isOpen,
+    staleTime: 1000 * 60 * 2,
+  })
+
   const produtosCadastrados: ProdutoCompacto[] = useMemo(() => opcoes?.produtos || [], [opcoes?.produtos])
 
-  // Inicializa o estado dos itens ao abrir a nota e carregar produtos
+  // Inicializa o estado dos itens ao abrir a nota e carregar produtos/de-para
   useEffect(() => {
     if (!nota || !isOpen) {
       setItensState([])
+      setOrdemCompraId(null)
       return
     }
+
+    const mapaDePara = deParaData?.mapa || {}
 
     const novosItens: ItemFormState[] = (nota.itens || []).map((it, idx) => {
       const descLimpa = (it.descricao || '').trim()
@@ -118,24 +147,32 @@ export function OmieImportarModal({
       const descLower = descLimpa.toLowerCase()
       const codLower = codLimpo.toLowerCase()
 
-      // Tenta encontrar um produto correspondente no estoque (Auto-match inteligente)
       let matchEncontrado: { id: number; descricao: string } | null = null
+      let deParaReconhecido = false
 
-      if (produtosCadastrados.length > 0) {
-        // 1. Busca exata por código se houver
+      // 1. Tenta De-Para persistido com prioridade máxima
+      const deParaPorCod = codLower ? mapaDePara[`cod:${codLower}`] : null
+      const deParaPorDesc = descLower ? mapaDePara[`desc:${descLower}`] : null
+      const deParaMatch = deParaPorCod || deParaPorDesc
+
+      if (deParaMatch) {
+        matchEncontrado = { id: deParaMatch.produto_id, descricao: deParaMatch.produto_descricao }
+        deParaReconhecido = true
+      } else if (produtosCadastrados.length > 0) {
+        // 2. Busca exata por código se houver no cadastro
         if (codLower) {
           matchEncontrado = produtosCadastrados.find((p) =>
             p.descricao.toLowerCase().includes(codLower)
           ) || null
         }
-        // 2. Busca por descrição contida ou igual
+        // 3. Busca por descrição contida ou igual
         if (!matchEncontrado && descLower) {
           matchEncontrado = produtosCadastrados.find((p) => {
             const pDesc = p.descricao.toLowerCase()
             return pDesc === descLower || pDesc.includes(descLower) || descLower.includes(pDesc)
           }) || null
         }
-        // 3. Busca por palavras-chave principais (ex: 'dry fit branco')
+        // 4. Busca por palavras-chave principais (ex: 'dry fit branco')
         if (!matchEncontrado && descLower) {
           const palavras = descLower.split(/\s+/).filter((w) => w.length > 3)
           if (palavras.length >= 2) {
@@ -164,6 +201,7 @@ export function OmieImportarModal({
         produto_id: matchEncontrado ? matchEncontrado.id : null,
         produto_busca: '',
         sugestao_automatica: Boolean(matchEncontrado),
+        de_para_reconhecido: deParaReconhecido,
         novo_descricao: descLimpa,
         novo_tipo_produto: tipoSugerido,
         novo_unidade_medida: unidadeSugerida,
@@ -172,7 +210,7 @@ export function OmieImportarModal({
     })
 
     setItensState(novosItens)
-  }, [nota, isOpen, produtosCadastrados])
+  }, [nota, isOpen, produtosCadastrados, deParaData])
 
   // Mutation de importação
   const importarMutation = useMutation({
@@ -186,6 +224,9 @@ export function OmieImportarModal({
     onSuccess: (data) => {
       toast.success(data.mensagem || 'Entradas de estoque registradas com sucesso!')
       queryClient.invalidateQueries({ queryKey: ['omie-notas'] })
+      queryClient.invalidateQueries({ queryKey: ['omie-depara'] })
+      queryClient.invalidateQueries({ queryKey: ['omie-ordens-pendentes'] })
+      queryClient.invalidateQueries({ queryKey: ['ordens'] })
       queryClient.invalidateQueries({ queryKey: ['produtos'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['movimentacoes'] })
@@ -247,6 +288,7 @@ export function OmieImportarModal({
       fornecedor_nome: nota.fornecedor_nome || nota.fornecedor_razao || '',
       fornecedor_cnpj: nota.fornecedor_cnpj || '',
       chave_nfe: nota.chave_nfe || '',
+      ordem_compra_id: ordemCompraId,
       itens: itensSelecionados.map((it) => ({
         descricao_omie: it.descricao_omie,
         codigo_omie: it.codigo_omie,
@@ -328,6 +370,45 @@ export function OmieImportarModal({
           </div>
         </div>
 
+        {/* Vínculo de Ordem de Compra (se houver ordens abertas) */}
+        {ordensData?.ordens && ordensData.ordens.length > 0 && (
+          <div className="p-3.5 rounded-xl bg-card border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <ShoppingCart className="w-4 h-4" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">
+                    Vincular a uma Ordem de Compra existente:
+                  </span>
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                    {ordensData.ordens.length} aberta(s)
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Ao importar a nota, a ordem selecionada será finalizada e marcada como <strong>RECEBIDA</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 w-full sm:w-auto min-w-[280px]">
+              <select
+                value={ordemCompraId || ''}
+                onChange={(e) => setOrdemCompraId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full text-xs h-9 rounded-lg border border-input bg-background px-3 text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 cursor-pointer"
+              >
+                <option value="">Nenhuma ordem (entrada avulsa)</option>
+                {ordensData.ordens.map((ord) => (
+                  <option key={ord.id} value={ord.id}>
+                    Ordem #{ord.id} ({ord.status_display}) — {formatarMoeda(ord.valor_total)} ({ord.total_itens} item(ns))
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Barra de Ações Globais */}
         <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
           <div className="flex items-center gap-2">
@@ -408,9 +489,14 @@ export function OmieImportarModal({
                               Cód: {item.codigo_omie}
                             </Badge>
                           )}
-                          {item.sugestao_automatica && item.acao === 'vincular' && (
-                            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] gap-1 py-0">
-                              <Sparkles className="w-3 h-3" /> Sugestão automática
+                          {item.de_para_reconhecido && item.acao === 'vincular' && (
+                            <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] gap-1 py-0 font-medium">
+                              <Sparkles className="w-3 h-3 text-emerald-500" /> De-Para Lembrado
+                            </Badge>
+                          )}
+                          {!item.de_para_reconhecido && item.sugestao_automatica && item.acao === 'vincular' && (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] gap-1 py-0">
+                              <Sparkles className="w-3 h-3" /> Sugestão por nome
                             </Badge>
                           )}
                         </div>

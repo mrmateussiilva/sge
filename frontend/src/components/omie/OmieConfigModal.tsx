@@ -17,6 +17,7 @@ export function OmieConfigModal({ isOpen, onClose }: OmieConfigModalProps) {
   const queryClient = useQueryClient()
   const [appKey, setAppKey] = useState('')
   const [appSecret, setAppSecret] = useState('')
+  const [autoSyncAtivo, setAutoSyncAtivo] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
   const { data: configData, isLoading: isLoadingConfig } = useQuery({
@@ -29,9 +30,10 @@ export function OmieConfigModal({ isOpen, onClose }: OmieConfigModalProps) {
     if (isOpen) {
       setAppKey('')
       setAppSecret('')
+      setAutoSyncAtivo(configData?.auto_sync_ativo ?? true)
       setErro(null)
     }
-  }, [isOpen])
+  }, [isOpen, configData])
 
   const salvarMutation = useMutation({
     mutationFn: async () => {
@@ -44,16 +46,17 @@ export function OmieConfigModal({ isOpen, onClose }: OmieConfigModalProps) {
       return api.post('/api/v1/omie/configuracao/salvar/', {
         app_key: appKey.trim(),
         app_secret: appSecret.trim(),
+        auto_sync_ativo: autoSyncAtivo,
       })
     },
     onSuccess: () => {
-      toast.success('Credenciais da Omie atualizadas com sucesso!')
+      toast.success('Configurações da Omie atualizadas com sucesso!')
       queryClient.invalidateQueries({ queryKey: ['omie-config'] })
       queryClient.invalidateQueries({ queryKey: ['omie-notas'] })
       onClose()
     },
     onError: (err: any) => {
-      const msg = err?.message || 'Falha ao salvar credenciais da Omie.'
+      const msg = err?.message || 'Falha ao salvar configurações da Omie.'
       setErro(msg)
       toast.error(msg)
     },
@@ -95,9 +98,10 @@ export function OmieConfigModal({ isOpen, onClose }: OmieConfigModalProps) {
                     Chave ativa: <code className="bg-background px-1.5 py-0.5 rounded text-foreground font-mono">{configData.app_key_mascarada}</code>
                   </p>
                 )}
-                {configData?.atualizado_em && (
+                {configData?.ultimo_sync_em && (
                   <p className="text-muted-foreground">
-                    Última sincronização: {configData.atualizado_em}
+                    Último sync em: <strong className="text-foreground">{configData.ultimo_sync_em}</strong>
+                    {configData.ultimo_sync_status && ` (${configData.ultimo_sync_status})`}
                   </p>
                 )}
                 {configData?.cnpj_proprio && (
@@ -148,6 +152,27 @@ export function OmieConfigModal({ isOpen, onClose }: OmieConfigModalProps) {
                 <p className="text-[11px] text-muted-foreground mt-1.5">
                   As credenciais são armazenadas com criptografia simétrica no banco de dados.
                 </p>
+              </div>
+
+              {/* Sincronização Automática */}
+              <div className="p-3.5 rounded-xl border border-border bg-muted/20 flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-foreground block">
+                    Sincronização Automática em Segundo Plano
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Permite que o sistema execute consultas agendadas via cron/worker para manter a lista de notas e compras sempre atualizada.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={autoSyncAtivo}
+                    onChange={(e) => setAutoSyncAtivo(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                </label>
               </div>
             </div>
 

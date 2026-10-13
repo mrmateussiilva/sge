@@ -6,9 +6,12 @@ from django.urls import reverse
 
 from estoque.models import (
     ConfiguracaoOmie,
+    DeParaOmie,
+    Fornecedor,
     HistoricoPreco,
     ImportacaoNFe,
     Movimentacao,
+    OrdemCompra,
     Produto,
 )
 from estoque.services.omie_client import (
@@ -343,3 +346,157 @@ class OmieAPITestCase(TestCase):
         self.assertEqual(resp_repetida.status_code, 400)
         self.assertFalse(resp_repetida.json()['ok'])
         self.assertEqual(resp_repetida.json()['codigo'], 'JA_IMPORTADO')
+
+    def test_depara_omie_criado_e_consultado(self):
+        prod = Produto.objects.create(
+            descricao='PAPEL SUBLIMATICO 90G',
+            tipo_produto='PAPEL',
+            unidade_medida='M',
+            quantidade_base=Decimal('100.00'),
+            preco_custo=Decimal('5.50'),
+        )
+
+        self.client.force_login(self.user)
+        url_importar = reverse('api_v1:omie_importar', kwargs={'id_receb': 9902})
+
+        payload = {
+            'numero_nfe': 'NF-9902',
+            'fornecedor_nome': 'GLOBAL PAPÉIS',
+            'fornecedor_cnpj': '11.222.333/0001-44',
+            'itens': [
+                {
+                    'descricao_omie': 'BOBINA PAPEL 90G 1.60M',
+                    'codigo_omie': 'PAPEL-90G',
+                    'quantidade': 50,
+                    'unidade_omie': 'M',
+                    'valor_unitario': 5.80,
+                    'acao': 'vincular',
+                    'produto_id': prod.id,
+                    'atualizar_custo': True,
+                }
+            ],
+        }
+
+        resp = self.client.post(url_importar, payload, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+
+        # Verificar se o mapeamento De-Para foi criado no banco
+        depara = DeParaOmie.objects.filter(
+            fornecedor_cnpj='11222333000144',
+            codigo_produto_fornecedor='PAPEL-90G',
+        ).first()
+        self.assertIsNotNone(depara)
+        self.assertEqual(depara.produto, prod)
+        self.assertEqual(depara.descricao_produto_fornecedor, 'BOBINA PAPEL 90G 1.60M')
+
+        # Consultar via endpoint de-para
+        url_depara = reverse('api_v1:omie_depara')
+        resp_get = self.client.get(f'{url_depara}?cnpj=11.222.333/0001-44')
+        self.assertEqual(resp_get.status_code, 200)
+        data_get = resp_get.json()
+        self.assertTrue(data_get['ok'])
+        self.assertEqual(data_get['total'], 1)
+        self.assertIn('cod:papel-90g', data_get['mapa'])
+        self.assertIn('desc:bobina papel 90g 1.60m', data_get['mapa'])
+        self.assertEqual(data_get['mapa']['cod:papel-90g']['produto_id'], prod.id)
+
+    def test_importar_nota_com_vinculo_ordem_compra(self):
+        fornecedor = Fornecedor.objects.create(
+            nome='Fornecedor Tintas Especiais',
+            cnpj='33.444.555/0001-66',
+        )
+        ordem = OrdemCompra.objects.create(
+            fornecedor=fornecedor,
+            status='APROVADA',
+            observacao='Pedido de tintas mensal',
+        )
+
+        prod = Produto.objects.create(
+            descricao='Tinta Sublimática Black',
+            tipo_produto='TINTA',
+            unidade_medida='L',
+            quantidade_base=Decimal('10.00'),
+            preco_custo=Decimal('40.00'),
+        )
+
+        self.client.force_login(self.user)
+
+        # Testar listagem de ordens pendentes
+        url_ordens = reverse('api_v1:omie_ordens_pendentes')
+        resp_ordens = self.client.get(f'{url_ordens}?cnpj={fornecedor.cnpj}')
+        self.assertEqual(resp_ordens.status_code, 200)
+        data_ordens = resp_ordens.json()
+        self.assertTrue(data_ordens['ok'])
+        self.assertEqual(data_ordens['total'], 1)
+        self.assertEqual(data_ordens['ordens'][0]['id'], ordem.id)
+
+        # Importar NF-e vinculando a ordem
+        url_importar = reverse('api_v1:omie_importar', kwargs={'id_receb': 9903})
+        payload = {
+            'numero_nfe': 'NF-9903',
+            'fornecedor_nome': fornecedor.nome,
+            'fornecedor_cnpj': fornecedor.cnpj,
+            'ordem_compra_id': ordem.id,
+            'itens': [
+                {
+                    'descricao_omie': 'TINTA SUBLIM BLACK 1L',
+                    'codigo_omie': 'TB-01',
+                    'quantidade': 10,
+                    'unidade_omie': 'L',
+                    'valor_unitario': 42.00,
+                    'acao': 'vincular',
+                    'produto_id': prod.id,
+                    'atualizar_custo': True,
+                }
+            ],
+        }
+
+        resp = self.client.post(url_importar, payload, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+
+        # Verificar que a ordem foi atualizada para RECEBIDA
+        ordem.refresh_from_db()
+        self.assertEqual(ordem.status, 'RECEBIDA')
+
+        # Verificar vínculo no ImportacaoNFe
+        importacao = ImportacaoNFe.objects.get(n_cod_nota_ent=9903)
+        self.assertEqual(importacao.ordem_compra, ordem)
+
+    @patch.object(OmieClient, 'listar_recebimentos_fornecedores_periodo')
+    def test_sincronizar_omie_api(self, mock_listar):
+        mock_listar.return_value = {
+            'notas': [
+                {
+                    'id_receb': 9904,
+                    'numero_nfe': '000100',
+                    'serie': '1',
+                    'chave_nfe': '35261011222333000144550010000001001000000100',
+                    'data_emissao': '10/10/2026',
+                    'fornecedor_nome': 'GLOBAL PAPÉIS',
+                    'fornecedor_razao': 'GLOBAL PAPEIS LTDA',
+                    'fornecedor_cnpj': '11222333000144',
+                    'valor_total': 1200.0,
+                    'natureza_operacao': 'COMPRA',
+                    'etapa': '40',
+                    'itens': [],
+                    'parcelas': [],
+                }
+            ]
+        }
+
+        self.client.force_login(self.user)
+        url_sync = reverse('api_v1:omie_sincronizar')
+        resp = self.client.post(url_sync, {}, content_type='application/json')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['total_notas'], 1)
+        self.assertEqual(data['novas_notas'], 1)
+
+        # Checar se a configuração foi atualizada
+        config = ConfiguracaoOmie.objects.first()
+        self.assertIsNotNone(config.ultimo_sync_em)
+        self.assertIn('1 NF-e consultadas', config.ultimo_sync_status)
+

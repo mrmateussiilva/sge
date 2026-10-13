@@ -113,21 +113,17 @@ O container executa migrations, tenta criar o superusuario com variaveis de ambi
 - **Objetivo**: Permitir visualização e conciliação em tempo real de compras e insumos através das notas fiscais eletrônicas de fornecedores sincronizadas pela Omie/SEFAZ.
 - **Endpoints da API**:
   - `GET /api/v1/omie/notas/`: lista recebimentos de fornecedores filtrados por período, termo de busca e status de importação no SGE, acompanhados de KPIs, top fornecedores e timeline de gastos.
-  - `GET /api/v1/omie/configuracao/`: consulta se App Key e App Secret estão configurados (com máscara visual da chave e dados cadastrais).
-  - `POST /api/v1/omie/configuracao/salvar/`: permite que superusuários atualizem as credenciais via painel web com auditoria (`log_acao`).
-- **Filtragem de Documentos**:
-  - Aceitar estritamente NF-e Modelo 55 (`cModeloNFe == '55'`).
-  - Descartar CT-e Modelo 57 (conhecimentos de frete de transportadoras).
-  - Descartar notas fiscais de emissão própria (`cnpj_emitente == OMIE_CNPJ_PROPRIO` / `06098674000157`).
-- **Armadilhas de Payload da API Omie (Gotchas Críticos)**:
-  - `parcelas`: A API Omie retorna este campo como um dicionário (ex.: `{'cCodParcela': '999', 'nQtdParcela': 2, 'parcelasLista': [...]}` ou à vista sem a chave da lista), e **NUNCA** como uma lista direta. Iterar diretamente sobre ele itera sobre strings de chaves, causando `AttributeError`. Sempre extraia `parcelas.get('parcelasLista')`.
-  - `itensRecebimento`: Pode vir nulo (`None`) para certas notas. Sempre use `rec.get('itensRecebimento') or []` com verificação de tipo de lista.
-  - Conversões Numéricas: Valores como `nQtdeNFe`, `nPrecoUnit`, `vTotalItem` e `nValorNFe` podem vir ausentes, nulos ou formatados com vírgula. Utilize sempre funções de conversão tolerantes (`_converter_float`, `_converter_int`).
-  - Headers HTTP: Requisições via `urllib.request` devem sempre incluir header explícito `'User-Agent': 'Mozilla/5.0 (compatible; SGE/...)'` para evitar bloqueios por firewalls de borda / WAFs da Omie.
-- **Segurança de Credenciais e Criptografia**:
-  - As credenciais podem vir do banco (`ConfiguracaoOmie` criptografada com `EncryptedCharField`) ou das variáveis de ambiente (`OMIE_APP_KEY` / `OMIE_APP_SECRET`).
-  - A chave `OMIE_ENCRYPTION_KEY` possui derivação determinística a partir de `SECRET_KEY` no `core/settings.py` caso não seja definida explicitamente no ambiente, garantindo que o boot de produção não quebre se a variável não estiver no arquivo `.env`.
-  - Toda leitura de `ConfiguracaoOmie` deve ter fallback resiliente para as credenciais de `settings` em caso de erro de descriptografia.
+  - `GET /api/v1/omie/configuracao/`: consulta se App Key e App Secret estão configurados (com máscara visual da chave, carimbo de último sync e toggle de auto-sync).
+  - `POST /api/v1/omie/configuracao/salvar/`: permite que superusuários atualizem as credenciais e status de auto-sync via painel web com auditoria (`log_acao`).
+  - `GET /api/v1/omie/depara/`: consulta vínculos prévios de produtos de fornecedores para pré-preenchimento e badge visual "De-Para Lembrado".
+  - `GET /api/v1/omie/ordens-pendentes/`: lista ordens de compra pendentes/aprovadas para que a importação da NF-e baixe automaticamente o pedido como `RECEBIDA`.
+  - `POST /api/v1/omie/sincronizar/`: dispara sincronização imediata com a SEFAZ/Omie e atualiza o carimbo de último sync.
+- **Sincronização em Segundo Plano (CLI)**:
+  - Comando `python manage.py sync_omie [--dias 30] [--forcar]`: ideal para agendamento via Cron/Systemd ou workers em background.
+- **Memória de De-Para (`DeParaOmie`)**:
+  - Toda importação com produto vinculado registra/atualiza a memória de De-Para pelo CNPJ do fornecedor e código/descrição da NF-e.
+- **Vínculo com Ordem de Compra (`ImportacaoNFe.ordem_compra`)**:
+  - Ao importar uma NF-e vinculando uma Ordem de Compra, a ordem é marcada atomicamente como `RECEBIDA`, registrando histórico no log de auditoria.
 
 ## Testes e Verificacao
 

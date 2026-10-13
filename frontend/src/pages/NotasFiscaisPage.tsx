@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   FileText,
   DollarSign,
@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { OmieConfigModal } from '@/components/omie/OmieConfigModal'
 import { OmieImportarModal } from '@/components/omie/OmieImportarModal'
-import type { OmieNotasResponse, NotaOmie } from '@/types'
+import type { OmieNotasResponse, NotaOmie, OmieConfigResponse, OmieSyncResponse } from '@/types'
 
 const PERIODOS_OPCOES = [
   { dias: 7, label: '7 dias' },
@@ -64,7 +64,41 @@ export function NotasFiscaisPage() {
   const [modalConfigAberto, setModalConfigAberto] = useState(false)
   const [notaParaImportar, setNotaParaImportar] = useState<NotaOmie | null>(null)
 
+  const queryClient = useQueryClient()
   const debouncedBusca = useDebounce(busca, 350)
+
+  // Query de configuração da Omie (para status de sync e credenciais)
+  const { data: configData } = useQuery({
+    queryKey: ['omie-config'],
+    queryFn: () => api.get<OmieConfigResponse>('/api/v1/omie/configuracao/'),
+    staleTime: 30_000,
+  })
+
+  // Mutation de sincronização manual com a Omie
+  const syncMutation = useMutation({
+    mutationFn: () => api.post<OmieSyncResponse>('/api/v1/omie/sincronizar/', {}),
+    onSuccess: (res) => {
+      if (res.ok) {
+        toast.success(res.mensagem || 'Sincronização com a Omie concluída!')
+        queryClient.invalidateQueries({ queryKey: ['omie-notas'] })
+        queryClient.invalidateQueries({ queryKey: ['omie-config'] })
+      } else {
+        toast.error(res.mensagem || 'Erro ao sincronizar com a Omie')
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Falha ao sincronizar com a Omie')
+    },
+  })
+
+  const handleSincronizar = () => {
+    if (syncMutation.isPending || isFetching) return
+    syncMutation.mutate(undefined, {
+      onError: () => {
+        refetch()
+      },
+    })
+  }
 
   // Query de dados da Omie
   const {
@@ -177,6 +211,26 @@ export function NotasFiscaisPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {configData?.ultimo_sync_em && (
+            <div className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium bg-muted/60 text-muted-foreground border border-border/60">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  configData.ultimo_sync_status === 'SUCESSO'
+                    ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50'
+                    : 'bg-destructive'
+                }`}
+              />
+              <span>
+                Sync: {new Date(configData.ultimo_sync_em).toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -201,12 +255,14 @@ export function NotasFiscaisPage() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={handleSincronizar}
+            disabled={isFetching || syncMutation.isPending}
             className="gap-1.5"
           >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            Sincronizar
+            <RefreshCw
+              className={`w-4 h-4 ${isFetching || syncMutation.isPending ? 'animate-spin' : ''}`}
+            />
+            {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}
           </Button>
         </div>
       </div>

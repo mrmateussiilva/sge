@@ -88,5 +88,8 @@ urlpatterns = [
     path('omie/notas/', omie.listar_notas_omie_api, name='omie_notas'),
     path('omie/configuracao/', omie.consultar_configuracao_omie_api, name='omie_configuracao'),
     path('omie/configuracao/salvar/', omie.salvar_configuracao_omie_api, name='omie_configuracao_salvar'),
+    path('omie/depara/', omie.consultar_depara_omie_api, name='omie_depara'),
+    path('omie/ordens-pendentes/', omie.listar_ordens_pendentes_fornecedor_api, name='omie_ordens_pendentes'),
+    path('omie/sincronizar/', omie.sincronizar_omie_api, name='omie_sincronizar'),
     path('omie/notas/<int:id_receb>/importar/', omie.importar_nota_omie_api, name='omie_importar'),
 ]

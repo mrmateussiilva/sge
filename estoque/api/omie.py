@@ -9,14 +9,17 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from ..log_utils import log_acao
 from ..models import (
     ConfiguracaoOmie,
+    DeParaOmie,
     Fornecedor,
     HistoricoPreco,
     ImportacaoNFe,
     Movimentacao,
+    OrdemCompra,
     Produto,
 )
 from ..services.omie_client import OmieAPIError, OmieClient, OmieConfigError, limpar_cnpj
@@ -217,6 +220,9 @@ def consultar_configuracao_omie_api(request):
         configurado=configurado,
         app_key_mascarada=app_key_mascarada,
         atualizado_em=cfg.atualizado_em.strftime('%d/%m/%Y %H:%M') if cfg and cfg.atualizado_em else None,
+        auto_sync_ativo=cfg.auto_sync_ativo if cfg else True,
+        ultimo_sync_em=cfg.ultimo_sync_em.strftime('%d/%m/%Y %H:%M') if cfg and cfg.ultimo_sync_em else None,
+        ultimo_sync_status=cfg.ultimo_sync_status if cfg else '',
         cnpj_proprio=getattr(settings, 'OMIE_CNPJ_PROPRIO', '06098674000157'),
         is_admin=request.user.is_superuser,
     )
@@ -239,6 +245,7 @@ def salvar_configuracao_omie_api(request):
 
     app_key = str(data.get('app_key', '')).strip().strip('"\':')
     app_secret = str(data.get('app_secret', '')).strip().strip('"\':')
+    auto_sync_ativo = data.get('auto_sync_ativo')
 
     if len(app_secret) == 32 and app_secret[0] in ('O', 'o'):
         import re
@@ -256,6 +263,8 @@ def salvar_configuracao_omie_api(request):
 
     config.app_key = app_key
     config.app_secret = app_secret
+    if auto_sync_ativo is not None:
+        config.auto_sync_ativo = bool(auto_sync_ativo)
     config.usuario = request.user
     config.save()
 
@@ -268,6 +277,170 @@ def salvar_configuracao_omie_api(request):
     )
 
     return json_ok(mensagem='Credenciais da Omie salvas com sucesso!')
+
+
+@login_required
+def consultar_depara_omie_api(request):
+    """
+    Retorna a memória de De-Para entre itens de fornecedores na Omie e Produtos no SGE.
+    Filtra opcionalmente por CNPJ do fornecedor.
+    """
+    cnpj = limpar_cnpj(request.GET.get('cnpj', ''))
+    qs = DeParaOmie.objects.select_related('produto')
+    if cnpj:
+        qs = qs.filter(fornecedor_cnpj=cnpj)
+
+    mapeamentos = []
+    mapa_por_chave = {}
+    for item in qs[:300]:
+        prod = item.produto
+        dado = {
+            'id': item.id,
+            'fornecedor_cnpj': item.fornecedor_cnpj,
+            'fornecedor_nome': item.fornecedor_nome,
+            'codigo_produto_fornecedor': item.codigo_produto_fornecedor,
+            'descricao_produto_fornecedor': item.descricao_produto_fornecedor,
+            'produto_id': prod.id,
+            'produto_descricao': prod.descricao,
+            'produto_tipo': prod.tipo_produto,
+            'produto_unidade': prod.unidade_medida,
+            'preco_custo': float(prod.preco_custo or 0),
+            'atualizado_em': item.atualizado_em.strftime('%d/%m/%Y %H:%M'),
+        }
+        mapeamentos.append(dado)
+        # Chaves de lookup rápido para o frontend
+        if item.codigo_produto_fornecedor:
+            mapa_por_chave[f'cod:{item.codigo_produto_fornecedor.strip().lower()}'] = dado
+        if item.descricao_produto_fornecedor:
+            mapa_por_chave[f'desc:{item.descricao_produto_fornecedor.strip().lower()}'] = dado
+
+    return json_ok(
+        mapeamentos=mapeamentos,
+        mapa=mapa_por_chave,
+        total=len(mapeamentos),
+    )
+
+
+@login_required
+def listar_ordens_pendentes_fornecedor_api(request):
+    """
+    Retorna as Ordens de Compra em aberto (PENDENTE ou APROVADA) no SGE.
+    Prioriza ordens do fornecedor indicado pelo CNPJ.
+    """
+    cnpj = limpar_cnpj(request.GET.get('cnpj', ''))
+    busca = (request.GET.get('q') or '').strip().lower()
+
+    qs = OrdemCompra.objects.filter(
+        status__in=['PENDENTE', 'APROVADA']
+    ).select_related('fornecedor').prefetch_related('itens__produto').order_by('-id')
+
+    if cnpj:
+        qs_filtrada = qs.filter(fornecedor__cnpj__icontains=cnpj)
+        if qs_filtrada.exists():
+            qs = qs_filtrada
+
+    if busca:
+        qs = qs.filter(
+            Q(id__icontains=busca) |
+            Q(fornecedor__nome__icontains=busca) |
+            Q(observacao__icontains=busca)
+        )
+
+    ordens = []
+    for o in qs[:50]:
+        itens_ordem = []
+        val_total = Decimal('0.00')
+        for it in o.itens.all():
+            subtotal = it.quantidade * it.preco_unitario
+            val_total += subtotal
+            itens_ordem.append({
+                'item_id': it.id,
+                'produto_id': it.produto_id,
+                'produto_descricao': it.produto.descricao,
+                'quantidade': float(it.quantidade),
+                'preco_unitario': float(it.preco_unitario),
+                'subtotal': float(subtotal),
+            })
+
+        ordens.append({
+            'id': o.id,
+            'status': o.status,
+            'status_display': o.get_status_display(),
+            'fornecedor_id': o.fornecedor_id,
+            'fornecedor_nome': o.fornecedor.nome if o.fornecedor else 'Fornecedor não informado',
+            'fornecedor_cnpj': o.fornecedor.cnpj if o.fornecedor else '',
+            'data_criacao': o.data_criacao.strftime('%d/%m/%Y'),
+            'total_itens': len(itens_ordem),
+            'valor_total': float(val_total),
+            'observacao': o.observacao,
+            'itens': itens_ordem,
+        })
+
+    return json_ok(ordens=ordens, total=len(ordens))
+
+
+@login_required
+def sincronizar_omie_api(request):
+    """
+    Executa a sincronização ativa com a API Omie para o período especificado (padrão 30 dias),
+    atualizando o carimbo de último sync na ConfiguracaoOmie.
+    """
+    dias = 30
+    if request.method == 'POST' and request.body:
+        try:
+            body = json.loads(request.body)
+            dias = int(body.get('dias', 30))
+        except Exception:
+            pass
+    elif request.GET.get('dias'):
+        try:
+            dias = int(request.GET.get('dias'))
+        except Exception:
+            pass
+
+    hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
+    dt_inicio = (hoje - timedelta(days=dias)).strftime('%d/%m/%Y')
+    dt_fim = hoje.strftime('%d/%m/%Y')
+
+    try:
+        client = OmieClient()
+        resumo = client.listar_recebimentos_fornecedores_periodo(
+            dt_inicio=dt_inicio,
+            dt_fim=dt_fim,
+            apenas_fornecedores=True,
+            incluir_detalhes=True,
+        )
+    except OmieConfigError as exc:
+        return json_erro(str(exc), codigo='OMIE_NAO_CONFIGURADO', status=400)
+    except OmieAPIError as exc:
+        return json_erro(f'Erro na API Omie: {exc.descricao}', codigo='OMIE_API_ERROR', status=502)
+    except Exception as exc:
+        logger.exception('Erro ao sincronizar com Omie: %s', exc)
+        return json_erro(f'Falha ao sincronizar: {exc}', status=500)
+
+    todas_notas = resumo.get('notas', [])
+    ids_receb = [n['id_receb'] for n in todas_notas if n.get('id_receb')]
+    importadas_ids = set(
+        ImportacaoNFe.objects.filter(n_cod_nota_ent__in=ids_receb).values_list('n_cod_nota_ent', flat=True)
+    )
+
+    novas_notas = [n for n in todas_notas if n.get('id_receb') not in importadas_ids]
+
+    cfg, _ = ConfiguracaoOmie.objects.get_or_create(id=1)
+    agora_tz = timezone.now()
+    status_msg = f'{len(todas_notas)} NF-e consultadas ({len(novas_notas)} nova(s) pendente(s))'
+    cfg.ultimo_sync_em = agora_tz
+    cfg.ultimo_sync_status = status_msg
+    cfg.save(update_fields=['ultimo_sync_em', 'ultimo_sync_status'])
+
+    return json_ok(
+        mensagem=f'Sincronização concluída com sucesso! {len(todas_notas)} nota(s) consultada(s).',
+        total_notas=len(todas_notas),
+        novas_notas=len(novas_notas),
+        ultimo_sync_em=agora_tz.strftime('%d/%m/%Y %H:%M'),
+        ultimo_sync_status=status_msg,
+    )
+
 
 
 @login_required
@@ -302,11 +475,12 @@ def importar_nota_omie_api(request, id_receb: int):
     fornecedor_nome = str(data.get('fornecedor_nome', '')).strip()
     fornecedor_cnpj = str(data.get('fornecedor_cnpj', '')).strip()
     chave_nfe = str(data.get('chave_nfe', '')).strip()
+    ordem_compra_id = data.get('ordem_compra_id')
 
     # Tentar localizar ou criar Fornecedor correspondente no SGE
     fornecedor_obj = None
-    if fornecedor_cnpj:
-        cnpj_limpo = limpar_cnpj(fornecedor_cnpj)
+    cnpj_limpo = limpar_cnpj(fornecedor_cnpj) if fornecedor_cnpj else ''
+    if cnpj_limpo:
         fornecedor_obj = Fornecedor.objects.filter(cnpj__icontains=cnpj_limpo).first()
     if not fornecedor_obj and fornecedor_nome:
         fornecedor_obj = Fornecedor.objects.filter(nome__iexact=fornecedor_nome).first()
@@ -321,6 +495,7 @@ def importar_nota_omie_api(request, id_receb: int):
 
     movimentacoes_criadas = 0
     descricoes_importadas = []
+    ordem_compra_obj = None
 
     try:
         with transaction.atomic():
@@ -330,6 +505,23 @@ def importar_nota_omie_api(request, id_receb: int):
                     codigo='JA_IMPORTADO',
                     status=400,
                 )
+
+            # Se vinculada a uma Ordem de Compra existente
+            if ordem_compra_id:
+                try:
+                    ordem_compra_obj = OrdemCompra.objects.select_for_update().get(pk=ordem_compra_id)
+                    if ordem_compra_obj.status != 'RECEBIDA':
+                        ordem_compra_obj.status = 'RECEBIDA'
+                        ordem_compra_obj.save(update_fields=['status'])
+                        log_acao(
+                            request.user,
+                            'RECEBER',
+                            f'Ordem de Compra #{ordem_compra_obj.id} finalizada como RECEBIDA via importação da NF-e nº {numero_nfe or id_receb} ({fornecedor_nome})',
+                            'OrdemCompra',
+                            ordem_compra_obj.id,
+                        )
+                except OrdemCompra.DoesNotExist:
+                    return json_erro(f'Ordem de Compra #{ordem_compra_id} não encontrada.', status=404)
 
             for it in itens:
                 acao = it.get('acao', 'vincular')
@@ -410,6 +602,24 @@ def importar_nota_omie_api(request, id_receb: int):
                     observacao=obs[:255],
                 )
 
+                # Salvar ou atualizar memória de De-Para do fornecedor
+                if cnpj_limpo:
+                    cod_item = str(it.get('codigo_omie', '')).strip()
+                    desc_item = str(it.get('descricao_omie', '')).strip()
+                    if desc_item:
+                        try:
+                            DeParaOmie.objects.update_or_create(
+                                fornecedor_cnpj=cnpj_limpo,
+                                codigo_produto_fornecedor=cod_item,
+                                descricao_produto_fornecedor=desc_item,
+                                defaults={
+                                    'fornecedor_nome': fornecedor_nome[:200],
+                                    'produto': produto,
+                                }
+                            )
+                        except Exception as depara_exc:
+                            logger.warning('Falha ao gravar DeParaOmie para item "%s": %s', desc_item, depara_exc)
+
                 movimentacoes_criadas += 1
                 descricoes_importadas.append(f'{produto.descricao} (+{qtd_dec})')
 
@@ -418,8 +628,12 @@ def importar_nota_omie_api(request, id_receb: int):
                 n_cod_nota_ent=id_receb,
                 numero_nfe=numero_nfe,
                 fornecedor_nome=fornecedor_nome,
+                ordem_compra=ordem_compra_obj,
                 usuario=request.user,
-                observacao=f'{movimentacoes_criadas} item(ns) importado(s) via conciliação web',
+                observacao=(
+                    f'{movimentacoes_criadas} item(ns) importado(s) via conciliação web'
+                    + (f' | Vinculada à Ordem de Compra #{ordem_compra_obj.id}' if ordem_compra_obj else '')
+                ),
             )
 
             log_acao(
@@ -429,14 +643,20 @@ def importar_nota_omie_api(request, id_receb: int):
                     f'Importação NF-e {numero_nfe or id_receb} ({fornecedor_nome}) — '
                     f'{movimentacoes_criadas} entrada(s): {", ".join(descricoes_importadas[:5])}'
                     + ('...' if len(descricoes_importadas) > 5 else '')
+                    + (f' [Ordem #{ordem_compra_obj.id} RECEBIDA]' if ordem_compra_obj else '')
                 ),
                 'ImportacaoNFe',
                 id_receb,
             )
 
+        msg_retorno = f'{movimentacoes_criadas} entrada(s) de estoque registrada(s) com sucesso!'
+        if ordem_compra_obj:
+            msg_retorno += f' Ordem de Compra #{ordem_compra_obj.id} marcada como RECEBIDA.'
+
         return json_ok(
-            mensagem=f'{movimentacoes_criadas} entrada(s) de estoque registrada(s) com sucesso!',
+            mensagem=msg_retorno,
             movimentacoes_criadas=movimentacoes_criadas,
+            ordem_compra_id=ordem_compra_obj.id if ordem_compra_obj else None,
         )
     except Exception as exc:
         logger.exception('Erro ao importar itens da NF-e Omie: %s', exc)

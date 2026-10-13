@@ -81,6 +81,9 @@ export interface OmieConfigResponse {
   configurado: boolean
   app_key_mascarada: string
   atualizado_em: string | null
+  auto_sync_ativo?: boolean
+  ultimo_sync_em?: string | null
+  ultimo_sync_status?: string
   cnpj_proprio: string
   is_admin: boolean
   erro?: string
@@ -108,5 +111,65 @@ export interface ImportarNotaPayload {
   fornecedor_nome: string
   fornecedor_cnpj: string
   chave_nfe?: string
+  ordem_compra_id?: number | null
   itens: ItemImportacaoPayload[]
+}
+
+export interface DeParaOmieItem {
+  id: number
+  fornecedor_cnpj: string
+  fornecedor_nome: string
+  codigo_produto_fornecedor: string
+  descricao_produto_fornecedor: string
+  produto_id: number
+  produto_descricao: string
+  produto_tipo: string
+  produto_unidade: string
+  preco_custo: number
+  atualizado_em: string
+}
+
+export interface DeParaResponse {
+  ok: boolean
+  mapeamentos: DeParaOmieItem[]
+  mapa: Record<string, DeParaOmieItem>
+  total: number
+}
+
+export interface OrdemPendenteItem {
+  item_id: number
+  produto_id: number
+  produto_descricao: string
+  quantidade: number
+  preco_unitario: number
+  subtotal: number
+}
+
+export interface OrdemPendente {
+  id: number
+  status: string
+  status_display: string
+  fornecedor_id: number | null
+  fornecedor_nome: string
+  fornecedor_cnpj: string
+  data_criacao: string
+  total_itens: number
+  valor_total: number
+  observacao: string
+  itens: OrdemPendenteItem[]
+}
+
+export interface OrdensPendentesResponse {
+  ok: boolean
+  ordens: OrdemPendente[]
+  total: number
+}
+
+export interface OmieSyncResponse {
+  ok: boolean
+  mensagem: string
+  total_notas: number
+  novas_notas: number
+  ultimo_sync_em: string
+  ultimo_sync_status: string
 }
