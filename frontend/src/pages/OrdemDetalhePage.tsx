@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -10,15 +11,18 @@ import {
   Truck,
   Calendar,
   Loader2,
+  Pencil,
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { OrdemFormModal } from '@/components/ordens/OrdemFormModal'
 
 export function OrdemDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['ordem-detalhe', id],
@@ -104,9 +108,19 @@ export function OrdemDetalhePage() {
         </Button>
 
         {/* Botões contextuais de transição de status */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isPendente && (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setEditModalOpen(true)}
+              >
+                <Pencil className="w-4 h-4" />
+                <span>Editar Ordem</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -270,6 +284,20 @@ export function OrdemDetalhePage() {
           </div>
         </CardContent>
       </Card>
+
+      {isPendente && (
+        <OrdemFormModal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSuccess={refetch}
+          ordemParaEditar={{
+            id: ordem.id,
+            fornecedor: ordem.fornecedor,
+            observacao: ordem.observacao,
+            itens,
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -9,8 +9,12 @@ from .services.usernames import normalize_username, validate_username_available
 
 
 @receiver(pre_save, sender=Produto)
-def guardar_precos_anteriores(sender, instance, **kwargs):
+def guardar_precos_anteriores(sender, instance, update_fields=None, **kwargs):
     if not instance.pk:
+        return
+    if update_fields is not None and not ({'preco_custo', 'preco_venda'} & set(update_fields)):
+        instance._preco_custo_anterior = instance.preco_custo
+        instance._preco_venda_anterior = instance.preco_venda
         return
     try:
         old = Produto.objects.only('preco_custo', 'preco_venda').get(pk=instance.pk)

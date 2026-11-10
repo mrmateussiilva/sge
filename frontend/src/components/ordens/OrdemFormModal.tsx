@@ -24,14 +24,37 @@ interface FornecedorSimples {
 
 const novoItem = (): ItemLinha => ({ id: crypto.randomUUID(), produto: null, produto_id: '', quantidade: '1', preco_unitario: '' })
 
+export interface OrdemParaEditar {
+  id: number
+  fornecedor: { id: number; nome: string } | null
+  observacao: string
+  itens: Array<{
+    id: number
+    produto_id: number
+    produto_descricao: string
+    produto_unidade: string
+    produto_quantidade_formatada?: string
+    produto_preco_custo?: number | null
+    quantidade: number
+    preco_unitario: number
+  }>
+}
+
 interface OrdemFormModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  ordemParaEditar?: OrdemParaEditar | null
 }
 
-export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalProps) {
+export function OrdemFormModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  ordemParaEditar = null,
+}: OrdemFormModalProps) {
   const queryClient = useQueryClient()
+  const isEditing = Boolean(ordemParaEditar)
 
   const [fornecedorId, setFornecedorId] = useState('')
   const [observacao, setObservacao] = useState('')
@@ -47,12 +70,51 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
   })
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return
+
+    if (ordemParaEditar) {
+      setFornecedorId(ordemParaEditar.fornecedor ? String(ordemParaEditar.fornecedor.id) : '')
+      setObservacao(ordemParaEditar.observacao || '')
+      if (ordemParaEditar.itens.length > 0) {
+        setItens(
+          ordemParaEditar.itens.map((it) => ({
+            id: crypto.randomUUID(),
+            produto: {
+              id: it.produto_id,
+              descricao: it.produto_descricao,
+              quantidade: 0,
+              quantidade_formatada: it.produto_quantidade_formatada || `0 ${it.produto_unidade}`,
+              estoque_minimo: 0,
+              status_estoque: 'NORMAL',
+              tipo_produto: 'OUTRO',
+              tipo_label: '',
+              fornecedor: ordemParaEditar.fornecedor?.nome || null,
+              preco_custo: it.produto_preco_custo ?? it.preco_unitario,
+              preco_venda: null,
+              preco_custo_formatado: '',
+              preco_venda_formatado: '',
+              margem: null,
+              metros_por_rolo: 0,
+              litros_por_vidro: 0,
+              embalagens_estimadas: 0,
+              tipo_tinta: 'N/A',
+              cor_tinta: 'INCOLOR',
+              unidade_simbolo: it.produto_unidade,
+            },
+            produto_id: String(it.produto_id),
+            quantidade: String(it.quantidade),
+            preco_unitario: String(it.preco_unitario),
+          }))
+        )
+      } else {
+        setItens([novoItem()])
+      }
+    } else {
       setFornecedorId('')
       setObservacao('')
       setItens([novoItem()])
     }
-  }, [isOpen])
+  }, [isOpen, ordemParaEditar])
 
   function handleAddItem() {
     setItens((prev) => [...prev, novoItem()])
@@ -86,16 +148,27 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
   }, 0)
 
   const mutation = useMutation({
-    mutationFn: (body: any) => api.post('/api/v1/ordens/criar/', body),
+    mutationFn: (body: any) =>
+      ordemParaEditar
+        ? api.post(`/api/v1/ordens/${ordemParaEditar.id}/editar/`, body)
+        : api.post('/api/v1/ordens/criar/', body),
     onSuccess: (res) => {
-      toast.success(`Ordem de compra #${res.id} criada com sucesso!`)
+      toast.success(
+        ordemParaEditar
+          ? `Ordem de compra #${ordemParaEditar.id} atualizada com sucesso!`
+          : `Ordem de compra #${res.id} criada com sucesso!`
+      )
       queryClient.invalidateQueries({ queryKey: ['ordens'] })
+      queryClient.invalidateQueries({ queryKey: ['ordem-detalhe'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       onSuccess?.()
       onClose()
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Erro ao criar ordem de compra.')
+      toast.error(
+        err.message ||
+          (ordemParaEditar ? 'Erro ao atualizar ordem de compra.' : 'Erro ao criar ordem de compra.')
+      )
     },
   })
 
@@ -128,8 +201,12 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nova Ordem de Compra"
-      description="Gere um pedido formal a fornecedores com itens e quantidades."
+      title={isEditing ? `Editar Ordem de Compra #${ordemParaEditar?.id}` : 'Nova Ordem de Compra'}
+      description={
+        isEditing
+          ? 'Altere fornecedor, observações ou itens enquanto a ordem está pendente.'
+          : 'Gere um pedido formal a fornecedores com itens e quantidades.'
+      }
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -266,10 +343,10 @@ export function OrdemFormModal({ isOpen, onClose, onSuccess }: OrdemFormModalPro
             {mutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Criando Ordem...</span>
+                <span>{isEditing ? 'Salvando...' : 'Criando Ordem...'}</span>
               </>
             ) : (
-              <span>Criar Ordem de Compra</span>
+              <span>{isEditing ? 'Salvar Alterações' : 'Criar Ordem de Compra'}</span>
             )}
           </Button>
         </div>

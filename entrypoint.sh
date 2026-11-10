@@ -16,6 +16,12 @@ uv run python manage.py createsuperuser \
 
 uv run python manage.py collectstatic --noinput
 
+# Inicia o daemon de backup periódico em Python em segundo plano (se habilitado ou padrão)
+if [ "${BACKUP_ENABLED:-true}" = "true" ]; then
+  echo "[Backup] Iniciando daemon de backup periódico em segundo plano..."
+  uv run python scripts/backup_daemon.py &
+fi
+
 # Se Litestream estiver configurado, roda gunicorn encapsulado no replicate
 if [ -n "$LITESTREAM_REPLICA_URL" ]; then
   echo "[Litestream] Iniciando replicação contínua para o SQLite..."

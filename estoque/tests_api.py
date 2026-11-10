@@ -250,11 +250,64 @@ class ApiV1Tests(TestCase):
         self.assertEqual(len(detalhe_data['itens']), 1)
         self.assertEqual(detalhe_data['itens'][0]['preco_unitario'], 9.5)
 
+        # Editar ordem PENDENTE
+        url_editar = reverse('api_v1:ordens_editar', kwargs={'id': ordem_id})
+        payload_edicao = {
+            'fornecedor_id': self.fornecedor.id,
+            'observacao': 'Ordem editada via API',
+            'itens': [
+                {
+                    'produto_id': self.produto_papel.id,
+                    'quantidade': '20',
+                    'preco_unitario': '11.25',
+                },
+                {
+                    'produto_id': self.produto_zerado.id,
+                    'quantidade': '5',
+                    'preco_unitario': '30.00',
+                },
+            ],
+        }
+        res_editar = self.client.post(
+            url_editar,
+            data=json.dumps(payload_edicao),
+            content_type='application/json',
+        )
+        self.assertEqual(res_editar.status_code, 200)
+        self.assertTrue(res_editar.json()['ok'])
+
+        res_detalhe_pos_edicao = self.client.get(url_detalhe).json()
+        self.assertEqual(res_detalhe_pos_edicao['ordem']['observacao'], 'Ordem editada via API')
+        self.assertEqual(len(res_detalhe_pos_edicao['itens']), 2)
+        self.assertEqual(res_detalhe_pos_edicao['ordem']['valor_total'], 375.0)
+
         # Aprovar ordem
         url_aprovar = reverse('api_v1:ordens_aprovar', kwargs={'id': ordem_id})
         res_aprovar = self.client.post(url_aprovar)
         self.assertEqual(res_aprovar.status_code, 200)
         self.assertTrue(res_aprovar.json()['ok'])
+
+        # Bloquear edição de ordem APROVADA
+        res_editar_bloqueada = self.client.post(
+            url_editar,
+            data=json.dumps(payload_edicao),
+            content_type='application/json',
+        )
+        self.assertEqual(res_editar_bloqueada.status_code, 400)
+        self.assertFalse(res_editar_bloqueada.json()['ok'])
+
+        # Receber ordem APROVADA e validar entrada no estoque e atualização de custo
+        url_receber = reverse('api_v1:ordens_receber', kwargs={'id': ordem_id})
+        res_receber = self.client.post(url_receber)
+        self.assertEqual(res_receber.status_code, 200)
+        self.assertTrue(res_receber.json()['ok'])
+
+        self.produto_papel.refresh_from_db()
+        self.produto_zerado.refresh_from_db()
+        self.assertEqual(self.produto_papel.quantidade_base, Decimal('70.00'))
+        self.assertEqual(self.produto_papel.preco_custo, Decimal('11.25'))
+        self.assertEqual(self.produto_zerado.quantidade_base, Decimal('5.00'))
+        self.assertEqual(self.produto_zerado.preco_custo, Decimal('30.00'))
 
     def test_categorias_e_fornecedores_api(self):
         self.client.force_login(self.operador_user)

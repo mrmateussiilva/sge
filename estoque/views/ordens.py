@@ -108,26 +108,49 @@ def validar_itens_ordem(itens):
         raise ValidationError('Inclua ao menos um item na ordem.')
 
     itens_validados = []
+    produto_ids = set()
     for item in itens:
-        produto_id = item.get('produto_id')
+        produto_id_raw = item.get('produto_id')
         quantidade = decimal_ou_none(item.get('quantidade'))
         preco_unitario = decimal_ou_none(item.get('preco_unitario'))
 
-        if not produto_id:
+        if not produto_id_raw:
             raise ValidationError('Selecione um produto para todos os itens.')
+        try:
+            produto_id = int(produto_id_raw)
+        except (TypeError, ValueError):
+            raise ValidationError('Produto informado não foi encontrado.')
         if quantidade is None or quantidade <= 0:
             raise ValidationError('Quantidade deve ser maior que zero em todos os itens.')
         if preco_unitario is None or preco_unitario < 0:
             raise ValidationError('Preço unitário não pode ser negativo.')
-        if not Produto.objects.filter(pk=produto_id).exists():
-            raise ValidationError('Produto informado não foi encontrado.')
 
+        produto_ids.add(produto_id)
         itens_validados.append({
             'produto_id': produto_id,
             'quantidade': quantidade,
             'preco_unitario': preco_unitario,
         })
+
+    produtos_existentes = set(
+        Produto.objects.filter(pk__in=produto_ids).values_list('pk', flat=True)
+    )
+    if len(produtos_existentes) != len(produto_ids):
+        raise ValidationError('Produto informado não foi encontrado.')
+
     return itens_validados
+
+
+def _validar_fornecedor_id(fornecedor_id_raw):
+    if not fornecedor_id_raw:
+        return None
+    try:
+        fornecedor_id = int(fornecedor_id_raw)
+    except (TypeError, ValueError):
+        raise ValidationError('Fornecedor informado não foi encontrado.')
+    if not Fornecedor.objects.filter(pk=fornecedor_id).exists():
+        raise ValidationError('Fornecedor informado não foi encontrado.')
+    return fornecedor_id
 
 
 @login_required
@@ -139,20 +162,23 @@ def criar_ordem(request):
         is_json = request.content_type.startswith('application/json')
         try:
             data = json.loads(request.body) if is_json else request.POST
+            fornecedor_id = _validar_fornecedor_id(data.get('fornecedor_id'))
             itens_raw = data.get('itens', []) if is_json else itens_ordem_de_post(request.POST)
             itens = validar_itens_ordem(itens_raw)
             with transaction.atomic():
                 ordem = OrdemCompra.objects.create(
-                    fornecedor_id=data.get('fornecedor_id') or None,
-                    observacao=data.get('observacao', ''),
+                    fornecedor_id=fornecedor_id,
+                    observacao=(data.get('observacao') or '').strip(),
                 )
-                for item in itens:
-                    ItemOrdemCompra.objects.create(
+                ItemOrdemCompra.objects.bulk_create([
+                    ItemOrdemCompra(
                         ordem=ordem,
                         produto_id=item['produto_id'],
                         quantidade=item['quantidade'],
                         preco_unitario=item['preco_unitario'],
                     )
+                    for item in itens
+                ])
             log_acao(request.user, 'CRIAR', f'Criou ordem de compra #{ordem.id}', 'OrdemCompra', ordem.id)
             if is_json:
                 return JsonResponse({'ok': True, 'id': ordem.id})
@@ -169,6 +195,49 @@ def criar_ordem(request):
             messages.error(request, '; '.join(exc.messages))
             return render(request, 'estoque/criar_ordem.html', contexto_form_ordem(request.POST, itens_ordem_de_post(request.POST)), status=400)
     return render(request, 'estoque/criar_ordem.html', contexto_form_ordem())
+
+
+@login_required
+def editar_ordem(request, id):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'erro': 'Método não permitido.'}, status=405)
+    perm_error = exigir_perfil(request, PERFIS_OPERACIONAIS)
+    if perm_error:
+        return perm_error
+
+    is_json = request.content_type.startswith('application/json')
+    try:
+        data = json.loads(request.body) if is_json else request.POST
+        fornecedor_id = _validar_fornecedor_id(data.get('fornecedor_id'))
+        itens_raw = data.get('itens', []) if is_json else itens_ordem_de_post(request.POST)
+        itens = validar_itens_ordem(itens_raw)
+
+        with transaction.atomic():
+            ordem = get_object_or_404(OrdemCompra.objects.select_for_update(), id=id)
+            if ordem.status != 'PENDENTE':
+                return json_erro('Apenas ordens pendentes podem ser editadas.', status=400)
+
+            ordem.fornecedor_id = fornecedor_id
+            ordem.observacao = (data.get('observacao') or '').strip()
+            ordem.save(update_fields=['fornecedor_id', 'observacao'])
+
+            ordem.itens.all().delete()
+            ItemOrdemCompra.objects.bulk_create([
+                ItemOrdemCompra(
+                    ordem=ordem,
+                    produto_id=item['produto_id'],
+                    quantidade=item['quantidade'],
+                    preco_unitario=item['preco_unitario'],
+                )
+                for item in itens
+            ])
+
+        log_acao(request.user, 'EDITAR', f'Editou ordem de compra #{ordem.id}', 'OrdemCompra', ordem.id)
+        return JsonResponse({'ok': True, 'id': ordem.id})
+    except (json.JSONDecodeError, InvalidOperation, TypeError, ValueError):
+        return json_erro('Dados inválidos.')
+    except ValidationError as exc:
+        return json_erro('; '.join(exc.messages))
 
 
 @login_required
@@ -231,20 +300,27 @@ def receber_ordem(request, id):
         )
         if ordem.status != 'APROVADA':
             return JsonResponse({'ok': False, 'erro': 'Ordem precisa estar aprovada para ser recebida.'}, status=400)
-        itens = ordem.itens.select_related('produto').all()
+        itens = list(ordem.itens.all())
+        produto_ids = sorted({item.produto_id for item in itens})
+        produtos_map = {
+            p.pk: p
+            for p in Produto.objects.select_for_update().filter(pk__in=produto_ids).order_by('pk')
+        }
         for item in itens:
-            produto = Produto.objects.select_for_update().get(pk=item.produto.pk)
-            produto.preco_custo = item.preco_unitario
-            produto._historico_usuario = request.user
-            produto.save()
+            produto = produtos_map[item.produto_id]
+            if produto.preco_custo != item.preco_unitario:
+                produto.preco_custo = item.preco_unitario
+                produto._historico_usuario = request.user
+                produto.save(update_fields=['preco_custo'])
             Movimentacao.objects.create(
                 produto=produto,
                 usuario=request.user,
                 tipo='ENTRADA',
+                motivo='COMPRA',
                 quantidade=item.quantidade,
                 observacao=f'Recebimento da Ordem #{ordem.id}',
             )
         ordem.status = 'RECEBIDA'
-        ordem.save()
+        ordem.save(update_fields=['status'])
     log_acao(request.user, 'RECEBER', f'Recebeu ordem de compra #{ordem.id} no estoque', 'OrdemCompra', id)
     return JsonResponse({'ok': True})

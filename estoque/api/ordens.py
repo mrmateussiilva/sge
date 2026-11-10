@@ -109,6 +109,8 @@ def detalhe_ordem_api(request, id):
             'produto_id': item.produto_id,
             'produto_descricao': item.produto.descricao,
             'produto_unidade': item.produto.unidade_simbolo,
+            'produto_quantidade_formatada': item.produto.quantidade_formatada,
+            'produto_preco_custo': float(item.produto.preco_custo) if item.produto.preco_custo is not None else None,
             'quantidade': float(item.quantidade),
             'preco_unitario': float(item.preco_unitario),
             'preco_unitario_formatado': dinheiro_br(item.preco_unitario),

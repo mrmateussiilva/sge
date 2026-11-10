@@ -46,6 +46,7 @@ urlpatterns = [
     path('ordens/', ordens.listar_ordens_api, name='ordens_lista'),
     path('ordens/<int:id>/', ordens.detalhe_ordem_api, name='ordens_detalhe'),
     path('ordens/criar/', views.criar_ordem, name='ordens_criar'),
+    path('ordens/<int:id>/editar/', views.editar_ordem, name='ordens_editar'),
     path('ordens/<int:id>/aprovar/', views.aprovar_ordem, name='ordens_aprovar'),
     path('ordens/<int:id>/cancelar/', views.cancelar_ordem, name='ordens_cancelar'),
     path('ordens/<int:id>/receber/', views.receber_ordem, name='ordens_receber'),

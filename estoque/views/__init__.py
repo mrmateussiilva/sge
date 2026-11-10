@@ -14,8 +14,8 @@ from .movimentacoes import (
     excluir_movimentacao, info_produto_movimentacao, registrar_movimentacao
 )
 from .ordens import (
-    aprovar_ordem, cancelar_ordem, criar_ordem, detalhe_ordem, lista_ordens,
-    receber_ordem
+    aprovar_ordem, cancelar_ordem, criar_ordem, detalhe_ordem, editar_ordem,
+    lista_ordens, receber_ordem
 )
 from .fechamentos import (
     contexto_lista_fechamentos, detalhe_fechamento, excluir_fechamento,
@@ -65,6 +65,7 @@ __all__ = [
     'cancelar_ordem',
     'criar_ordem',
     'detalhe_ordem',
+    'editar_ordem',
     'lista_ordens',
     'receber_ordem',
     'contexto_lista_fechamentos',

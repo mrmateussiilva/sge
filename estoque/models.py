@@ -296,7 +296,7 @@ class Movimentacao(models.Model):
                             f'Disponível: {produto.quantidade_base}, solicitado: {self.quantidade}'
                         )
                     produto.quantidade_base -= self.quantidade
-                produto.save()
+                produto.save(update_fields=['quantidade_base'])
                 self.produto = produto
                 super().save(*args, **kwargs)
                 from notifications.events import notify_stock_threshold_crossed
